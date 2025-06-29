@@ -1,44 +1,129 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { checkBalanceWithVoiceCommand } from '@/ai/flows/ai-assistant-flow';
+import { textToSpeech } from '@/ai/flows/tts-flow';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Mic, User, Bot, Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Mic, User, Bot, Loader2, StopCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+// SpeechRecognition might not be on the window object by default in TypeScript
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 interface Message {
   sender: 'user' | 'bot';
   text: string;
+  audioUrl?: string;
 }
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { toast } = useToast();
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  // Request microphone permission and setup SpeechRecognition
+  useEffect(() => {
+    const getMicPermission = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Microphone Access Denied',
+          description: 'Please enable microphone permissions in your browser settings to use voice commands.',
+        });
+      }
+    };
+    getMicPermission();
 
-    const userMessage: Message = { sender: 'user', text: input };
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        toast({ variant: 'destructive', title: 'Voice Error', description: `An error occurred: ${event.error}`});
+        setIsRecording(false);
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        handleSendMessage(null, transcript);
+      };
+      recognitionRef.current = recognition;
+    } else {
+        toast({ variant: 'destructive', title: 'Browser Not Supported', description: 'Voice recognition is not supported in your browser.'});
+    }
+  }, [toast]);
+
+  const handleMicClick = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+    } else {
+      if (!recognitionRef.current) {
+         toast({ variant: 'destructive', title: 'Browser Not Supported', description: 'Voice recognition is not supported in your browser.'});
+         return;
+      }
+      setInput('');
+      recognitionRef.current?.start();
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent | null, text: string = input) => {
+    e?.preventDefault();
+    if (!text.trim() || isLoading) return;
+
+    const userMessage: Message = { sender: 'user', text };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const result = await checkBalanceWithVoiceCommand({ voiceCommand: input });
-      const botMessage: Message = { sender: 'bot', text: result.spokenResponse };
+      const result = await checkBalanceWithVoiceCommand({ voiceCommand: text });
+      const { media } = await textToSpeech(result.spokenResponse);
+      const botMessage: Message = { sender: 'bot', text: result.spokenResponse, audioUrl: media };
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error(error);
       const errorMessage: Message = { sender: 'bot', text: "Sorry, I couldn't understand that. Please try again." };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.sender === 'bot' && lastMessage.audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.src = lastMessage.audioUrl;
+        audioRef.current.play().catch(e => console.error("Audio playback failed", e));
+      }
+    }
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-full">
@@ -87,20 +172,24 @@ export function ChatInterface() {
         </div>
       </ScrollArea>
       <div className="p-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
+        <form onSubmit={(e) => handleSendMessage(e)} className="flex gap-2">
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Speak or type your command..."
             className="flex-1"
-            disabled={isLoading}
+            disabled={isLoading || isRecording}
           />
-          <Button type="submit" disabled={isLoading}>
-            <Mic className="h-5 w-5" />
-            <span className="sr-only">Send</span>
+          <Button type="button" size="icon" onClick={handleMicClick} disabled={isLoading}>
+            {isRecording ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5" />}
+            <span className="sr-only">{isRecording ? 'Stop recording' : 'Start recording'}</span>
+          </Button>
+          <Button type="submit" disabled={isLoading || isRecording || !input.trim()}>
+            Send
           </Button>
         </form>
       </div>
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
