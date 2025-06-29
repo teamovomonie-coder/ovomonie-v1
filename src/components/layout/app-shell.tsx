@@ -22,6 +22,7 @@ import {
   Receipt,
   ArrowDownUp,
   Wallet,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,9 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
         { href: "/memo-transfer", label: "Send Money", icon: Send },
         { href: "/withdraw", label: "Withdraw", icon: ArrowDownUp },
+        { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
+        { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
         { href: "/custom-card", label: "Custom Card", icon: CreditCard },
         { href: "/scan-to-pay", label: "Scan to Pay", icon: QrCode },
-        { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
     ];
     
   return (
