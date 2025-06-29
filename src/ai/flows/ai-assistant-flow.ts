@@ -38,9 +38,9 @@ const prompt = ai.definePrompt({
 
   Determine the language that the user used, check the user's account balance, and respond to the user with their account balance in the language they used. Return the account balance as a number and the spoken response as a string. Make the answer concise.
 
-  For example, if the user said "What is my balance?" respond with {"accountBalance": "1000", "spokenResponse": "Your balance is 1000 dollars."}
+  For example, if the user said "What is my balance?" respond with {"accountBalance": "1000", "spokenResponse": "Your balance is 1000 Naira."}
 
-  Assume the user's balance is 1000 in local currency if you can't determine the language.
+  Assume the user's balance is 1000 Naira if you can't determine the language.
   `,
 });
 
