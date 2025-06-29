@@ -121,7 +121,9 @@ export function ExternalTransferForm() {
 
   useEffect(() => {
     setRecipientName(null);
-    clearErrors('accountNumber');
+    if (watchedAccountNumber?.length !== 10) {
+      clearErrors('accountNumber');
+    }
 
     if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -132,8 +134,15 @@ export function ExternalTransferForm() {
         debounceRef.current = setTimeout(async () => {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
 
-            if (watchedBankCode === '058' && watchedAccountNumber === '0123456789') {
-                setRecipientName('JANE DOE');
+            const mockAccounts: {[key: string]: {[key: string]: string}} = {
+                '058': { '0123456789': 'JANE DOE' },
+                '044': { '0987654321': 'JOHN SMITH' },
+                '033': { '1122334455': 'ALICE WONDER' },
+                '011': { '5566778899': 'PETER JONES' }
+            };
+
+            if (mockAccounts[watchedBankCode] && mockAccounts[watchedBankCode][watchedAccountNumber]) {
+                setRecipientName(mockAccounts[watchedBankCode][watchedAccountNumber]);
                 clearErrors('accountNumber');
             } else {
                 setRecipientName(null);

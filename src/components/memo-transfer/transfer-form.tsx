@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -116,8 +117,12 @@ export function TransferForm() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setPhotoPreview(URL.createObjectURL(file));
-      form.setValue('photo', file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+        form.setValue('photo', reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
   
@@ -135,8 +140,15 @@ export function TransferForm() {
     setIsVerifying(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (['0123456789', '8012345678'].includes(accountNumber)) {
-       setRecipientName('PAAGO DAVID');
+    const mockInternalAccounts: {[key: string]: string} = {
+        '0123456789': 'PAAGO DAVID',
+        '8012345678': 'FEMI ADEBAYO',
+        '1122334455': 'CHIDINMA OKORO',
+        '9988776655': 'MUSA BELLO',
+    };
+
+    if (mockInternalAccounts[accountNumber]) {
+       setRecipientName(mockInternalAccounts[accountNumber]);
     } else {
        setVerificationError('Account not found. Please check the number and try again.');
     }
