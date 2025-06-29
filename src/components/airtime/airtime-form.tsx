@@ -225,8 +225,10 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
 }
 
 function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
-    if (!data) return null;
     const { toast } = useToast();
+    
+    if (!data) return null;
+
     const networkInfo = networks.find(n => n.id === data.network);
     const NetworkLogo = networkInfo?.Logo || Wallet;
 
