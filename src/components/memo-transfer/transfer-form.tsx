@@ -130,7 +130,7 @@ export function TransferForm() {
             <FormItem>
               <FormLabel>Amount (₦)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 5000" {...field} />
+                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
