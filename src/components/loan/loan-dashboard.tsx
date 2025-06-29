@@ -46,6 +46,7 @@ const mockRepaymentHistory = [
 
 function LoanCalculator({ amount, duration }: { amount: number; duration: number }) {
   const { totalRepayable, monthlyPayment } = useMemo(() => {
+    if (duration <= 0) return { totalRepayable: 0, monthlyPayment: 0};
     const interest = amount * LOAN_INTEREST_RATE * duration;
     const totalRepayable = amount + interest;
     const monthlyPayment = totalRepayable / duration;
@@ -80,6 +81,16 @@ export function LoanDashboard() {
   });
   const watchedAmount = form.watch('amount');
   const watchedDuration = form.watch('duration');
+
+  const { totalRepayable, monthlyPayment } = useMemo(() => {
+    if (!applicationData) {
+      return { totalRepayable: 0, monthlyPayment: 0 };
+    }
+    const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
+    const totalRepayable = applicationData.amount + interest;
+    const monthlyPayment = totalRepayable / applicationData.duration;
+    return { totalRepayable, monthlyPayment };
+  }, [applicationData]);
 
   const handleApply = (data: LoanApplicationData) => {
     setIsProcessing(true);
@@ -178,13 +189,6 @@ export function LoanDashboard() {
   }
 
   if (view === 'offer' && applicationData) {
-      const { totalRepayable, monthlyPayment } = useMemo(() => {
-        const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
-        const totalRepayable = applicationData.amount + interest;
-        const monthlyPayment = totalRepayable / applicationData.duration;
-        return { totalRepayable, monthlyPayment };
-      }, [applicationData]);
-
     return (
         <div className="flex-1 flex items-center justify-center p-4 sm:p-8 pt-6">
             <Card className="max-w-md mx-auto text-center">
