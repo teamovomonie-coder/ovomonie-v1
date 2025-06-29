@@ -24,9 +24,11 @@ import {
   Target,
   Nfc,
   PiggyBank,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SheetTitle } from "../ui/sheet";
 
 const OvoLogo = () => (
   <div className="flex items-center gap-2">
@@ -46,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
         { href: "/betting", label: "Betting", icon: Target },
         { href: "/ovo-wealth", label: "Ovo-Wealth", icon: PiggyBank },
+        { href: "/loan", label: "Loans", icon: BadgeDollarSign },
         { href: "/contactless-banking", label: "Contactless", icon: Nfc },
     ];
     
@@ -56,6 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <OvoLogo />
             <SidebarTrigger />
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           </div>
         </SidebarHeader>
         <SidebarContent className="p-2">
