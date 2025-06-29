@@ -1,40 +1,47 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  MessageCircle,
-  Send,
-  CreditCard,
-  QrCode,
-  Receipt,
-} from "lucide-react";
+import { Landmark, Smartphone, ArrowDownUp, Zap, Target, Tv2, PiggyBank, BadgeDollarSign, Gift, MoreHorizontal, Send } from "lucide-react";
+import type { LucideIcon } from 'lucide-react';
 
 const features = [
-  { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
-  { href: "/memo-transfer", label: "MemoTransfer", icon: Send },
-  { href: "/custom-card", label: "Custom Card", icon: CreditCard },
-  { href: "/scan-to-pay", label: "Scan to Pay", icon: QrCode },
-  { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
+  { href: "/memo-transfer", label: "To Ovomonie", icon: Send },
+  { href: "/memo-transfer", label: "To Bank", icon: Landmark },
+  { href: "/memo-transfer", label: "Withdraw", icon: ArrowDownUp },
+  { href: "/bill-payment", label: "Airtime/Data", icon: Smartphone },
+  { href: "/bill-payment", label: "Utility", icon: Zap },
+  { href: "#", label: "Betting", icon: Target },
+  { href: "/bill-payment", label: "TV", icon: Tv2 },
+  { href: "/custom-card", label: "Ovo-wealth", icon: PiggyBank },
+  { href: "#", label: "Loan", icon: BadgeDollarSign },
+  { href: "#", label: "Invitation", icon: Gift },
+  { href: "#", label: "More", icon: MoreHorizontal },
 ];
+
+const largeFeatures = features.slice(0, 3);
+const smallFeatures = features.slice(3);
 
 export function QuickAccess() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Quick Access</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {features.map((feature) => (
-            <Link href={feature.href} key={feature.label} passHref>
-              <Button variant="outline" className="flex flex-col h-20 w-full">
-                <feature.icon className="h-6 w-6 mb-1 text-primary" />
-                <span className="text-xs font-medium">{feature.label}</span>
-              </Button>
-            </Link>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4">
+        {largeFeatures.map((feature) => (
+          <Link href={feature.href} key={feature.label} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors">
+            <div className="bg-gray-100 rounded-lg p-3 mb-2">
+                <feature.icon className="h-8 w-8 text-slate-700" />
+            </div>
+            <span className="font-semibold text-slate-800 text-sm">{feature.label}</span>
+          </Link>
+        ))}
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+         {smallFeatures.map((feature) => (
+          <Link href={feature.href} key={feature.label} className="bg-white p-2 rounded-xl shadow-sm flex flex-col items-center justify-center text-center h-24 hover:bg-gray-50 transition-colors">
+            <div className="bg-gray-100 rounded-lg p-2.5 mb-2">
+                <feature.icon className="h-6 w-6 text-slate-700" />
+            </div>
+            <span className="font-medium text-slate-800 text-xs">{feature.label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
