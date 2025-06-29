@@ -242,10 +242,10 @@ function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | nul
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-sm p-0">
-                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex justify-between items-center">
-                    <h2 className="text-lg font-bold">Transaction Successful</h2>
+                <DialogHeader className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center space-y-0">
+                    <DialogTitle className="text-lg font-bold">Transaction Successful</DialogTitle>
                     <Wallet className="w-6 h-6" />
-                </div>
+                </DialogHeader>
                 <div className="p-6 bg-white text-slate-800">
                     <div className="text-center space-y-2 mb-6">
                         <NetworkLogo className="mx-auto w-16 h-16" />
