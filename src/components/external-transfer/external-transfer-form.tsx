@@ -115,12 +115,13 @@ export function ExternalTransferForm() {
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
   });
 
-  const watchedAccountNumber = form.watch('accountNumber');
-  const watchedBankCode = form.watch('bankCode');
+  const { watch, clearErrors, setError } = form;
+  const watchedAccountNumber = watch('accountNumber');
+  const watchedBankCode = watch('bankCode');
 
   useEffect(() => {
     setRecipientName(null);
-    form.clearErrors('accountNumber');
+    clearErrors('accountNumber');
 
     if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -133,10 +134,10 @@ export function ExternalTransferForm() {
 
             if (watchedBankCode === '058' && watchedAccountNumber === '0123456789') {
                 setRecipientName('JANE DOE');
-                form.clearErrors('accountNumber');
+                clearErrors('accountNumber');
             } else {
                 setRecipientName(null);
-                form.setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
+                setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
             }
             setIsVerifying(false);
         }, 800);
@@ -149,7 +150,7 @@ export function ExternalTransferForm() {
             clearTimeout(debounceRef.current);
         }
     }
-  }, [watchedAccountNumber, watchedBankCode, form]);
+  }, [watchedAccountNumber, watchedBankCode, clearErrors, setError]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -165,7 +166,7 @@ export function ExternalTransferForm() {
 
   function onSubmit(data: FormData) {
     if (!recipientName) {
-      form.setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
+      setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
       return;
     }
     const dataWithPhoto = { ...data, photo: photoPreview };
@@ -378,5 +379,3 @@ export function ExternalTransferForm() {
     </Form>
   );
 }
-
-    
