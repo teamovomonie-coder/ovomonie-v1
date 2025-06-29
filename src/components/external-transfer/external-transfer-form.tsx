@@ -20,10 +20,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark } from 'lucide-react';
+import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Combobox } from '../ui/combobox';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -149,7 +150,7 @@ export function ExternalTransferForm() {
                 setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
             }
             setIsVerifying(false);
-        }, 800);
+        }, 500);
     } else {
         setIsVerifying(false);
     }
@@ -261,6 +262,20 @@ export function ExternalTransferForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>For Testing</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">Use one of these bank/account pairs for successful verification:</p>
+              <ul className="list-disc pl-5 space-y-1 text-xs">
+                <li><b>GTB (058):</b> 0123456789 (JANE DOE)</li>
+                <li><b>Access Bank (044):</b> 0987654321 (JOHN SMITH)</li>
+                <li><b>UBA (033):</b> 1122334455 (ALICE WONDER)</li>
+                <li><b>First Bank (011):</b> 5566778899 (PETER JONES)</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+          
         <div className="flex items-center space-x-2 justify-end">
           <Label htmlFor="memo-switch">Switch to MemoTransfer</Label>
           <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />

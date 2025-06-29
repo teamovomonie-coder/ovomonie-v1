@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -34,7 +35,7 @@ type ComboboxProps = {
   className?: string
 }
 
-export function Combobox({
+function ComboboxComponent({
   options,
   value,
   onChange,
@@ -89,3 +90,5 @@ export function Combobox({
     </Popover>
   )
 }
+
+export const Combobox = React.memo(ComboboxComponent);

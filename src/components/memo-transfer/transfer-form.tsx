@@ -20,9 +20,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft } from 'lucide-react';
+import { Upload, Share2, Wallet, Loader2, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -239,6 +241,20 @@ export function TransferForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>For Testing</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Use one of these Ovomonie accounts for successful verification:</p>
+            <ul className="list-disc pl-5 space-y-1 text-xs">
+                <li>0123456789 (PAAGO DAVID)</li>
+                <li>8012345678 (FEMI ADEBAYO)</li>
+                <li>1122334455 (CHIDINMA OKORO)</li>
+                <li>9988776655 (MUSA BELLO)</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+
         <div className="flex items-center space-x-2 justify-end">
             <Label htmlFor="memo-switch">Switch to MemoTransfer</Label>
             <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
