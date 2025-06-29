@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -43,6 +44,16 @@ type FormData = z.infer<typeof formSchema>;
 const topBankCodes = ["058", "044", "057", "011", "033"];
 const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
 const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
+
+const amountSchema = z.object({
+  amount: z.coerce.number().positive('Amount must be positive.'),
+});
+
+const posAgentSchema = z.object({
+  agentId: z.string().min(4, 'Agent ID must be at least 4 characters.'),
+  amount: z.coerce.number().positive('Amount must be positive.'),
+});
+
 
 function BankTransferWithdrawal() {
   const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
@@ -221,9 +232,14 @@ function WithdrawalReceipt({ data, recipientName, onReset }: { data: FormData; r
 }
 
 function AtmCardlessWithdrawal() {
-    const [amount, setAmount] = useState<number>(0);
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
+    const { toast } = useToast();
+
+    const form = useForm<z.infer<typeof amountSchema>>({
+        resolver: zodResolver(amountSchema),
+        defaultValues: { amount: 0 },
+    });
 
     useEffect(() => {
         if (!generatedCode) return;
@@ -232,20 +248,21 @@ function AtmCardlessWithdrawal() {
                 if (prev <= 1) {
                     clearInterval(timer);
                     setGeneratedCode(null);
+                    toast({ title: 'Code Expired', description: 'Your cardless withdrawal code has expired.'});
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
         return () => clearInterval(timer);
-    }, [generatedCode]);
+    }, [generatedCode, toast]);
 
-    const handleGenerateCode = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (amount > 0) {
+    const handleGenerateCode = (data: z.infer<typeof amountSchema>) => {
+        if (data.amount > 0) {
             const code = Array(3).fill(0).map(() => Math.floor(Math.random() * 900 + 100).toString()).join('-');
             setGeneratedCode(code);
             setTimeLeft(300); // 5 minutes
+            toast({ title: 'Code Generated!', description: 'Your cardless withdrawal code is ready.'});
         }
     };
 
@@ -259,45 +276,99 @@ function AtmCardlessWithdrawal() {
                     <p className="text-3xl font-bold tracking-widest">{generatedCode}</p>
                 </div>
                 <p className="font-semibold text-destructive">Expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</p>
-                <Button onClick={() => setGeneratedCode(null)}>Done</Button>
+                <Button onClick={() => { setGeneratedCode(null); form.reset(); }}>Done</Button>
             </div>
         );
     }
 
     return (
-        <form onSubmit={handleGenerateCode} className="space-y-4">
-            <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 10000" onChange={e => setAmount(e.target.valueAsNumber || 0)} /></FormControl></FormItem>
-            <Button type="submit" className="w-full" disabled={amount <= 0}>Generate Code</Button>
-        </form>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleGenerateCode)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 10000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">Generate Code</Button>
+            </form>
+        </Form>
     );
 }
 
 function PosAgentWithdrawal() {
-    const [agentId, setAgentId] = useState('');
-    const [amount, setAmount] = useState(0);
+    const { toast } = useToast();
+    const form = useForm<z.infer<typeof posAgentSchema>>({
+        resolver: zodResolver(posAgentSchema),
+        defaultValues: {
+            agentId: '',
+            amount: 0,
+        }
+    });
 
-    const handleWithdraw = () => {
-        // Mock API call
+    function onSubmit(data: z.infer<typeof posAgentSchema>) {
+        toast({
+            title: "Withdrawal Requested",
+            description: `Withdrawal of ₦${data.amount} from agent ${data.agentId} has been requested.`,
+            variant: "default",
+        });
+        form.reset();
     }
     
     return (
-         <div className="space-y-4">
-            <FormItem><FormLabel>Agent ID</FormLabel><FormControl><Input placeholder="Enter agent ID" onChange={e => setAgentId(e.target.value)} /></FormControl></FormItem>
-            <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 5000" onChange={e => setAmount(e.target.valueAsNumber || 0)} /></FormControl></FormItem>
-            <Button className="w-full" disabled={!agentId || amount <=0}>Request Withdrawal</Button>
-        </div>
+         <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="agentId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Agent ID</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Enter agent ID" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">Request Withdrawal</Button>
+            </form>
+        </Form>
     )
 }
 
 function UssdWithdrawal() {
-    const [amount, setAmount] = useState(0);
     const [ussdString, setUssdString] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const handleGenerate = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (amount > 0) {
-            setUssdString(`*894*${amount}*12345#`); // Mock code
+    const form = useForm<z.infer<typeof amountSchema>>({
+        resolver: zodResolver(amountSchema),
+        defaultValues: { amount: 0 }
+    });
+
+    const handleGenerate = (data: z.infer<typeof amountSchema>) => {
+        if (data.amount > 0) {
+            setUssdString(`*894*${data.amount}*12345#`); // Mock code
         }
     }
 
@@ -316,7 +387,7 @@ function UssdWithdrawal() {
                     <p className="text-2xl font-bold tracking-widest">{ussdString}</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={() => setUssdString(null)} variant="outline" className="w-full">Back</Button>
+                    <Button onClick={() => { setUssdString(null); form.reset(); }} variant="outline" className="w-full">Back</Button>
                     <Button onClick={copyToClipboard} className="w-full">Copy Code</Button>
                 </div>
             </div>
@@ -324,10 +395,24 @@ function UssdWithdrawal() {
     }
     
     return (
-        <form onSubmit={handleGenerate} className="space-y-4">
-            <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 2000" onChange={e => setAmount(e.target.valueAsNumber || 0)} /></FormControl></FormItem>
-            <Button type="submit" className="w-full" disabled={amount <= 0}>Generate USSD Code</Button>
-        </form>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleGenerate)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 2000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">Generate USSD Code</Button>
+            </form>
+        </Form>
     );
 }
 
@@ -335,9 +420,14 @@ function QrCodeWithdrawal() {
      const [amount, setAmount] = useState(0);
      const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-     const handleGenerate = (e: React.FormEvent) => {
-        e.preventDefault();
-        if(amount > 0) {
+     const form = useForm<z.infer<typeof amountSchema>>({
+        resolver: zodResolver(amountSchema),
+        defaultValues: { amount: 0 }
+     });
+
+     const handleGenerate = (data: z.infer<typeof amountSchema>) => {
+        if(data.amount > 0) {
+            setAmount(data.amount);
             setQrCodeUrl(`https://placehold.co/256x256.png`);
         }
      }
@@ -350,16 +440,30 @@ function QrCodeWithdrawal() {
                     <Image src={qrCodeUrl} alt="Withdrawal QR Code" width={256} height={256} data-ai-hint="qr code" />
                 </div>
                 <p className="font-bold text-xl">Amount: ₦{amount.toLocaleString()}</p>
-                <Button onClick={() => setQrCodeUrl(null)} className="w-full">Done</Button>
+                <Button onClick={() => { setQrCodeUrl(null); form.reset(); }} className="w-full">Done</Button>
             </div>
          );
      }
 
     return (
-        <form onSubmit={handleGenerate} className="space-y-4">
-            <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 15000" onChange={e => setAmount(e.target.valueAsNumber || 0)} /></FormControl></FormItem>
-            <Button type="submit" className="w-full" disabled={amount <= 0}>Generate QR Code</Button>
-        </form>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleGenerate)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 15000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">Generate QR Code</Button>
+            </form>
+        </Form>
     );
 }
 
