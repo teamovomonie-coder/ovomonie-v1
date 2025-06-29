@@ -20,11 +20,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info } from 'lucide-react';
+import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
-import { Combobox } from '../ui/combobox';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -37,7 +39,9 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const bankOptions = nigerianBanks.map(bank => ({ value: bank.code, label: bank.name }));
+const topBankCodes = ["058", "044", "057", "011", "033"];
+const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
+const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
 function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipientName: string; onReset: () => void }) {
   const { toast } = useToast();
@@ -110,15 +114,20 @@ export function ExternalTransferForm() {
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+  const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
   });
 
-  const { watch, clearErrors, setError } = form;
+  const { watch, clearErrors, setError, setValue } = form;
   const watchedAccountNumber = watch('accountNumber');
   const watchedBankCode = watch('bankCode');
+
+  const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
+  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
 
   useEffect(() => {
     setRecipientName(null);
@@ -136,10 +145,11 @@ export function ExternalTransferForm() {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
 
             const mockAccounts: {[key: string]: {[key: string]: string}} = {
-                '058': { '0123456789': 'JANE DOE' },
-                '044': { '0987654321': 'JOHN SMITH' },
-                '033': { '1122334455': 'ALICE WONDER' },
-                '011': { '5566778899': 'PETER JONES' }
+                '058': { '0123456789': 'JANE DOE', '1234567890': 'MARY ANNE' },
+                '044': { '0987654321': 'JOHN SMITH', '9876543210': 'ADAMU CIROMA' },
+                '033': { '1122334455': 'ALICE WONDER', '2233445566': 'NGOZI OKONJO' },
+                '011': { '5566778899': 'PETER JONES', '6677889900': 'BOLANLE AUSTEN-PETERS' },
+                '057': { '1112223334': 'CHIOMA AKINWUMI' }
             };
 
             if (mockAccounts[watchedBankCode] && mockAccounts[watchedBankCode][watchedAccountNumber]) {
@@ -268,10 +278,11 @@ export function ExternalTransferForm() {
             <AlertDescription>
               <p className="mb-2">Use one of these bank/account pairs for successful verification:</p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li><b>GTB (058):</b> 0123456789 (JANE DOE)</li>
-                <li><b>Access Bank (044):</b> 0987654321 (JOHN SMITH)</li>
-                <li><b>UBA (033):</b> 1122334455 (ALICE WONDER)</li>
-                <li><b>First Bank (011):</b> 5566778899 (PETER JONES)</li>
+                <li><b>GTB (058):</b> 0123456789, 1234567890</li>
+                <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
+                <li><b>UBA (033):</b> 1122334455, 2233445566</li>
+                <li><b>First Bank (011):</b> 5566778899, 6677889900</li>
+                <li><b>Zenith Bank (057):</b> 1112223334</li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -287,14 +298,69 @@ export function ExternalTransferForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Recipient's Bank</FormLabel>
-              <Combobox
-                options={bankOptions}
-                value={field.value}
-                onChange={value => field.onChange(value)}
-                placeholder="Select a bank..."
-                searchPlaceholder="Find bank..."
-                emptyPlaceholder="No bank found."
-              />
+                <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                      >
+                        {field.value ? nigerianBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search for a bank..."
+                        value={bankSearchQuery}
+                        onValueChange={setBankSearchQuery}
+                       />
+                      <CommandList>
+                        <CommandEmpty>No bank found.</CommandEmpty>
+                        {filteredTopBanks.length > 0 && (
+                          <CommandGroup heading="Top Banks">
+                            {filteredTopBanks.map(bank => (
+                              <CommandItem
+                                key={bank.code}
+                                value={bank.name}
+                                onSelect={() => {
+                                  setValue("bankCode", bank.code);
+                                  setIsBankPopoverOpen(false);
+                                  setBankSearchQuery("");
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />
+                                {bank.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                         {(filteredTopBanks.length > 0 && filteredOtherBanks.length > 0) && <CommandSeparator />}
+                        {filteredOtherBanks.length > 0 && (
+                           <CommandGroup heading="All Banks">
+                            {filteredOtherBanks.map(bank => (
+                              <CommandItem
+                                key={bank.code}
+                                value={bank.name}
+                                onSelect={() => {
+                                  setValue("bankCode", bank.code);
+                                  setIsBankPopoverOpen(false);
+                                  setBankSearchQuery("");
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />
+                                {bank.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               <FormMessage />
             </FormItem>
           )}
