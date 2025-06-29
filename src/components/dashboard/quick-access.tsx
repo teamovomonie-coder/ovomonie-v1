@@ -9,7 +9,7 @@ const features = [
   { href: "/bill-payment", label: "Utility", icon: Zap },
   { href: "/betting", label: "Betting", icon: Target },
   { href: "/contactless-banking", label: "Contactless", icon: Nfc },
-  { href: "/custom-card", label: "Ovo-wealth", icon: PiggyBank },
+  { href: "/ovo-wealth", label: "Ovo-wealth", icon: PiggyBank },
   { href: "#", label: "Loan", icon: BadgeDollarSign },
   { href: "#", label: "Invitation", icon: Gift },
   { href: "#", label: "More", icon: MoreHorizontal },

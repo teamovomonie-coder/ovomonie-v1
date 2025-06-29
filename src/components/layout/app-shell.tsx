@@ -17,13 +17,13 @@ import {
   LayoutDashboard,
   MessageCircle,
   Send,
-  CreditCard,
-  Nfc,
   Receipt,
   ArrowDownUp,
   Wallet,
   Smartphone,
   Target,
+  Nfc,
+  PiggyBank,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
         { href: "/betting", label: "Betting", icon: Target },
-        { href: "/custom-card", label: "Custom Card", icon: CreditCard },
+        { href: "/ovo-wealth", label: "Ovo-Wealth", icon: PiggyBank },
         { href: "/contactless-banking", label: "Contactless", icon: Nfc },
     ];
     
