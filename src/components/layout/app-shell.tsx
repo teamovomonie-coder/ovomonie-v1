@@ -20,8 +20,7 @@ import {
   CreditCard,
   QrCode,
   Receipt,
-  User,
-  Settings,
+  ArrowDownUp,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/", label: "Dashboard", icon: LayoutDashboard },
         { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
         { href: "/memo-transfer", label: "Send Money", icon: Send },
+        { href: "/withdraw", label: "Withdraw", icon: ArrowDownUp },
         { href: "/custom-card", label: "Custom Card", icon: CreditCard },
         { href: "/scan-to-pay", label: "Scan to Pay", icon: QrCode },
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
