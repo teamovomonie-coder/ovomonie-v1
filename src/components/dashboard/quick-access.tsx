@@ -7,7 +7,7 @@ const features = [
   { href: "/withdraw", label: "Withdraw", icon: ArrowDownUp },
   { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
   { href: "/bill-payment", label: "Utility", icon: Zap },
-  { href: "#", label: "Betting", icon: Target },
+  { href: "/betting", label: "Betting", icon: Target },
   { href: "/bill-payment", label: "TV", icon: Tv2 },
   { href: "/custom-card", label: "Ovo-wealth", icon: PiggyBank },
   { href: "#", label: "Loan", icon: BadgeDollarSign },
