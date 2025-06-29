@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -106,13 +107,49 @@ export function ExternalTransferForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
+  const debounceRef = useRef<NodeJS.Timeout>();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
   });
+
+  const watchedAccountNumber = form.watch('accountNumber');
+  const watchedBankCode = form.watch('bankCode');
+
+  useEffect(() => {
+    setRecipientName(null);
+    form.clearErrors('accountNumber');
+
+    if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+    }
+    
+    if (watchedAccountNumber?.length === 10 && watchedBankCode) {
+        setIsVerifying(true);
+        debounceRef.current = setTimeout(async () => {
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+            if (watchedBankCode === '058' && watchedAccountNumber === '0123456789') {
+                setRecipientName('JANE DOE');
+                form.clearErrors('accountNumber');
+            } else {
+                setRecipientName(null);
+                form.setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
+            }
+            setIsVerifying(false);
+        }, 800);
+    } else {
+        setIsVerifying(false);
+    }
+    
+    return () => {
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+    }
+  }, [watchedAccountNumber, watchedBankCode, form]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -126,36 +163,9 @@ export function ExternalTransferForm() {
     }
   };
 
-  const handleVerifyAccount = async () => {
-    const { accountNumber, bankCode } = form.getValues();
-    form.clearErrors('accountNumber');
-    setRecipientName(null);
-    setVerificationError(null);
-
-    if (!bankCode) {
-      form.setError('bankCode', { type: 'manual', message: 'Please select a bank first.' });
-      return;
-    }
-    if (accountNumber.length !== 10) {
-      form.setError('accountNumber', { type: 'manual', message: 'Account number must be 10 digits.' });
-      return;
-    }
-
-    setIsVerifying(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-
-    // Mock verification logic
-    if (bankCode === '058' && accountNumber === '0123456789') {
-      setRecipientName('JANE DOE');
-    } else {
-      setVerificationError('Account not found. Please check the details and try again.');
-    }
-    setIsVerifying(false);
-  };
-
   function onSubmit(data: FormData) {
     if (!recipientName) {
-      form.setError('accountNumber', { type: 'manual', message: 'Please verify the account number.' });
+      form.setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
       return;
     }
     const dataWithPhoto = { ...data, photo: photoPreview };
@@ -172,7 +182,6 @@ export function ExternalTransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
-    setVerificationError(null);
     setIsMemoTransfer(false);
     form.reset();
   };
@@ -256,11 +265,7 @@ export function ExternalTransferForm() {
               <Combobox
                 options={bankOptions}
                 value={field.value}
-                onChange={value => {
-                  setRecipientName(null);
-                  setVerificationError(null);
-                  field.onChange(value);
-                }}
+                onChange={value => field.onChange(value)}
                 placeholder="Select a bank..."
                 searchPlaceholder="Find bank..."
                 emptyPlaceholder="No bank found."
@@ -276,25 +281,18 @@ export function ExternalTransferForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Recipient's Account Number</FormLabel>
-              <div className="flex gap-2">
-                <FormControl>
-                  <Input placeholder="10-digit account number" {...field} onChange={(e) => {
-                    setRecipientName(null);
-                    setVerificationError(null);
-                    field.onChange(e);
-                  }} />
-                </FormControl>
-                <Button type="button" onClick={handleVerifyAccount} disabled={isVerifying} className="w-28">
-                  {isVerifying ? <Loader2 className="animate-spin" /> : "Verify"}
-                </Button>
+              <div className="relative">
+                  <FormControl>
+                      <Input placeholder="10-digit account number" {...field} />
+                  </FormControl>
+                  {isVerifying && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
+                  )}
               </div>
-              {recipientName && (
-                <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold">
-                  {recipientName}
-                </div>
-              )}
-              {verificationError && (
-                <p className="text-sm font-medium text-destructive">{verificationError}</p>
+              {recipientName && !isVerifying && (
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1">
+                      {recipientName}
+                  </div>
               )}
               <FormMessage />
             </FormItem>
@@ -308,7 +306,7 @@ export function ExternalTransferForm() {
             <FormItem>
               <FormLabel>Amount (₦)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber)} />
+                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -373,10 +371,12 @@ export function ExternalTransferForm() {
           </div>
         )}
 
-        <Button type="submit" className="w-full !mt-6" disabled={!recipientName}>
+        <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>
           Continue
         </Button>
       </form>
     </Form>
   );
 }
+
+    
