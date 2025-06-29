@@ -18,7 +18,7 @@ import {
   MessageCircle,
   Send,
   CreditCard,
-  QrCode,
+  Nfc,
   Receipt,
   ArrowDownUp,
   Wallet,
@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
         { href: "/betting", label: "Betting", icon: Target },
         { href: "/custom-card", label: "Custom Card", icon: CreditCard },
-        { href: "/scan-to-pay", label: "Scan to Pay", icon: QrCode },
+        { href: "/contactless-banking", label: "Contactless", icon: Nfc },
     ];
     
   return (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Landmark, Smartphone, ArrowDownUp, Zap, Target, Tv2, PiggyBank, BadgeDollarSign, Gift, MoreHorizontal, Send } from "lucide-react";
+import { Landmark, Smartphone, ArrowDownUp, Zap, Target, Nfc, PiggyBank, BadgeDollarSign, Gift, MoreHorizontal, Send } from "lucide-react";
 
 const features = [
   { href: "/memo-transfer", label: "To Ovomonie", icon: Send },
@@ -8,7 +8,7 @@ const features = [
   { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
   { href: "/bill-payment", label: "Utility", icon: Zap },
   { href: "/betting", label: "Betting", icon: Target },
-  { href: "/bill-payment", label: "TV", icon: Tv2 },
+  { href: "/contactless-banking", label: "Contactless", icon: Nfc },
   { href: "/custom-card", label: "Ovo-wealth", icon: PiggyBank },
   { href: "#", label: "Loan", icon: BadgeDollarSign },
   { href: "#", label: "Invitation", icon: Gift },
