@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -13,11 +14,32 @@ import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { HandCoins, Briefcase, Store, Siren, ArrowLeft, Loader2, CheckCircle, Info } from 'lucide-react';
+import { HandCoins, Briefcase, Store, Siren, ArrowLeft, Loader2, CheckCircle, Info, Wallet } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { add, format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+
 
 type View = 'dashboard' | 'apply' | 'offer' | 'success';
+
+interface ActiveLoan {
+    id: string;
+    type: string;
+    purpose: string;
+    principal: number;
+    balance: number;
+    duration: number; // in months
+    interestRate: number; // monthly rate
+    startDate: Date;
+    repayments: Repayment[];
+}
+
+interface Repayment {
+    dueDate: Date;
+    amount: number;
+    status: 'Paid' | 'Due';
+}
 
 const loanApplicationSchema = z.object({
   loanType: z.string().min(1, 'Please select a loan type.'),
@@ -30,18 +52,13 @@ const loanApplicationSchema = z.object({
 type LoanApplicationData = z.infer<typeof loanApplicationSchema>;
 
 const LOAN_INTEREST_RATE = 0.05; // 5% monthly interest
+const ELIGIBLE_LOAN_AMOUNT = 75000;
 
 const loanTypes = [
     { id: 'personal', label: 'Personal Loan', icon: HandCoins },
     { id: 'business', label: 'Business Loan', icon: Briefcase },
     { id: 'agent', label: 'Agent Loan', icon: Store },
     { id: 'emergency', label: 'Emergency Loan', icon: Siren },
-];
-
-const mockRepaymentHistory = [
-    { date: '2024-06-15', amount: 10833.33, status: 'Paid' },
-    { date: '2024-07-15', amount: 10833.33, status: 'Paid' },
-    { date: '2024-08-15', amount: 10833.33, status: 'Due' },
 ];
 
 function LoanCalculator({ amount, duration }: { amount: number; duration: number }) {
@@ -69,10 +86,69 @@ function LoanCalculator({ amount, duration }: { amount: number; duration: number
   );
 }
 
+const repaymentSchema = z.object({
+    amount: z.coerce.number().positive("Amount must be a positive number.")
+});
+
+function RepaymentDialog({ open, onOpenChange, loan, onRepay }: { open: boolean, onOpenChange: (open: boolean) => void, loan: ActiveLoan, onRepay: (amount: number) => void }) {
+    const nextPayment = loan.repayments.find(r => r.status === 'Due');
+    const { toast } = useToast();
+    
+    const form = useForm<z.infer<typeof repaymentSchema>>({
+        resolver: zodResolver(repaymentSchema.refine(data => data.amount <= loan.balance, {
+            message: `Amount cannot exceed the loan balance of ₦${loan.balance.toLocaleString()}`,
+            path: ['amount'],
+        })),
+        defaultValues: { amount: nextPayment?.amount || 0 }
+    });
+
+    const onSubmit = (data: z.infer<typeof repaymentSchema>) => {
+        onRepay(data.amount);
+        toast({ title: 'Repayment Successful', description: `₦${data.amount.toLocaleString()} has been deducted from your wallet.` });
+        onOpenChange(false);
+        form.reset();
+    };
+    
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Make a Repayment</DialogTitle>
+                    <DialogDescription>Your outstanding balance is ₦{loan.balance.toLocaleString()}.</DialogDescription>
+                </DialogHeader>
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="amount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Repayment Amount (₦)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="text-xs text-muted-foreground">You can pay any amount up to your outstanding balance.</div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit">Pay Now</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export function LoanDashboard() {
   const [view, setView] = useState<View>('dashboard');
   const [applicationData, setApplicationData] = useState<LoanApplicationData | null>(null);
+  const [activeLoan, setActiveLoan] = useState<ActiveLoan | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<LoanApplicationData>({
@@ -83,9 +159,7 @@ export function LoanDashboard() {
   const watchedDuration = form.watch('duration');
 
   const { totalRepayable, monthlyPayment } = useMemo(() => {
-    if (!applicationData) {
-      return { totalRepayable: 0, monthlyPayment: 0 };
-    }
+    if (!applicationData) return { totalRepayable: 0, monthlyPayment: 0 };
     const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
     const totalRepayable = applicationData.amount + interest;
     const monthlyPayment = totalRepayable / applicationData.duration;
@@ -102,18 +176,76 @@ export function LoanDashboard() {
   };
   
   const handleAcceptOffer = () => {
+      if (!applicationData) return;
       setIsProcessing(true);
       setTimeout(() => {
+          const startDate = new Date();
+          const { totalRepayable, monthlyPayment } = (() => {
+            const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
+            const totalRepayable = applicationData.amount + interest;
+            const monthlyPayment = totalRepayable / applicationData.duration;
+            return { totalRepayable, monthlyPayment };
+          })();
+
+          const newLoan: ActiveLoan = {
+            id: `loan-${Date.now()}`,
+            type: loanTypes.find(t => t.id === applicationData.loanType)?.label || 'Loan',
+            purpose: applicationData.purpose,
+            principal: applicationData.amount,
+            balance: totalRepayable,
+            duration: applicationData.duration,
+            interestRate: LOAN_INTEREST_RATE,
+            startDate: startDate,
+            repayments: Array.from({ length: applicationData.duration }, (_, i) => ({
+                dueDate: add(startDate, { months: i + 1 }),
+                amount: monthlyPayment,
+                status: 'Due'
+            }))
+          };
+
+          setActiveLoan(newLoan);
           setView('success');
           setIsProcessing(false);
-          toast({ title: 'Loan Approved!', description: `₦${applicationData?.amount.toLocaleString()} has been credited to your wallet.`});
+          toast({ title: 'Loan Approved!', description: `₦${applicationData.amount.toLocaleString()} has been credited to your wallet.`});
       }, 1500)
   }
+
+  const handleRepayment = (amountPaid: number) => {
+    if (!activeLoan) return;
+
+    setActiveLoan(prevLoan => {
+        if (!prevLoan) return null;
+        const newBalance = prevLoan.balance - amountPaid;
+        let amountLeftToAssign = amountPaid;
+
+        const newRepayments = prevLoan.repayments.map(repayment => {
+            if (repayment.status === 'Due' && amountLeftToAssign > 0) {
+                const paymentForThisInstallment = Math.min(amountLeftToAssign, repayment.amount);
+                const remainingInInstallment = repayment.amount - paymentForThisInstallment;
+                amountLeftToAssign -= paymentForThisInstallment;
+                
+                return { ...repayment, amount: remainingInInstallment, status: remainingInInstallment <= 0 ? 'Paid' : 'Due' };
+            }
+            return repayment;
+        });
+
+        if (newBalance <= 0) {
+            toast({ title: 'Loan Fully Repaid!', description: 'Congratulations on completing your loan repayment.' });
+            return null; // Loan is cleared
+        }
+
+        return {
+            ...prevLoan,
+            balance: newBalance,
+            repayments: newRepayments,
+        };
+    });
+  };
 
   const reset = () => {
     setView('dashboard');
     setApplicationData(null);
-    form.reset();
+    form.reset({ amount: 10000, duration: 1, loanType: '', purpose: '', employmentStatus: '' });
   }
 
   if (view === 'apply') {
@@ -128,6 +260,13 @@ export function LoanDashboard() {
             <CardDescription>Fill in the details below. Our system will evaluate your eligibility in real-time.</CardDescription>
           </CardHeader>
           <CardContent>
+             <Alert variant="default" className="mb-6 bg-primary/10 border-primary/20">
+                <Wallet className="h-4 w-4 text-primary" />
+                <AlertTitle className="text-primary">Loan Eligibility</AlertTitle>
+                <AlertDescription>
+                   Based on your profile, you are eligible to borrow up to ₦{ELIGIBLE_LOAN_AMOUNT.toLocaleString()}.
+                </AlertDescription>
+            </Alert>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleApply)} className="space-y-6">
                  <FormField control={form.control} name="loanType" render={({ field }) => (
@@ -141,7 +280,7 @@ export function LoanDashboard() {
                 <FormField control={form.control} name="amount" render={({ field }) => (
                   <FormItem>
                     <FormLabel>How much do you need? (₦{field.value.toLocaleString()})</FormLabel>
-                    <FormControl><Slider min={10000} max={1000000} step={5000} defaultValue={[field.value]} onValueChange={(vals) => field.onChange(vals[0])} /></FormControl>
+                    <FormControl><Slider min={10000} max={ELIGIBLE_LOAN_AMOUNT} step={5000} defaultValue={[field.value]} onValueChange={(vals) => field.onChange(vals[0])} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="duration" render={({ field }) => (
@@ -250,69 +389,83 @@ export function LoanDashboard() {
             <Button onClick={() => setView('apply')}>Apply for a Loan</Button>
         </div>
 
-        {/* This would be conditional based on if a user has a loan */}
-        <Card>
-            <CardHeader>
-                <CardTitle>My Active Loan</CardTitle>
-                <CardDescription>Personal Loan for School Fees</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Loan Balance</p>
-                        <p className="text-2xl font-bold">₦75,000.00</p>
+        {activeLoan ? (
+            <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>My Active Loan</CardTitle>
+                    <CardDescription>{activeLoan.type} for {activeLoan.purpose}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <div className="p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground">Loan Balance</p>
+                            <p className="text-2xl font-bold">₦{activeLoan.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                         <div className="p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground">Next Payment</p>
+                            <p className="text-2xl font-bold">₦{activeLoan.repayments.find(r => r.status === 'Due')?.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</p>
+                        </div>
+                         <div className="p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground">Due Date</p>
+                            <p className="text-2xl font-bold">{activeLoan.repayments.find(r => r.status === 'Due') ? format(activeLoan.repayments.find(r => r.status === 'Due')!.dueDate, 'MMM dd, yyyy') : 'N/A'}</p>
+                        </div>
+                         <div className="p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground">Interest Rate</p>
+                            <p className="text-2xl font-bold">{activeLoan.interestRate * 100}% p.m.</p>
+                        </div>
                     </div>
-                     <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Next Payment</p>
-                        <p className="text-2xl font-bold">₦10,833.33</p>
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm font-medium">Repayment Progress</p>
+                            <p className="text-sm text-muted-foreground">{activeLoan.repayments.filter(r => r.status === 'Paid').length} of {activeLoan.duration} months paid</p>
+                        </div>
+                        <Progress value={(activeLoan.repayments.filter(r => r.status === 'Paid').length / activeLoan.duration) * 100} />
                     </div>
-                     <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Due Date</p>
-                        <p className="text-2xl font-bold">Aug 15, 2024</p>
+                     <div>
+                        <Button onClick={() => setIsRepayDialogOpen(true)}>Make Repayment</Button>
                     </div>
-                     <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Interest Rate</p>
-                        <p className="text-2xl font-bold">5% p.m.</p>
-                    </div>
-                </div>
-                <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium">Repayment Progress</p>
-                        <p className="text-sm text-muted-foreground">2 of 12 months paid</p>
-                    </div>
-                    <Progress value={(2 / 12) * 100} />
-                </div>
-                 <div>
-                    <Button>Make Repayment</Button>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Repayment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Due Date</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {mockRepaymentHistory.map((item, index) => (
-                             <TableRow key={index}>
-                                <TableCell>{item.date}</TableCell>
-                                <TableCell>₦{item.amount.toLocaleString()}</TableCell>
-                                <TableCell><span className={`px-2 py-1 text-xs rounded-full ${item.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{item.status}</span></TableCell>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Repayment Plan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Status</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {activeLoan.repayments.map((item, index) => (
+                                 <TableRow key={index}>
+                                    <TableCell>{format(item.dueDate, 'MMM dd, yyyy')}</TableCell>
+                                    <TableCell>₦{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell><span className={cn('px-2 py-1 text-xs rounded-full', item.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800')}>{item.status}</span></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            {isRepayDialogOpen && <RepaymentDialog open={isRepayDialogOpen} onOpenChange={setIsRepayDialogOpen} loan={activeLoan} onRepay={handleRepayment} />}
+            </>
+        ) : (
+            <Card className="text-center py-12">
+                <CardContent>
+                    <h3 className="text-xl font-semibold">No Active Loans</h3>
+                    <p className="text-muted-foreground mt-2 mb-4">You currently do not have any active loans. Apply now to get started.</p>
+                    <Button onClick={() => setView('apply')}>Apply for a Loan</Button>
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 }
+
+    
