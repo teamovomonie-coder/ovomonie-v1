@@ -1,236 +1,344 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import Image from 'next/image';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { QrCode, Nfc, CheckCircle, XCircle, Share2, Download, VideoOff } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-declare global {
-    interface Window {
-        NFCReader: any;
-    }
+type View = 'main' | 'generate' | 'display_qr' | 'scan' | 'confirm_payment' | 'receipt';
+
+const GenerateSchema = z.object({
+  amount: z.coerce.number().min(1, 'Amount must be at least ₦1.'),
+  memo: z.string().max(50, 'Memo cannot exceed 50 characters.').optional(),
+});
+type GenerateFormData = z.infer<typeof GenerateSchema>;
+
+interface TransactionData {
+  type: 'sent' | 'received';
+  amount: number;
+  peer: string;
+  memo?: string;
+  ref: string;
 }
 
-function NfcPay() {
-    const [nfcSupported, setNfcSupported] = useState<boolean | null>(null);
-    const [paymentStep, setPaymentStep] = useState<'idle' | 'ready' | 'success'>('idle');
-
-    useEffect(() => {
-        // Simulate checking for NFC support after component mounts
-        setNfcSupported('NFCReader' in window);
-    }, []);
-
-    if (nfcSupported === null) {
-        return <div className="text-center p-8">Checking for NFC support...</div>;
-    }
-
-    if (!nfcSupported) {
-        return (
-             <Alert variant="destructive" className="m-4">
-                <XCircle className="h-4 w-4" />
-                <AlertTitle>NFC Not Supported</AlertTitle>
-                <AlertDescription>
-                   Your device does not support NFC, or it is not enabled.
-                </AlertDescription>
-            </Alert>
-        );
-    }
-    
-    if (paymentStep === 'success') {
-        return (
-             <div className="text-center space-y-4 p-8 flex flex-col items-center">
-                <CheckCircle className="w-24 h-24 text-green-500" />
-                <h3 className="text-2xl font-bold">Payment Successful</h3>
-                <p>You have successfully paid with NFC.</p>
-                <Button onClick={() => setPaymentStep('idle')}>Make Another Payment</Button>
-            </div>
-        )
-    }
-
-    if (paymentStep === 'ready') {
-        return (
-             <div className="text-center space-y-4 p-8 flex flex-col items-center">
-                <div className="relative w-32 h-32">
-                    <Nfc className="w-32 h-32 text-primary" />
-                    <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping"></div>
-                </div>
-                <h3 className="text-2xl font-bold">Ready to Pay</h3>
-                <p className="text-muted-foreground">Tap your phone on the terminal.</p>
-                <Button variant="outline" onClick={() => setTimeout(() => setPaymentStep('success'), 1000)}>Simulate Tap</Button>
-            </div>
-        )
-    }
-
-    return (
-        <div className="text-center space-y-4 p-8">
-            <Nfc className="w-16 h-16 mx-auto text-primary" />
-            <h3 className="text-xl font-semibold">Tap to Pay</h3>
-            <p className="text-muted-foreground">Pay securely by tapping your phone on an NFC-enabled POS terminal.</p>
-            <Button onClick={() => setPaymentStep('ready')} size="lg">Activate NFC Payment</Button>
-        </div>
-    );
+function MainScreen({ setView }: { setView: (view: View) => void }) {
+  return (
+    <Card className="w-full max-w-md mx-auto shadow-none border-none">
+      <CardHeader className="text-center">
+        <CardTitle>Contactless Payment</CardTitle>
+        <CardDescription>Pay or get paid securely without contact.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Button onClick={() => setView('scan')} className="h-28 flex-col gap-2 text-lg">
+          <QrCode className="w-8 h-8" />
+          Scan to Pay
+        </Button>
+        <Button onClick={() => setView('generate')} className="h-28 flex-col gap-2 text-lg">
+          <Wallet className="w-8 h-8" />
+          Receive Money
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
+function GenerateScreen({ setView, setTransactionData }: { setView: (view: View) => void, setTransactionData: (data: any) => void }) {
+  const form = useForm<GenerateFormData>({
+    resolver: zodResolver(GenerateSchema),
+    defaultValues: { amount: 0, memo: '' }
+  });
 
-function QrPay() {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-    const [scanned, setScanned] = useState(false);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const getCameraPermission = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                setHasCameraPermission(true);
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                setHasCameraPermission(false);
-                toast({
-                    variant: 'destructive',
-                    title: 'Camera Access Denied',
-                    description: 'Please enable camera permissions in your browser settings.',
-                });
-            }
-        };
-        getCameraPermission();
-        
-        return () => {
-             if (videoRef.current && videoRef.current.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-            }
-        }
-    }, [toast]);
-
-    const handleScan = () => setScanned(true);
-    const handleReset = () => setScanned(false);
-
-    return (
-         <div className="space-y-4 p-4">
-             <div className="relative w-full aspect-square mx-auto bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center max-w-sm">
-                {scanned ? (
-                    <div className="absolute inset-0 bg-green-500/90 flex flex-col items-center justify-center text-white z-10">
-                        <CheckCircle className="w-24 h-24" />
-                        <p className="text-xl font-bold mt-2">Paid!</p>
-                    </div>
-                ) : (
-                    <>
-                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="absolute top-4 left-4 border-t-4 border-l-4 border-primary w-12 h-12 rounded-tl-lg"></div>
-                            <div className="absolute top-4 right-4 border-t-4 border-r-4 border-primary w-12 h-12 rounded-tr-lg"></div>
-                            <div className="absolute bottom-4 left-4 border-b-4 border-l-4 border-primary w-12 h-12 rounded-bl-lg"></div>
-                            <div className="absolute bottom-4 right-4 border-b-4 border-r-4 border-primary w-12 h-12 rounded-br-lg"></div>
-                            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-[scan_2s_ease-in-out_infinite]"></div>
-                        </div>
-                    </>
-                )}
-                 {hasCameraPermission === false && (
-                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white z-20">
-                        <VideoOff className="w-16 h-16 mb-4" />
-                        <h3 className="text-xl font-bold">Camera Access Denied</h3>
-                        <p className="text-sm text-center max-w-xs mt-2">To scan QR codes, please allow camera access in your browser settings.</p>
-                    </div>
-                )}
-            </div>
-            {scanned ? (
-                 <Button onClick={handleReset} className="w-full">Scan Another Code</Button>
-            ) : (
-                 <Button onClick={handleScan} className="w-full" disabled={hasCameraPermission === false}>Simulate Scan</Button>
-            )}
-            <style jsx>{`
-                @keyframes scan {
-                    0%, 100% { transform: translateY(-120px); }
-                    50% { transform: translateY(120px); }
-                }
-            `}</style>
-         </div>
-    );
-}
-
-function Receive() {
-  const { toast } = useToast();
-
-  const handleAction = (action: string) => {
-    toast({
-      title: `${action}!`,
-      description: `Your QR code has been ${action.toLowerCase()}.`
-    });
+  function onSubmit(data: GenerateFormData) {
+    const payload = {
+      ...data,
+      merchant_id: 'OM12345',
+      currency: 'NGN',
+      txn_ref: `OVO-TXN-${Date.now()}`,
+      expires_in: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+    };
+    // In a real app, this payload would be encrypted
+    setTransactionData(payload);
+    setView('display_qr');
   }
 
   return (
-    <div className="text-center space-y-4 p-4">
-      <div className="bg-white p-4 inline-block rounded-lg border shadow-sm">
-        <Image 
-          src="https://placehold.co/256x256.png"
-          alt="Your QR Code"
-          width={256}
-          height={256}
-          data-ai-hint="qr code"
-        />
-      </div>
-      <div className="text-center">
-        <p className="font-semibold text-lg">PAAGO DAVID</p>
-        <p className="text-muted-foreground font-mono">8012345678</p>
-      </div>
-      <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-        Show this QR code to a merchant or another user to receive money instantly.
-      </p>
-      <div className="flex gap-2 justify-center pt-2">
-        <Button onClick={() => handleAction('Shared')} variant="outline">
-          <Share2 className="mr-2" /> Share
-        </Button>
-        <Button onClick={() => handleAction('Saved')}>
-          <Download className="mr-2" /> Save
-        </Button>
-      </div>
-    </div>
-  );
+    <Card className="w-full max-w-md mx-auto">
+       <CardHeader>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => setView('main')}><ArrowLeft/></Button>
+          <CardTitle>Receive Money</CardTitle>
+        </div>
+        <CardDescription>Enter an amount to generate a payment QR code.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="amount" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Amount (₦)</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+             <FormField control={form.control} name="memo" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Memo / Reason (Optional)</FormLabel>
+                <FormControl><Textarea placeholder="e.g., For lunch" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" className="w-full">Generate QR Code</Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DisplayQrScreen({ setView, transactionData }: { setView: (view: View) => void, transactionData: any }) {
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (timeLeft === 0) {
+      setView('main');
+      toast({ variant: 'destructive', title: 'QR Code Expired', description: 'Please generate a new code.' });
+      return;
+    }
+    const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    return () => clearTimeout(timerId);
+  }, [timeLeft, setView, toast]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  
+  // Simulate encrypted payload in QR text
+  const qrText = encodeURIComponent(JSON.stringify({ ref: transactionData.txn_ref }));
+
+  return (
+    <Card className="w-full max-w-md mx-auto text-center">
+      <CardHeader>
+        <CardTitle>Scan to Receive Payment</CardTitle>
+        <CardDescription>Ask the sender to scan this code.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4">
+        <div className="bg-white p-4 inline-block rounded-lg border shadow-sm">
+          <Image src={`https://placehold.co/256x256.png?text=${qrText}`} alt="Generated QR Code" width={256} height={256} data-ai-hint="qr code" />
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">Amount</p>
+          <p className="text-3xl font-bold">₦{transactionData.amount.toLocaleString()}</p>
+          {transactionData.memo && <p className="text-muted-foreground mt-1">For: {transactionData.memo}</p>}
+        </div>
+        <div className="flex items-center gap-2 font-mono text-destructive p-2 bg-destructive/10 rounded-md">
+            <Timer className="w-5 h-5" />
+            <span>Code expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={() => setView('main')} className="w-full">Done</Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
+function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => void, setTransactionData: (data: any) => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (error) {
+        setHasCameraPermission(false);
+        toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions in browser settings.' });
+      }
+    };
+    getCameraPermission();
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+      }
+    }
+  }, [toast]);
+
+  const handleSimulateScan = () => {
+    // In a real app, a QR library would decode the QR code.
+    // We simulate decoding a payload.
+    setTransactionData({
+      peer: 'The Coffee Shop',
+      amount: 4500,
+      memo: 'Morning Latte',
+      ref: `OVO-TXN-${Date.now()}`
+    });
+    setView('confirm_payment');
+  }
+
+  return (
+    <Card className="w-full max-w-md mx-auto text-center">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setView('main')}><ArrowLeft/></Button>
+            <CardTitle>Scan to Pay</CardTitle>
+        </div>
+        <CardDescription>Position the QR code inside the frame.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative w-full aspect-square mx-auto bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
+            <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute top-4 left-4 border-t-4 border-l-4 border-primary w-12 h-12 rounded-tl-lg"></div>
+                <div className="absolute top-4 right-4 border-t-4 border-r-4 border-primary w-12 h-12 rounded-tr-lg"></div>
+                <div className="absolute bottom-4 left-4 border-b-4 border-l-4 border-primary w-12 h-12 rounded-bl-lg"></div>
+                <div className="absolute bottom-4 right-4 border-b-4 border-r-4 border-primary w-12 h-12 rounded-br-lg"></div>
+                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-[scan_2s_ease-in-out_infinite]" />
+            </div>
+            {hasCameraPermission === false && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white z-20 p-4">
+                    <VideoOff className="w-16 h-16 mb-4" />
+                    <h3 className="text-xl font-bold">Camera Access Required</h3>
+                    <p className="text-sm mt-2">Please allow camera access to scan QR codes.</p>
+                </div>
+            )}
+        </div>
+      </CardContent>
+       <CardFooter>
+          <Button onClick={handleSimulateScan} className="w-full" disabled={hasCameraPermission === false}>Simulate Scan</Button>
+      </CardFooter>
+       <style jsx>{`
+            @keyframes scan {
+                0%, 100% { transform: translateY(-120px); }
+                50% { transform: translateY(120px); }
+            }
+        `}</style>
+    </Card>
+  )
+}
+
+function ConfirmPaymentScreen({ setView, transactionData, reset }: { setView: (view: View) => void, transactionData: any, reset: () => void }) {
+    const [isConfirming, setIsConfirming] = useState(false);
+    
+    const handleConfirm = () => {
+        setIsConfirming(true);
+        // Simulate API call
+        setTimeout(() => {
+            setView('receipt');
+            setIsConfirming(false);
+        }, 1500);
+    }
+
+    return (
+        <Card className="w-full max-w-md mx-auto">
+            <CardHeader className="text-center">
+                <CardTitle>Confirm Payment</CardTitle>
+                <CardDescription>Review the details before you confirm.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="text-center space-y-1 p-4 rounded-lg bg-muted">
+                    <p className="text-sm text-muted-foreground">You are paying</p>
+                    <p className="text-lg font-semibold">{transactionData.peer}</p>
+                </div>
+                <div className="flex justify-between items-center text-lg">
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="font-bold">₦{transactionData.amount.toLocaleString()}</span>
+                </div>
+                {transactionData.memo && <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">For:</span>
+                    <span className="font-semibold">{transactionData.memo}</span>
+                </div>}
+                 <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Confirm with PIN</AlertTitle>
+                    <AlertDescription>
+                        In a real app, you would be prompted to enter your PIN or use biometrics to authorize this payment.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
+            <CardFooter className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={reset} disabled={isConfirming}>Cancel</Button>
+                <Button onClick={handleConfirm} disabled={isConfirming}>
+                    {isConfirming ? <Loader2 className="animate-spin" /> : 'Pay Now'}
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+function ReceiptScreen({ transactionData, reset }: { transactionData: any, reset: () => void }) {
+    const { toast } = useToast();
+    const handleAction = (action: string) => {
+        toast({ title: `${action}!`, description: `Your receipt has been ${action.toLowerCase()}.` });
+    };
+
+    return (
+        <Card className="w-full max-w-md mx-auto text-center">
+            <CardHeader>
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+                <CardTitle>Payment Successful!</CardTitle>
+                <CardDescription>You sent ₦{transactionData.amount.toLocaleString()} to {transactionData.peer}.</CardDescription>
+            </CardHeader>
+            <CardContent className="bg-muted/50 rounded-lg p-4 space-y-3 text-sm text-left">
+                <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-medium">₦{transactionData.amount.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">To</span><span className="font-medium">{transactionData.peer}</span></div>
+                {transactionData.memo && <div className="flex justify-between"><span className="text-muted-foreground">Memo</span><span className="font-medium">{transactionData.memo}</span></div>}
+                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{new Date().toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Reference</span><span className="font-medium font-mono text-xs">{transactionData.ref}</span></div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2 pt-4">
+                 <div className="flex w-full gap-2">
+                    <Button onClick={() => handleAction('Shared')} variant="outline" className="w-full">
+                        <Share2 className="mr-2" /> Share
+                    </Button>
+                    <Button onClick={() => handleAction('Saved')} className="w-full">
+                        <Download className="mr-2" /> Save
+                    </Button>
+                </div>
+                <Button variant="ghost" onClick={reset} className="w-full">Done</Button>
+            </CardFooter>
+        </Card>
+    )
 }
 
 
 export function ContactlessUI() {
-  return (
-    <Card className="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>Contactless Banking</CardTitle>
-        <CardDescription>
-          Pay and receive money quickly and securely without physical contact.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Tabs defaultValue="pay" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pay">Pay</TabsTrigger>
-            <TabsTrigger value="receive">Receive</TabsTrigger>
-          </TabsList>
-          <TabsContent value="pay">
-             <Tabs defaultValue="qr" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mt-4">
-                    <TabsTrigger value="qr"><QrCode className="mr-2" /> Scan QR</TabsTrigger>
-                    <TabsTrigger value="nfc"><Nfc className="mr-2" /> Tap & Pay</TabsTrigger>
-                </TabsList>
-                <TabsContent value="qr" className="mt-0">
-                    <QrPay />
-                </TabsContent>
-                <TabsContent value="nfc" className="mt-0">
-                    <NfcPay />
-                </TabsContent>
-            </Tabs>
-          </TabsContent>
-          <TabsContent value="receive" className="mt-0">
-            <Receive />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
+  const [view, setView] = useState<View>('main');
+  const [transactionData, setTransactionData] = useState<any>(null);
+
+  const reset = () => {
+    setView('main');
+    setTransactionData(null);
+  }
+
+  const renderContent = () => {
+    switch (view) {
+      case 'generate':
+        return <GenerateScreen setView={setView} setTransactionData={setTransactionData} />;
+      case 'display_qr':
+        return <DisplayQrScreen setView={setView} transactionData={transactionData} />;
+      case 'scan':
+        return <ScanScreen setView={setView} setTransactionData={setTransactionData} />;
+      case 'confirm_payment':
+        return <ConfirmPaymentScreen setView={setView} transactionData={transactionData} reset={reset} />;
+      case 'receipt':
+        return <ReceiptScreen transactionData={transactionData} reset={reset} />;
+      case 'main':
+      default:
+        return <MainScreen setView={setView} />;
+    }
+  };
+
+  return <div className="w-full h-full flex items-center justify-center">{renderContent()}</div>;
 }

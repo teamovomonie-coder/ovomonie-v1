@@ -27,7 +27,7 @@ export default function Home() {
             <MessageCircle className="h-5 w-5" />
             SUPPORT
           </Link>
-          <Link href="/scan-to-pay">
+          <Link href="/contactless-banking">
             <QrCode className="h-6 w-6" />
           </Link>
           <div className="relative">
