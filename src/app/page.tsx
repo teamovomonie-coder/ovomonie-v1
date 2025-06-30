@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickAccess } from "@/components/dashboard/quick-access";
 import { Bell, CheckCircle, Eye, MessageCircle, QrCode } from "lucide-react";
 import { ChatInterface } from '@/components/ai-assistant/chat-interface';
+import { AgentLifeCard } from '@/components/dashboard/agent-life-card';
 
 export default function Home() {
   return (
@@ -37,7 +38,7 @@ export default function Home() {
         </div>
       </header>
       
-      <main className="px-4">
+      <main className="px-4 pb-4">
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-lg p-1">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white rounded-md">Dashboard</TabsTrigger>
@@ -65,6 +66,7 @@ export default function Home() {
               </CardContent>
             </Card>
             <QuickAccess />
+            <AgentLifeCard />
           </TabsContent>
           <TabsContent value="ai-assistant">
              <Card className="h-[calc(100vh-14rem)] flex flex-col mt-4">

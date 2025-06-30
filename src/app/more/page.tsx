@@ -44,8 +44,8 @@ const serviceData: ServiceCategory[] = [
     services: [
       { label: "Invoicing", icon: Receipt, href: "/invoicing" },
       { label: "Payroll", icon: Briefcase, href: "/payroll" },
-      { label: "AgentLife", icon: UserCheck, href: "#" },
-      { label: "Merchant Services", icon: Store, href: "#" },
+      { label: "AgentLife", icon: UserCheck, href: "/agent-life" },
+      { label: "Merchant Services", icon: Store, href: "/agent-life" },
       { label: "Inventory", icon: Package, href: "#" },
       { label: "POS Terminal", icon: Monitor, href: "#" },
       { label: "Bulk Payments", icon: Users, href: "#" },
