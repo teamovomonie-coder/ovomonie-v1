@@ -11,7 +11,7 @@ const features = [
   { href: "/contactless-banking", label: "Contactless", icon: Nfc },
   { href: "/ovo-wealth", label: "Ovo-wealth", icon: PiggyBank },
   { href: "/loan", label: "Loan", icon: BadgeDollarSign },
-  { href: "#", label: "Invitation", icon: Gift },
+  { href: "/invitation", label: "Invitation", icon: Gift },
   { href: "#", label: "More", icon: MoreHorizontal },
 ];
 
