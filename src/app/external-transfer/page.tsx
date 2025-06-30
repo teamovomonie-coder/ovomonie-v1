@@ -10,7 +10,7 @@ export default function ExternalTransferPage() {
           <CardHeader>
             <CardTitle>Send Money to another Bank</CardTitle>
             <CardDescription>
-              Transfer funds to any Nigerian bank account. You can also add a personal touch with MemoTransfer.
+              Transfer funds to any Nigerian bank account securely and instantly.
             </CardDescription>
           </CardHeader>
           <CardContent>

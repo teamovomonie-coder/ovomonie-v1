@@ -8,9 +8,9 @@ export default function InternalTransferPage() {
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Send Money to Ovomonie User</CardTitle>
+            <CardTitle>MemoTransfer</CardTitle>
             <CardDescription>
-              Quickly send money to another Ovomonie account. You can add a personal touch with MemoTransfer.
+              Send personalized money transfers with images and custom messages to any bank account in Nigeria.
             </CardDescription>
           </CardHeader>
           <CardContent>
