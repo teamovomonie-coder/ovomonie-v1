@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SheetTitle } from "../ui/sheet";
 
 const OvoLogo = () => (
   <div className="flex items-center gap-2">
@@ -57,7 +56,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar>
-        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <SidebarHeader>
           <div className="flex items-center justify-between">
             <OvoLogo />
