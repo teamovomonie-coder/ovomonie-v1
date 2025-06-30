@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Landmark, Smartphone, ArrowDownUp, Zap, Target, Nfc, PiggyBank, BadgeDollarSign, Gift, MoreHorizontal, Send } from "lucide-react";
+import { Landmark, Smartphone, ArrowDownUp, Zap, Target, Nfc, PiggyBank, BadgeDollarSign, Gift, MoreHorizontal, Send, LayoutGrid } from "lucide-react";
 
 const features = [
   { href: "/memo-transfer", label: "To Ovomonie", icon: Send },
@@ -12,7 +12,7 @@ const features = [
   { href: "/ovo-wealth", label: "Ovo-wealth", icon: PiggyBank },
   { href: "/loan", label: "Loan", icon: BadgeDollarSign },
   { href: "/invitation", label: "Invitation", icon: Gift },
-  { href: "#", label: "More", icon: MoreHorizontal },
+  { href: "/more", label: "More", icon: LayoutGrid },
 ];
 
 const largeFeatures = features.slice(0, 3);
