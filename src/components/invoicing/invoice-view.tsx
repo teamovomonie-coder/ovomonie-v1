@@ -9,28 +9,55 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Download, Share2, CreditCard } from 'lucide-react';
 import type { Invoice } from './invoicing-dashboard';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 interface InvoiceViewProps {
-  invoice: Invoice; // Using the simple mock type for now, would be InvoiceFormData in a real app
+  invoice: Invoice;
   onBack: () => void;
 }
 
 export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
-  // In a real app, these values would come from the full invoice object
-  const subtotal = invoice.amount / 1.075;
-  const tax = invoice.amount - subtotal;
-  const total = invoice.amount;
+  const { toast } = useToast();
+
+  const subtotal = invoice.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const tax = subtotal * 0.075;
+  const total = subtotal + tax;
+
+  const handleShare = (method: 'WhatsApp' | 'Email' | 'Link') => {
+    let description = '';
+    switch(method) {
+        case 'Link': 
+            navigator.clipboard.writeText(`https://ovomonie.ng/invoice/${invoice.id}`);
+            description = "Invoice link copied to clipboard.";
+            break;
+        default:
+            description = `Invoice shared via ${method}.`;
+            break;
+    }
+    toast({
+        title: "Invoice Sent!",
+        description: description
+    })
+  }
+
+  const handlePay = () => {
+      toast({
+          title: "Redirecting to Payment",
+          description: "You will be redirected to a secure payment page."
+      })
+  }
   
   return (
-    <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-       <div className="flex items-center justify-between mb-4">
+    <div className="flex-1 space-y-4 p-2 sm:p-8 pt-6">
+       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
             <div className="flex items-center gap-2">
                 <Button type="button" variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
-                <h2 className="text-3xl font-bold tracking-tight">Invoice Preview</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Invoice Preview</h2>
             </div>
-            <div className="flex gap-2">
-                <Button variant="outline"><Download className="mr-2" /> Download PDF</Button>
-                <Button><Share2 className="mr-2" /> Share</Button>
+            <div className="flex gap-2 self-end sm:self-center">
+                <Button variant="outline"><Download className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Download</span></Button>
+                <Button onClick={() => handleShare('Link')}><Share2 className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Share</span></Button>
             </div>
         </div>
 
@@ -38,11 +65,16 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
             <CardHeader className="p-0 sm:p-4">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                     <div>
-                         {/* Placeholder for logo */}
-                         <div className="w-32 h-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground">Logo</div>
+                         {invoice.logo ? (
+                             <div className="w-32 h-16 relative">
+                                 <Image src={invoice.logo} alt="Business Logo" layout="fill" objectFit="contain" className="p-2" data-ai-hint="logo company" />
+                             </div>
+                         ) : (
+                             <div className="w-32 h-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-sm">Your Logo</div>
+                         )}
                     </div>
                     <div className="text-left md:text-right">
-                        <h1 className="text-4xl font-bold text-primary tracking-tight">{invoice.id}</h1>
+                        <h1 className="text-3xl sm:text-4xl font-bold text-primary tracking-tight">{invoice.invoiceNumber}</h1>
                          <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Overdue' ? 'destructive' : 'secondary'}
                            className={`mt-2 text-base ${invoice.status === 'Paid' ? 'bg-green-100 text-green-800' : invoice.status === 'Overdue' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                             {invoice.status}
@@ -52,53 +84,49 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                 <div className="grid sm:grid-cols-2 gap-4 mt-8 text-sm">
                     <div>
                         <h3 className="font-semibold text-muted-foreground mb-1">From</h3>
-                        <p className="font-bold">PAAGO DAVID (Ovo Thrive)</p>
-                        <p>123 Fintech Avenue,</p>
-                        <p>Lagos, Nigeria</p>
+                        <p className="font-bold">{invoice.fromName}</p>
+                        <p>{invoice.fromAddress}</p>
                     </div>
                      <div className="text-left sm:text-right">
                         <h3 className="font-semibold text-muted-foreground mb-1">Bill To</h3>
-                        <p className="font-bold">{invoice.client}</p>
-                        <p>456 Client Street,</p>
-                        <p>Abuja, Nigeria</p>
+                        <p className="font-bold">{invoice.toName}</p>
+                        <p>{invoice.toAddress}</p>
                     </div>
                 </div>
                  <div className="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
                     <div>
                         <h3 className="font-semibold text-muted-foreground mb-1">Issue Date</h3>
-                        <p>July 28, 2024</p>
+                        <p>{format(invoice.issueDate, 'PPP')}</p>
                     </div>
                     <div className="text-left sm:text-right">
                          <h3 className="font-semibold text-muted-foreground mb-1">Due Date</h3>
-                        <p>{invoice.dueDate}</p>
+                        <p>{format(invoice.dueDate, 'PPP')}</p>
                     </div>
                 </div>
             </CardHeader>
             <CardContent className="p-0 sm:p-4 mt-8">
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[60%]">Description</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Unit Price</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow>
-                            <TableCell className="font-medium">Premium UI/UX Design</TableCell>
-                            <TableCell className="text-right">1</TableCell>
-                            <TableCell className="text-right">₦100,000</TableCell>
-                            <TableCell className="text-right">₦100,000</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium">Backend Development</TableCell>
-                            <TableCell className="text-right">1</TableCell>
-                            <TableCell className="text-right">₦200,000</TableCell>
-                            <TableCell className="text-right">₦200,000</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                 <div className="overflow-x-auto">
+                    <Table className="min-w-[600px]">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[50%]">Description</TableHead>
+                                <TableHead className="text-right">Quantity</TableHead>
+                                <TableHead className="text-right">Unit Price</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                           {invoice.lineItems.map((item, index) => (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">{item.description}</TableCell>
+                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                    <TableCell className="text-right">₦{item.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                    <TableCell className="text-right">₦{(item.quantity * item.price).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                </TableRow>
+                           ))}
+                        </TableBody>
+                    </Table>
+                 </div>
                 <Separator className="my-6" />
                 <div className="flex justify-end">
                     <div className="w-full max-w-xs space-y-2 text-sm">
@@ -116,6 +144,12 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                         </div>
                     </div>
                 </div>
+                 {invoice.notes && (
+                    <div className="mt-8 text-sm text-muted-foreground">
+                        <h4 className="font-semibold mb-2">Notes</h4>
+                        <p>{invoice.notes}</p>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="flex-col sm:flex-row items-center justify-between p-4 mt-8 border-t">
                 <div className="text-sm text-muted-foreground text-center sm:text-left mb-4 sm:mb-0">
@@ -123,7 +157,7 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                     <p>Powered by Ovomonie</p>
                 </div>
                 {invoice.status !== 'Paid' && (
-                    <Button size="lg" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto" onClick={handlePay}>
                         <CreditCard className="mr-2" /> Pay Now
                     </Button>
                 )}
@@ -132,3 +166,5 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
     </div>
   );
 }
+
+    
