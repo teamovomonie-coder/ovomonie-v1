@@ -1,3 +1,4 @@
+
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,15 +9,17 @@ export function MerchantServicesDashboard() {
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">Merchant Services</h2>
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="terminals">Terminals</TabsTrigger>
-          <TabsTrigger value="agentlife">AgentLife Hub</TabsTrigger>
-          <TabsTrigger value="staff">Staff</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="w-full overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="terminals">Terminals</TabsTrigger>
+            <TabsTrigger value="agentlife">AgentLife Hub</TabsTrigger>
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="overview" className="space-y-4 pt-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Business Wallet</CardTitle>
@@ -68,25 +71,25 @@ export function MerchantServicesDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="terminals">
+        <TabsContent value="terminals" className="pt-4">
              <Card>
                 <CardHeader><CardTitle>Terminal Management</CardTitle></CardHeader>
                 <CardContent><p>A list of your POS terminals, their status, and management options will appear here.</p></CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="agentlife">
+        <TabsContent value="agentlife" className="pt-4">
             <Card>
                 <CardHeader><CardTitle>AgentLife Hub</CardTitle></CardHeader>
                 <CardContent><p>Your AgentLife tier, commission leaderboards, and points balance will be displayed here.</p></CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="staff">
+        <TabsContent value="staff" className="pt-4">
              <Card>
                 <CardHeader><CardTitle>Staff Management</CardTitle></CardHeader>
                 <CardContent><p>Tools to add staff/cashiers, assign terminals, and manage permissions will be available here.</p></CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="analytics">
+        <TabsContent value="analytics" className="pt-4">
              <Card>
                 <CardHeader><CardTitle>Business Analytics</CardTitle></CardHeader>
                 <CardContent><p>Sales graphs, customer trends, and settlement reports will be available here.</p></CardContent>
