@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SheetTitle } from "@/components/ui/sheet";
 
 const OvoLogo = () => (
   <div className="flex items-center gap-2">
@@ -64,8 +63,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <OvoLogo />
             <SidebarTrigger />
           </div>
-          {/* This is a workaround for the accessibility error. */}
-          <SheetTitle className="sr-only">Main Navigation</SheetTitle>
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
