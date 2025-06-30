@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 // --- Bank Transfer Tab ---
 function BankTransfer() {
@@ -167,7 +168,7 @@ function FundWithUssd() {
     return (
         <div className="space-y-4">
             <div className="space-y-2">
-                <FormLabel htmlFor='ussd-amount'>Amount (₦)</FormLabel>
+                <Label htmlFor='ussd-amount'>Amount (₦)</Label>
                 <Input id="ussd-amount" type="number" placeholder="Enter amount to fund" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
             <p className="text-sm text-muted-foreground">Select your bank and copy the USSD code to dial on your phone.</p>
