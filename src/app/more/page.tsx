@@ -43,7 +43,7 @@ const serviceData: ServiceCategory[] = [
     title: "Business & Work Tools",
     services: [
       { label: "Invoicing", icon: Receipt, href: "/invoicing" },
-      { label: "Payroll", icon: Briefcase, href: "#" },
+      { label: "Payroll", icon: Briefcase, href: "/payroll" },
       { label: "AgentLife", icon: UserCheck, href: "#" },
       { label: "Merchant Services", icon: Store, href: "#" },
       { label: "Inventory", icon: Package, href: "#" },
@@ -108,19 +108,19 @@ const serviceData: ServiceCategory[] = [
 ];
 
 const ServiceTile = ({ service }: { service: Service }) => (
-  <Link href={service.href} className="flex flex-col items-center justify-center text-center gap-2 p-4 rounded-xl bg-card hover:bg-accent/10 transition-colors shadow-sm">
-    <div className="bg-primary/10 text-primary p-3 rounded-full">
-      <service.icon className="h-6 w-6" />
-    </div>
-    <span className="text-sm font-semibold text-foreground">{service.label}</span>
-  </Link>
+    <Link href={service.href} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors">
+        <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
+            <service.icon className="h-6 w-6" />
+        </div>
+        <span className="text-sm font-semibold text-foreground">{service.label}</span>
+    </Link>
 );
 
 
 export default function MorePage() {
   return (
     <AppShell>
-      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6">
+      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6 bg-gray-50">
         <h2 className="text-3xl font-bold tracking-tight text-primary">All Services</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
