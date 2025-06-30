@@ -29,20 +29,15 @@ export function InvitationDashboard() {
               await navigator.share(shareData);
               // On success, the promise resolves. We don't need a toast here as the share sheet itself provides feedback.
           } catch (err) {
-              console.error('Share failed:', err);
-              // Silently fail if user cancels the share dialog (AbortError)
-              // For other errors (like NotAllowedError), fall back to copying the link
-              if (err instanceof Error && err.name === 'AbortError') {
-                  // User cancelled, do nothing.
-              } else {
+              // Silently fail if user cancels the share dialog (AbortError).
+              // For other errors (like permission denied), we fallback to copying the link.
+              if (!(err instanceof Error && err.name === 'AbortError')) {
                  handleCopyToClipboard();
-                 toast({ title: 'Link Copied', description: 'Sharing isn\'t available right now, so we copied the link for you.' });
               }
           }
       } else {
           // Fallback for browsers that do not support navigator.share
           handleCopyToClipboard();
-          toast({ title: 'Link Copied', description: 'Share feature not supported, link copied instead.' });
       }
   };
   
