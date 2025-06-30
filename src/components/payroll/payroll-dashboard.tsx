@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { nigerianBanks } from '@/lib/banks';
@@ -166,8 +166,10 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
 
 function EmployeeFormRow({ index, control, onRemove, onVerify }: { index: number, control: any, onRemove: (index: number) => void, onVerify: (index: number) => void }) {
     const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
-    const employee = useForm().watch(`employees.${index}`);
-    const isVerified = control.getValues(`employees.${index}.isVerified`);
+    const isVerified = useWatch({
+        control,
+        name: `employees.${index}.isVerified`,
+    });
     
     return (
         <div className="p-4 border rounded-lg space-y-4 relative bg-background">
@@ -356,3 +358,5 @@ export function PayrollDashboard() {
     </div>
   );
 }
+
+    
