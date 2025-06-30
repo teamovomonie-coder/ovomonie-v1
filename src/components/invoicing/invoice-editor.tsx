@@ -28,6 +28,7 @@ export const invoiceSchema = z.object({
   fromName: z.string().min(1, 'Your name/business name is required.'),
   fromAddress: z.string().min(1, 'Your address is required.'),
   toName: z.string().min(1, "Client's name is required."),
+  toEmail: z.string().email("Invalid email address.").optional(),
   toAddress: z.string().min(1, "Client's address is required."),
   invoiceNumber: z.string().min(1, 'Invoice number is required.'),
   issueDate: z.date(),
@@ -50,7 +51,11 @@ export function InvoiceEditor({ invoice, onSave, onSaveDraft, onBack }: InvoiceE
   
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: invoice,
+    defaultValues: {
+      ...invoice,
+      issueDate: invoice.issueDate ? new Date(invoice.issueDate) : new Date(),
+      dueDate: invoice.dueDate ? new Date(invoice.dueDate) : new Date(),
+    }
   });
   
   const { fields, append, remove } = useFieldArray({
@@ -136,6 +141,7 @@ export function InvoiceEditor({ invoice, onSave, onSaveDraft, onBack }: InvoiceE
                     <div>
                         <h3 className="font-semibold mb-2">To:</h3>
                         <FormField control={form.control} name="toName" render={({ field }) => (<FormItem><FormControl><Input placeholder="Client's Name" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="toEmail" render={({ field }) => (<FormItem className="mt-2"><FormControl><Input placeholder="Client's Email (Optional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="toAddress" render={({ field }) => (<FormItem className="mt-2"><FormControl><Textarea placeholder="Client's Address" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                 </div>
@@ -211,5 +217,3 @@ export function InvoiceEditor({ invoice, onSave, onSaveDraft, onBack }: InvoiceE
     </div>
   );
 }
-
-    

@@ -7,10 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Download, Share2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Download, Share2, CreditCard, Mail, MessageCircle, Link as LinkIcon } from 'lucide-react';
 import type { Invoice } from './invoicing-dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface InvoiceViewProps {
   invoice: Invoice;
@@ -24,21 +30,30 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
   const tax = subtotal * 0.075;
   const total = subtotal + tax;
 
-  const handleShare = (method: 'WhatsApp' | 'Email' | 'Link') => {
-    let description = '';
-    switch(method) {
-        case 'Link': 
-            navigator.clipboard.writeText(`https://ovomonie.ng/invoice/${invoice.id}`);
-            description = "Invoice link copied to clipboard.";
+  const handleShare = (method: 'whatsapp' | 'email' | 'copy') => {
+    const invoiceUrl = `https://ovomonie.ng/invoice/${invoice.id}`;
+    const subject = `Invoice ${invoice.invoiceNumber} from ${invoice.fromName}`;
+    const bodyText = `Hi ${invoice.toName},\n\nPlease find your invoice for ₦${total.toLocaleString()} from ${invoice.fromName}.\n\nYou can view and pay your invoice here: ${invoiceUrl}\n\nThank you!`;
+
+    switch (method) {
+        case 'whatsapp':
+            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(bodyText)}`;
+            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+            toast({ title: "Opening WhatsApp...", description: "Redirecting to share your invoice." });
             break;
-        default:
-            description = `Invoice shared via ${method}.`;
+        case 'email':
+            const mailtoUrl = `mailto:${invoice.toEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+            window.location.href = mailtoUrl;
+            toast({ title: "Opening Email Client...", description: "Please review and send your invoice." });
+            break;
+        case 'copy':
+            navigator.clipboard.writeText(invoiceUrl);
+            toast({
+                title: "Link Copied!",
+                description: "Invoice link copied to clipboard."
+            });
             break;
     }
-    toast({
-        title: "Invoice Sent!",
-        description: description
-    })
   }
 
   const handlePay = () => {
@@ -57,7 +72,25 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
             </div>
             <div className="flex gap-2 self-end sm:self-center">
                 <Button variant="outline"><Download className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Download</span></Button>
-                <Button onClick={() => handleShare('Link')}><Share2 className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Share</span></Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button><Share2 className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Share</span></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleShare('whatsapp')}>
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                            <span>WhatsApp</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare('email')}>
+                            <Mail className="mr-2 h-4 w-4" />
+                            <span>Email</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare('copy')}>
+                            <LinkIcon className="mr-2 h-4 w-4" />
+                            <span>Copy Link</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
 
@@ -90,17 +123,18 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                      <div className="text-left sm:text-right">
                         <h3 className="font-semibold text-muted-foreground mb-1">Bill To</h3>
                         <p className="font-bold">{invoice.toName}</p>
+                        {invoice.toEmail && <p>{invoice.toEmail}</p>}
                         <p>{invoice.toAddress}</p>
                     </div>
                 </div>
                  <div className="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
                     <div>
                         <h3 className="font-semibold text-muted-foreground mb-1">Issue Date</h3>
-                        <p>{format(invoice.issueDate, 'PPP')}</p>
+                        <p>{format(new Date(invoice.issueDate), 'PPP')}</p>
                     </div>
                     <div className="text-left sm:text-right">
                          <h3 className="font-semibold text-muted-foreground mb-1">Due Date</h3>
-                        <p>{format(invoice.dueDate, 'PPP')}</p>
+                        <p>{format(new Date(invoice.dueDate), 'PPP')}</p>
                     </div>
                 </div>
             </CardHeader>
@@ -166,5 +200,3 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
     </div>
   );
 }
-
-    
