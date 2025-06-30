@@ -58,7 +58,9 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-3xl font-bold">₦0.00</span>
-                  <Button className="bg-white text-slate-800 hover:bg-gray-200 rounded-full">+ Add Money</Button>
+                  <Button asChild className="bg-white text-slate-800 hover:bg-gray-200 rounded-full">
+                    <Link href="/add-money">+ Add Money</Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

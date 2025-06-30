@@ -26,7 +26,8 @@ import {
   PiggyBank,
   BadgeDollarSign,
   Gift,
-  LayoutGrid
+  LayoutGrid,
+  PlusCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/", label: "Dashboard", icon: LayoutDashboard },
         { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
         { href: "/memo-transfer", label: "Send Money", icon: Send },
+        { href: "/add-money", label: "Add Money", icon: PlusCircle },
         { href: "/withdraw", label: "Withdraw", icon: ArrowDownUp },
         { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },

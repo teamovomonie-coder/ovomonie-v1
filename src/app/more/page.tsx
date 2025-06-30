@@ -22,7 +22,7 @@ const serviceData: ServiceCategory[] = [
       { label: "To Ovomonie", icon: Send, href: "/memo-transfer" },
       { label: "To Bank", icon: Landmark, href: "/external-transfer" },
       { label: "MemoTransfer", icon: Sparkles, href: "/memo-transfer" },
-      { label: "Add Money", icon: Plus, href: "#" },
+      { label: "Add Money", icon: Plus, href: "/add-money" },
       { label: "Withdraw", icon: ArrowDownUp, href: "/withdraw" },
       { label: "Voice Banking", icon: Mic, href: "/ai-assistant" },
       { label: "Contactless", icon: Nfc, href: "/contactless-banking" },
