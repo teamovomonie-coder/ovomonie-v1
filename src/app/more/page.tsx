@@ -42,7 +42,7 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Business & Work Tools",
     services: [
-      { label: "Invoicing", icon: Receipt, href: "#" },
+      { label: "Invoicing", icon: Receipt, href: "/invoicing" },
       { label: "Payroll", icon: Briefcase, href: "#" },
       { label: "AgentLife", icon: UserCheck, href: "#" },
       { label: "Merchant Services", icon: Store, href: "#" },
