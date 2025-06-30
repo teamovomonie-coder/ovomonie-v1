@@ -10,8 +10,7 @@ export default function AiAssistantPage() {
           <CardHeader>
             <CardTitle>AI Assistant</CardTitle>
             <CardDescription>
-              Ask me anything about your account in English, Hausa, Yoruba, or Igbo.
-              For example: "What is my account balance?"
+              Your personal voice banking assistant. Ask me about your balance, transactions, or financial goals.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col">

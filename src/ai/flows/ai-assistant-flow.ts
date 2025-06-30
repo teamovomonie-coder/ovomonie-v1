@@ -1,57 +1,86 @@
 'use server';
-
 /**
- * @fileOverview Implements the AI assistant flow for handling user voice commands to check account balance in multiple languages.
+ * @fileOverview Implements the main AI assistant conversational flow.
  *
- * - checkBalanceWithVoiceCommand - A function that processes voice commands to check account balance.
- * - CheckBalanceWithVoiceCommandInput - The input type for the checkBalanceWithVoiceCommand function.
- * - CheckBalanceWithVoiceCommandOutput - The return type for the checkBalanceWithVoiceCommand function.
+ * - getAiAssistantResponse - A function that processes user queries and conversation history.
+ * - AiAssistantFlowInput - The input type for the getAiAssistantResponse function.
+ * - AiAssistantFlowOutput - The return type for the getAiAssistantResponse function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
-const CheckBalanceWithVoiceCommandInputSchema = z.object({
-  voiceCommand: z.string().describe('The voice command from the user in English, Hausa, Yoruba, or Igbo.'),
+// Define the schema for a single message in the conversation history
+const MessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string(),
 });
-export type CheckBalanceWithVoiceCommandInput = z.infer<typeof CheckBalanceWithVoiceCommandInputSchema>;
 
-const CheckBalanceWithVoiceCommandOutputSchema = z.object({
-  accountBalance: z.string().describe('The account balance of the user.'),
-  spokenResponse: z.string().describe('A spoken response in the same language as the input voice command confirming the balance.'),
+const AiAssistantFlowInputSchema = z.object({
+  history: z.array(MessageSchema).describe('The conversation history between the user and the AI assistant.'),
+  query: z.string().describe('The latest query from the user.'),
 });
-export type CheckBalanceWithVoiceCommandOutput = z.infer<typeof CheckBalanceWithVoiceCommandOutputSchema>;
+export type AiAssistantFlowInput = z.infer<typeof AiAssistantFlowInputSchema>;
 
-export async function checkBalanceWithVoiceCommand(input: CheckBalanceWithVoiceCommandInput): Promise<CheckBalanceWithVoiceCommandOutput> {
-  return checkBalanceWithVoiceCommandFlow(input);
+const AiAssistantFlowOutputSchema = z.object({
+  response: z.string().describe("The AI assistant's response to the user query."),
+});
+export type AiAssistantFlowOutput = z.infer<typeof AiAssistantFlowOutputSchema>;
+
+
+export async function getAiAssistantResponse(input: AiAssistantFlowInput): Promise<AiAssistantFlowOutput> {
+  return aiAssistantFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'checkBalanceWithVoiceCommandPrompt',
-  input: {schema: CheckBalanceWithVoiceCommandInputSchema},
-  output: {schema: CheckBalanceWithVoiceCommandOutputSchema},
-  prompt: `You are a multilingual AI assistant for a banking application. A user has requested to know their account balance via voice command.
 
-  The user may speak in English, Hausa, Yoruba, or Igbo. Respond in the same language the user used.
+const systemPrompt = `You are OVO, an intelligent voice AI assistant for OVO Thrive, a digital banking app in Nigeria.
+Your persona is that of a calm, polite, professional, and helpful Nigerian bank relationship officer. You are warm and reassuring.
+You are fluent in English, Nigerian Pidgin, Yoruba, Igbo, and Hausa. You must detect the user's language and respond in the same language, maintaining a natural, local accent and phrasing.
 
-  Here is the user's voice command: {{{voiceCommand}}}
+You have access to the user's banking information (this is a simulation, use the provided mock data).
+- User Name: PAAGO
+- Account Balance: ₦1,250,345.00
+- Last Transaction: Spotify Subscription for -₦2,500 on 2024-07-25.
+- Loan Status: No active loans. Eligible for up to ₦75,000.
+- OvoWealth Investments: ₦475,000 total investment, with ₦25,500 in returns.
+- Savings Goal for the month: "Save ₦50,000 for new phone". Current progress: ₦30,000 saved.
+- Recent Payments: Airtime Purchase ₦1,000, DSTV Subscription ₦12,500.
 
-  Determine the language that the user used, check the user's account balance, and respond to the user with their account balance in the language they used. Return the account balance as a number and the spoken response as a string. Make the answer concise.
+Your capabilities:
+1.  **Answer account-related questions**: Use the mock data above to answer questions about balance, transactions, loans, and investments.
+2.  **Explain Ovomonie services**:
+    *   **MemoTransfer**: A feature to send money with personalized images and messages.
+    *   **AgentLife**: A service for our banking agents.
+    *   **OvoWealth**: Our investment platform with products like Ovo-Fix and Ovo-Goals for savings.
+3.  **Provide financial tips**: Offer general financial advice relevant to the Nigerian context, but always state that it is not licensed financial advice. For example: "In Nigeria, many people use fixed savings for short-term goals. It can be a good way to earn interest, but always consider your own financial situation before locking up funds."
+4.  **Handle small talk**: Engage in brief, friendly conversation but gently guide the user back to banking topics.
 
-  For example, if the user said "What is my balance?" respond with {"accountBalance": "1000", "spokenResponse": "Your balance is 1000 Naira."}
+Conversation rules:
+- Keep your responses concise and to the point.
+- If you don't know the answer, say so politely.
+- Do not ask for sensitive information like PINs or passwords. Mention that for sensitive actions, the app will prompt for a PIN separately.
+- Address the user by their name, PAAGO, where appropriate.
+`;
 
-  Assume the user's balance is 1000 Naira if you can't determine the language.
-  `,
-});
-
-const checkBalanceWithVoiceCommandFlow = ai.defineFlow(
+const aiAssistantFlow = ai.defineFlow(
   {
-    name: 'checkBalanceWithVoiceCommandFlow',
-    inputSchema: CheckBalanceWithVoiceCommandInputSchema,
-    outputSchema: CheckBalanceWithVoiceCommandOutputSchema,
+    name: 'aiAssistantFlow',
+    inputSchema: AiAssistantFlowInputSchema,
+    outputSchema: AiAssistantFlowOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input) => {
+    // Transform history for the model
+    const history = input.history.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.content }],
+    }));
+
+    const response = await ai.generate({
+        system: systemPrompt,
+        history: history,
+        prompt: input.query
+    });
+
+    return { response: response.text };
   }
 );

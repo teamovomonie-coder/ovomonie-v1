@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { checkBalanceWithVoiceCommand } from '@/ai/flows/ai-assistant-flow';
+import { getAiAssistantResponse } from '@/ai/flows/ai-assistant-flow';
 import { textToSpeech } from '@/ai/flows/tts-flow';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,34 @@ export function ChatInterface() {
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initial greeting
+  useEffect(() => {
+    if (!isInitialized) {
+        const initializeChat = async () => {
+            setIsLoading(true);
+            const greetingText = "Hello PAAGO, I am OVO, your personal banking assistant. How can I help you today?";
+            try {
+                const { media } = await textToSpeech(greetingText);
+                setMessages([{ sender: 'bot', text: greetingText, audioUrl: media }]);
+            } catch (error) {
+                console.error("TTS initialization failed", error);
+                setMessages([{ sender: 'bot', text: greetingText }]);
+                toast({
+                    variant: 'destructive',
+                    title: 'Audio Error',
+                    description: 'Could not generate initial audio greeting.'
+                });
+            } finally {
+                setIsLoading(false);
+                setIsInitialized(true);
+            }
+        };
+        initializeChat();
+    }
+  }, [isInitialized, toast]);
+
 
   // Request microphone permission and setup SpeechRecognition
   useEffect(() => {
@@ -101,15 +129,28 @@ export function ChatInterface() {
     setInput('');
     setIsLoading(true);
 
+    const historyForAI = messages.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model' as 'user' | 'model',
+      content: msg.text,
+    }));
+
     try {
-      const result = await checkBalanceWithVoiceCommand({ voiceCommand: text });
-      const { media } = await textToSpeech(result.spokenResponse);
-      const botMessage: Message = { sender: 'bot', text: result.spokenResponse, audioUrl: media };
+      const result = await getAiAssistantResponse({
+        history: historyForAI,
+        query: text,
+      });
+      const { media } = await textToSpeech(result.response);
+      const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: media };
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error(error);
-      const errorMessage: Message = { sender: 'bot', text: "Sorry, I couldn't understand that. Please try again." };
+      console.error("Error in AI Assistant:", error);
+      const errorMessage: Message = { sender: 'bot', text: "I'm sorry, I encountered a technical issue. Could you please try again?" };
       setMessages(prev => [...prev, errorMessage]);
+      toast({
+          variant: 'destructive',
+          title: 'AI Assistant Error',
+          description: "Could not get a response from the assistant.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +200,7 @@ export function ChatInterface() {
               )}
             </div>
           ))}
-          {isLoading && (
+          {isLoading && messages.length > 0 && messages[messages.length-1].sender === 'user' && (
             <div className="flex items-start gap-3 justify-start">
                <Avatar className="h-8 w-8">
                   <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
