@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 function BankTransfer() {
   const { toast } = useToast();
   const accountDetails = {
-    bankName: 'Ovomonie',
+    bankName: 'OVOMONIE',
     accountName: 'PAAGO DAVID',
     accountNumber: '8012345678',
   };
