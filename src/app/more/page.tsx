@@ -19,7 +19,7 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Core Banking",
     services: [
-      { label: "To Ovomonie", icon: Send, href: "/memo-transfer" },
+      { label: "To Ovomonie", icon: Send, href: "/internal-transfer" },
       { label: "To Bank", icon: Landmark, href: "/external-transfer" },
       { label: "MemoTransfer", icon: Sparkles, href: "/memo-transfer" },
       { label: "Add Money", icon: Plus, href: "/add-money" },
