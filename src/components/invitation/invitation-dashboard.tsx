@@ -21,7 +21,7 @@ export function InvitationDashboard() {
   const handleUniversalShare = async () => {
       const shareData = {
           title: 'Join Ovomonie',
-          text: `Join Ovomonie and enjoy innovative digital banking. Use my link to sign up and earn: ${referralLink}`,
+          text: `Join Ovomonie and earn while you bank. Sign up with my link: ${referralLink}`,
           url: referralLink,
       };
       if (navigator.share) {
@@ -42,28 +42,31 @@ export function InvitationDashboard() {
   };
   
   const handleShareToContact = async () => {
-    // The Contacts Picker API is experimental and not widely supported.
-    // This is a simulation of the flow.
-    const message = `Hey! I use Ovomonie for fast and secure banking. Sign up using my link and get rewarded: ${referralLink}`;
+    const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: ${referralLink}`;
+
     if ('contacts' in navigator && 'select' in (navigator as any).contacts) {
         try {
-            // In a real app: const contacts = await (navigator as any).contacts.select(['name', 'tel'], {multiple: true});
-            // Then you would construct an sms: or whatsapp: link.
-            toast({
-                title: "Contact Picker Opened",
-                description: "This is where you'd select contacts from your phone. (Simulated)"
-            });
-             setTimeout(() => {
-                toast({
-                    title: "Shared via SMS!",
-                    description: "Referral link sent to selected contact.",
-                });
-            }, 2000);
+            const contacts = await (navigator as any).contacts.select(['tel'], { multiple: true });
+            
+            if (contacts.length === 0) {
+                // User cancelled the picker, do nothing.
+                return;
+            }
+            
+            const phoneNumbers = contacts.map((contact: any) => contact.tel[0]).join(',');
+            
+            // This will open the default SMS app.
+            const smsLink = `sms:${phoneNumbers}?body=${encodeURIComponent(message)}`;
+            window.location.href = smsLink;
+
         } catch (error) {
-             toast({ variant: 'destructive', title: 'Action Cancelled', description: 'Contact selection was cancelled.' });
+            // Handle potential errors, e.g., user denies permission, but ignore AbortError from cancellation.
+            if (!(error instanceof Error && error.name === 'AbortError')) {
+                toast({ variant: 'destructive', title: 'Could not share', description: 'There was an error accessing your contacts.' });
+            }
         }
     } else {
-         toast({
+        toast({
             variant: 'destructive',
             title: "Feature Not Supported",
             description: "Your browser does not support sharing to contacts directly.",
@@ -97,7 +100,7 @@ export function InvitationDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div className="bg-muted p-4 rounded-lg">
               <Users className="mx-auto h-8 w-8 text-primary mb-2" />
               <p className="text-2xl font-bold">{stats.invites}</p>
