@@ -108,11 +108,11 @@ const serviceData: ServiceCategory[] = [
 ];
 
 const ServiceTile = ({ service }: { service: Service }) => (
-  <Link href={service.href} className="flex flex-col items-center justify-center text-center gap-2 p-4 rounded-lg hover:bg-muted transition-colors">
+  <Link href={service.href} className="flex flex-col items-center justify-center text-center gap-2 p-4 rounded-xl bg-card hover:bg-accent/10 transition-colors shadow-sm">
     <div className="bg-primary/10 text-primary p-3 rounded-full">
       <service.icon className="h-6 w-6" />
     </div>
-    <span className="text-sm font-medium text-foreground">{service.label}</span>
+    <span className="text-sm font-semibold text-foreground">{service.label}</span>
   </Link>
 );
 
@@ -121,7 +121,7 @@ export default function MorePage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6">
-        <h2 className="text-3xl font-bold tracking-tight">All Services</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-primary">All Services</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input placeholder="Search services..." className="pl-10" />
@@ -131,7 +131,7 @@ export default function MorePage() {
           {serviceData.map((category) => (
             <section key={category.title}>
               <h3 className="text-xl font-semibold mb-4 text-primary">{category.title}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {category.services.map((service) => (
                   <ServiceTile key={service.label} service={service} />
                 ))}
