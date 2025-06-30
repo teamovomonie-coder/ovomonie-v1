@@ -27,12 +27,16 @@ export function InvitationDashboard() {
       if (navigator.share) {
           try {
               await navigator.share(shareData);
-              toast({ title: 'Shared!', description: 'Referral link shared successfully.' });
+              // On success, the promise resolves. We don't need a toast here as the share sheet itself provides feedback.
           } catch (err) {
               console.error('Share failed:', err);
-              // Silently fail if user cancels the share dialog
-              if ((err as Error).name !== 'AbortError') {
-                 toast({ variant: 'destructive', title: 'Share Failed', description: 'Could not share the link.' });
+              // Silently fail if user cancels the share dialog (AbortError)
+              // For other errors (like NotAllowedError), fall back to copying the link
+              if (err instanceof Error && err.name === 'AbortError') {
+                  // User cancelled, do nothing.
+              } else {
+                 handleCopyToClipboard();
+                 toast({ title: 'Link Copied', description: 'Sharing isn\'t available right now, so we copied the link for you.' });
               }
           }
       } else {
