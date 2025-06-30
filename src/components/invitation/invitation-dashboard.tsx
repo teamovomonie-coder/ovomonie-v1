@@ -13,30 +13,44 @@ export function InvitationDashboard() {
   const [stats] = useState({ invites: 23, signups: 15, earnings: 7500 });
   const { toast } = useToast();
 
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(referralLink);
-    toast({ title: 'Copied!', description: 'Your referral link has been copied to the clipboard.' });
+  const handleCopyToClipboard = (message?: string) => {
+    const textToCopy = message || referralLink;
+    navigator.clipboard.writeText(textToCopy);
+    toast({ 
+        title: 'Copied to Clipboard!', 
+        description: message ? 'Your message has been copied.' : 'Your referral link has been copied.'
+    });
   };
 
   const handleUniversalShare = async () => {
       const shareData = {
           title: 'Join Ovomonie',
-          text: `Join Ovomonie and earn while you bank. Sign up with my link: ${referralLink}`,
+          text: `Join Ovomonie and earn while you bank. Sign up with my link.`,
           url: referralLink,
       };
+      // navigator.share is only available on HTTPS and on mobile or supported desktop browsers.
       if (navigator.share) {
           try {
               await navigator.share(shareData);
-              // On success, the promise resolves. We don't need a toast here as the share sheet itself provides feedback.
+              // The share sheet was successfully opened. No toast needed as the OS provides feedback.
           } catch (err) {
-              // Silently fail if user cancels the share dialog (AbortError).
-              // For other errors (like permission denied), we fallback to copying the link.
+              // This block is entered if the user cancels the share dialog (AbortError) or if another error occurs.
+              // We silently ignore AbortError, as the user intentionally cancelled the action.
               if (!(err instanceof Error && err.name === 'AbortError')) {
-                 handleCopyToClipboard();
+                  toast({
+                      variant: 'destructive',
+                      title: 'Sharing Failed',
+                      description: 'Could not open share dialog. Link copied instead.',
+                  });
+                  handleCopyToClipboard();
               }
           }
       } else {
-          // Fallback for browsers that do not support navigator.share
+          // Fallback for browsers that do not support the Web Share API
+           toast({
+              title: 'Share Not Supported',
+              description: 'Your browser does not support this feature. The link has been copied instead.',
+            });
           handleCopyToClipboard();
       }
   };
@@ -44,6 +58,7 @@ export function InvitationDashboard() {
   const handleShareToContact = async () => {
     const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: ${referralLink}`;
 
+    // The Contact Picker API is experimental and only works on HTTPS in supported browsers.
     if ('contacts' in navigator && 'select' in (navigator as any).contacts) {
         try {
             const contacts = await (navigator as any).contacts.select(['tel'], { multiple: true });
@@ -55,22 +70,27 @@ export function InvitationDashboard() {
             
             const phoneNumbers = contacts.map((contact: any) => contact.tel[0]).join(',');
             
-            // This will open the default SMS app.
+            // This will attempt to open the default SMS app.
             const smsLink = `sms:${phoneNumbers}?body=${encodeURIComponent(message)}`;
             window.location.href = smsLink;
 
         } catch (error) {
-            // Handle potential errors, e.g., user denies permission, but ignore AbortError from cancellation.
+            // Ignore AbortError which happens when the user cancels the contact picker.
             if (!(error instanceof Error && error.name === 'AbortError')) {
-                toast({ variant: 'destructive', title: 'Could not share', description: 'There was an error accessing your contacts.' });
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Could Not Share to Contacts', 
+                    description: 'There was an error accessing your contacts. The message has been copied instead.' 
+                });
+                handleCopyToClipboard(message);
             }
         }
     } else {
         toast({
-            variant: 'destructive',
             title: "Feature Not Supported",
-            description: "Your browser does not support sharing to contacts directly.",
+            description: "Sharing to contacts directly is not supported on your browser. The message has been copied instead.",
         });
+        handleCopyToClipboard(message);
     }
   };
 
@@ -94,7 +114,7 @@ export function InvitationDashboard() {
                 readOnly
                 className="flex-1 rounded-r-none focus-visible:ring-offset-0 focus-visible:ring-0"
               />
-              <Button onClick={handleCopyToClipboard} className="rounded-l-none" aria-label="Copy referral link">
+              <Button onClick={() => handleCopyToClipboard()} className="rounded-l-none" aria-label="Copy referral link">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
