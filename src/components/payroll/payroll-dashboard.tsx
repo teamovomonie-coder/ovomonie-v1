@@ -19,6 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from "@/components/ui/separator";
 
 import { PlusCircle, Users, ChevronsUpDown, Check, Trash2, Loader2, Calendar, Repeat, FileDown, ArrowLeft, Info, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
