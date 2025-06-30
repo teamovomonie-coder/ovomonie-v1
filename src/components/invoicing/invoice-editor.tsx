@@ -52,6 +52,15 @@ export function InvoiceEditor({ invoice, onSave, onSaveDraft, onBack }: InvoiceE
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
+      fromName: '',
+      fromAddress: '',
+      toName: '',
+      toEmail: '',
+      toAddress: '',
+      invoiceNumber: '',
+      notes: '',
+      logo: null,
+      lineItems: [{ description: '', quantity: 1, price: 0 }],
       ...invoice,
       issueDate: invoice.issueDate ? new Date(invoice.issueDate) : new Date(),
       dueDate: invoice.dueDate ? new Date(invoice.dueDate) : new Date(),
