@@ -1,16 +1,16 @@
-
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, Monitor, UserCheck, Users, BarChart } from "lucide-react";
+import { TerminalManagement } from "./terminal-management";
 
 export function MerchantServicesDashboard() {
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">Merchant Services</h2>
       <Tabs defaultValue="overview" className="w-full">
-        <div className="w-full overflow-x-auto">
-          <TabsList>
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList className="min-w-max">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="terminals">Terminals</TabsTrigger>
             <TabsTrigger value="agentlife">AgentLife Hub</TabsTrigger>
@@ -72,13 +72,10 @@ export function MerchantServicesDashboard() {
           </Card>
         </TabsContent>
         <TabsContent value="terminals" className="pt-4">
-             <Card>
-                <CardHeader><CardTitle>Terminal Management</CardTitle></CardHeader>
-                <CardContent><p>A list of your POS terminals, their status, and management options will appear here.</p></CardContent>
-            </Card>
+            <TerminalManagement />
         </TabsContent>
         <TabsContent value="agentlife" className="pt-4">
-            <Card>
+             <Card>
                 <CardHeader><CardTitle>AgentLife Hub</CardTitle></CardHeader>
                 <CardContent><p>Your AgentLife tier, commission leaderboards, and points balance will be displayed here.</p></CardContent>
             </Card>
