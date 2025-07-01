@@ -56,60 +56,59 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
     }
   }
 
-  const handlePay = () => {
+  const handlePay = async () => {
     toast({
         title: "Processing Payment...",
         description: "Please wait while we confirm the transaction.",
     });
 
-    // Simulate payment success after a delay
-    setTimeout(() => {
-        const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
-        try {
-            const savedProductsRaw = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
-            if (!savedProductsRaw) {
-                 toast({
-                    variant: 'destructive',
-                    title: "Inventory Not Found",
-                    description: "Could not update stock levels.",
-                });
-                return;
-            }
+    try {
+        // Fetch all products to map descriptions to product IDs
+        // In a real-world app, line items would already have product IDs.
+        const productsRes = await fetch('/api/inventory/products');
+        if (!productsRes.ok) throw new Error('Could not fetch products for inventory update.');
+        const allProducts: { id: string; name: string }[] = await productsRes.json();
+        
+        const saleLineItems = invoice.lineItems.map(item => {
+            const product = allProducts.find(p => p.name.toLowerCase() === item.description.toLowerCase());
+            return {
+                productId: product?.id,
+                quantity: item.quantity
+            };
+        }).filter((item): item is { productId: string; quantity: number } => !!item.productId); // Filter out items not found and type guard
 
-            let products = JSON.parse(savedProductsRaw);
-            const updatedProductNames = new Set<string>();
-
-            invoice.lineItems.forEach(item => {
-                // In a real app, you'd match by a stable product ID (e.g., SKU)
-                const productIndex = products.findIndex((p: any) => p.name === item.description);
-                if (productIndex !== -1) {
-                    products[productIndex].stock -= item.quantity;
-                    updatedProductNames.add(item.description);
-                }
+        if (saleLineItems.length > 0) {
+             const saleRes = await fetch('/api/inventory/stock/sale', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lineItems: saleLineItems,
+                    referenceId: invoice.invoiceNumber
+                })
             });
 
-            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
-
-            if (updatedProductNames.size > 0) {
-                 toast({
-                    title: "Payment Successful & Inventory Updated!",
-                    description: `Stock for ${updatedProductNames.size} item(s) has been updated.`,
-                });
-            } else {
-                 toast({
-                    title: "Payment Successful!",
-                    description: "No matching items found in inventory to update.",
-                });
+            if (!saleRes.ok) {
+                throw new Error('Failed to update inventory stock.');
             }
-        } catch (error) {
-            console.error("Failed to update inventory:", error);
-            toast({
-                variant: 'destructive',
-                title: "Inventory Update Failed",
-                description: "There was an error updating stock levels.",
-            });
         }
-    }, 1500);
+        
+        toast({
+            title: "Payment Successful & Inventory Updated!",
+            description: `Stock for ${saleLineItems.length} item(s) has been updated.`,
+        });
+
+    } catch (error) {
+        console.error("Failed to update inventory:", error);
+        let description = "There was an error updating stock levels.";
+        if (error instanceof Error) {
+            description = error.message;
+        }
+        toast({
+            variant: 'destructive',
+            title: "Inventory Update Failed",
+            description: description,
+        });
+    }
   }
   
   return (

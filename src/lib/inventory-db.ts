@@ -31,6 +31,21 @@ interface Product {
   supplierId?: string;
 }
 
+interface InventoryTransaction {
+    id: string;
+    productId: string;
+    locationId?: string;
+    type: 'purchase' | 'sale' | 'return' | 'adjustment';
+    quantity: number; // The change in quantity (can be negative for sales/deductions)
+    previousStock: number;
+    newStock: number;
+    date: string;
+    referenceId?: string; // e.g., invoice number, PO number
+    notes?: string;
+    recordedBy?: string;
+}
+
+
 const initialLocations: Location[] = [
     { id: 'loc_1', name: 'Main Store - Lekki', address: '1 Admiralty Way, Lekki Phase 1, Lagos' },
     { id: 'loc_2', name: 'Warehouse - Ikeja', address: '25, Industrial Avenue, Ikeja, Lagos' },
@@ -52,10 +67,13 @@ const initialProducts: Product[] = [
   { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stockByLocation: [{locationId: 'loc_1', quantity: 12}], minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
 ];
 
+const initialInventoryTransactions: InventoryTransaction[] = [];
+
 
 let products: Product[] = [...initialProducts];
 let suppliers: Supplier[] = [...initialSuppliers];
 let locations: Location[] = [...initialLocations];
+let inventoryTransactions: InventoryTransaction[] = [...initialInventoryTransactions];
 
 export const db = {
     products: {
@@ -124,6 +142,15 @@ export const db = {
             }));
             const [deleted] = locations.splice(index, 1);
             return deleted;
+        },
+    },
+    inventoryTransactions: {
+        findMany: async () => inventoryTransactions,
+        findManyByProductId: async (productId: string) => inventoryTransactions.filter(t => t.productId === productId),
+        create: async (data: Omit<InventoryTransaction, 'id' | 'date'>) => {
+            const newTransaction = { ...data, id: `txn_${Date.now()}`, date: new Date().toISOString() };
+            inventoryTransactions.push(newTransaction);
+            return newTransaction;
         },
     }
 };

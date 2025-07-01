@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map, Loader2 } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map, Loader2, FileClock } from 'lucide-react';
 
 const locationStockSchema = z.object({
     locationId: z.string(),
@@ -86,6 +86,21 @@ const stockAdjustmentSchema = z.object({
 });
 
 type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
+
+interface EnrichedTransaction {
+    id: string;
+    productId: string;
+    locationId?: string;
+    type: 'purchase' | 'sale' | 'return' | 'adjustment';
+    quantity: number;
+    previousStock: number;
+    newStock: number;
+    date: string;
+    referenceId?: string;
+    notes?: string;
+    productName: string;
+    locationName: string;
+}
 
 
 function ProductForm({ product, suppliers, locations, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], locations: Location[], onSave: (data: Product) => void, onCancel: () => void }) {
@@ -403,6 +418,73 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew, pr
     );
 }
 
+function TransactionHistory() {
+    const [transactions, setTransactions] = useState<EnrichedTransaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/inventory/transactions');
+                if (!response.ok) throw new Error('Failed to fetch transactions');
+                const data = await response.json();
+                setTransactions(data);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load transaction history.' });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchTransactions();
+    }, [toast]);
+
+    if (isLoading) {
+        return <div className="mt-4 flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Stock Movement History</CardTitle>
+                <CardDescription>A log of all changes to your inventory stock levels.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader><TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead className="text-center">Change</TableHead>
+                            <TableHead className="text-center">New Qty</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Notes/Ref</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                            {transactions.map(txn => (
+                                <TableRow key={txn.id}>
+                                    <TableCell>{format(new Date(txn.date), 'dd MMM, yyyy HH:mm')}</TableCell>
+                                    <TableCell>{txn.productName}</TableCell>
+                                    <TableCell className="capitalize">{txn.type}</TableCell>
+                                    <TableCell className={cn("text-center font-semibold", txn.quantity > 0 ? 'text-green-600' : 'text-destructive')}>
+                                        {txn.quantity > 0 ? `+${txn.quantity}` : txn.quantity}
+                                    </TableCell>
+                                    <TableCell className="text-center">{txn.newStock}</TableCell>
+                                    <TableCell>{txn.locationName}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{txn.notes || txn.referenceId || 'N/A'}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                {transactions.length === 0 && <div className="text-center py-10 text-muted-foreground">No stock movements recorded yet.</div>}
+            </CardContent>
+        </Card>
+    );
+}
+
 export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -530,16 +612,6 @@ export function InventoryDashboard() {
     }
   };
 
-  const handleAddNewProduct = () => {
-    setEditingProduct(null);
-    setIsFormDialogOpen(true);
-  };
-
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setIsFormDialogOpen(true);
-  };
-
   const handleDeleteProduct = async (productId: string) => {
     try {
         const response = await fetch(`/api/inventory/products/${productId}`, { method: 'DELETE' });
@@ -570,9 +642,6 @@ export function InventoryDashboard() {
         setEditingSupplier(null);
     }
   };
-
-  const handleAddNewSupplier = () => { setEditingSupplier(null); setIsSupplierFormOpen(true); };
-  const handleEditSupplier = (supplier: Supplier) => { setEditingSupplier(supplier); setIsSupplierFormOpen(true); };
 
   const handleDeleteSupplier = async (supplierId: string) => {
     try {
@@ -605,9 +674,6 @@ export function InventoryDashboard() {
      }
   };
 
-  const handleAddNewLocation = () => { setEditingLocation(null); setIsLocationFormOpen(true); };
-  const handleEditLocation = (location: Location) => { setEditingLocation(location); setIsLocationFormOpen(true); };
-
   const handleDeleteLocation = async (locationId: string) => {
     try {
         const response = await fetch(`/api/inventory/locations/${locationId}`, { method: 'DELETE' });
@@ -619,32 +685,19 @@ export function InventoryDashboard() {
     }
   };
 
-  const handleOpenAdjustDialog = (product: Product) => { setAdjustingProduct(product); };
-
   const handleStockAdjustment = async (productId: string, data: StockAdjustmentData) => {
-    const productToAdjust = products.find(p => p.id === productId);
-    if (!productToAdjust) return;
-
-    const newStockByLocation = [...productToAdjust.stockByLocation];
-    const locIndex = newStockByLocation.findIndex(s => s.locationId === data.locationId);
-    
-    if (locIndex > -1) {
-        newStockByLocation[locIndex] = { ...newStockByLocation[locIndex], quantity: data.newStock };
-    } else {
-        newStockByLocation.push({ locationId: data.locationId, quantity: data.newStock });
-    }
-    const updatedProduct = { ...productToAdjust, stockByLocation: newStockByLocation };
-    
     try {
-        const response = await fetch(`/api/inventory/products/${productId}`, {
-            method: 'PUT',
+        const response = await fetch('/api/inventory/stock/adjust', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedProduct),
+            body: JSON.stringify({ ...data, productId }),
         });
         if (!response.ok) throw new Error('Failed to adjust stock');
+        
         await fetchData(); // Refresh data
         const locationName = locations.find(l => l.id === data.locationId)?.name;
-        toast({ title: "Stock Adjusted", description: `Stock for ${productToAdjust.name} at ${locationName} has been updated to ${data.newStock}.`});
+        const productToAdjust = products.find(p => p.id === productId);
+        toast({ title: "Stock Adjusted", description: `Stock for ${productToAdjust?.name} at ${locationName} has been updated to ${data.newStock}.`});
     } catch (error) {
         toast({ variant: 'destructive', title: 'Adjustment Failed', description: 'Could not adjust stock.' });
     } finally {
@@ -699,7 +752,7 @@ export function InventoryDashboard() {
             <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
              <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={handleAddNewProduct}>
+                    <Button onClick={() => { setEditingProduct(null); setIsFormDialogOpen(true); }}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                     </Button>
                 </DialogTrigger>
@@ -753,7 +806,7 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
                 <TabsTrigger value="locations">Locations</TabsTrigger>
@@ -763,6 +816,7 @@ export function InventoryDashboard() {
                         <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{lowStockCount}</Badge>
                     )}
                 </TabsTrigger>
+                <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
             {isLoading ? (
                 <div className="mt-4 flex justify-center items-center h-64">
@@ -854,8 +908,8 @@ export function InventoryDashboard() {
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>Edit</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => { setEditingProduct(product); setIsFormDialogOpen(true); }}>Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => setAdjustingProduct(product)}>Adjust Stock</DropdownMenuItem>
                                                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteProduct(product.id!)}>Delete</DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -880,7 +934,7 @@ export function InventoryDashboard() {
                             <CardTitle>Suppliers</CardTitle>
                             <CardDescription>Manage your product suppliers.</CardDescription>
                         </div>
-                            <Button onClick={handleAddNewSupplier}>
+                            <Button onClick={() => { setEditingSupplier(null); setIsSupplierFormOpen(true); }}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Supplier
                             </Button>
                         </CardHeader>
@@ -907,7 +961,7 @@ export function InventoryDashboard() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => { setEditingSupplier(supplier); setIsSupplierFormOpen(true); }}>Edit</DropdownMenuItem>
                                                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSupplier(supplier.id!)}>Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -926,7 +980,7 @@ export function InventoryDashboard() {
                             <CardTitle>Locations</CardTitle>
                             <CardDescription>Manage your stores, warehouses, and other business locations.</CardDescription>
                         </div>
-                            <Button onClick={handleAddNewLocation}>
+                            <Button onClick={() => { setEditingLocation(null); setIsLocationFormOpen(true); }}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Location
                             </Button>
                         </CardHeader>
@@ -950,7 +1004,7 @@ export function InventoryDashboard() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEditLocation(location)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => { setEditingLocation(location); setIsLocationFormOpen(true); }}>Edit</DropdownMenuItem>
                                                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLocation(location.id!)}>Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -1071,6 +1125,9 @@ export function InventoryDashboard() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="history" className="space-y-4 mt-4">
+                    <TransactionHistory />
                 </TabsContent>
                 </>
             )}
