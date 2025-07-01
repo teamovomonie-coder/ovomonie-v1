@@ -1,98 +1,122 @@
+
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Monitor, UserCheck, Users, BarChart } from "lucide-react";
-import { TerminalManagement } from "./terminal-management";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import Link from 'next/link';
+import {
+    Monitor, UserCheck, Percent, Signal, Siren,
+    Wallet, Briefcase, Link as LinkIcon, CreditCard, Users,
+    Download, RefreshCw, BarChart3, TrendingUp, ArrowRightLeft,
+    User, Shield, MessageCircle, FileText, Settings, KeyRound
+} from "lucide-react";
+import type { LucideIcon } from 'lucide-react';
+
+interface ServiceItem {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  isWIP?: boolean;
+}
+
+interface ServiceCategory {
+  title: string;
+  description: string;
+  items: ServiceItem[];
+}
+
+const serviceCategories: ServiceCategory[] = [
+    {
+        title: "Agent & POS Management",
+        description: "Manage your POS agents, terminals, and commissions.",
+        items: [
+            { title: "POS Terminals", href: "/agent-life/terminals", icon: Monitor },
+            { title: "AgentLife Hub", href: "#", icon: UserCheck, isWIP: true },
+            { title: "Commissions", href: "#", icon: Percent, isWIP: true },
+            { title: "Report an Issue", href: "#", icon: Siren, isWIP: true },
+        ]
+    },
+    {
+        title: "Business Wallet & Banking",
+        description: "Access all wallet-related operations and financial controls.",
+        items: [
+            { title: "Business Wallet", href: "/agent-life/wallet", icon: Wallet },
+            { title: "Payroll", href: "/payroll", icon: Users },
+            { title: "Virtual Cards", href: "#", icon: CreditCard, isWIP: true },
+            { title: "Link Accounts", href: "#", icon: LinkIcon, isWIP: true },
+        ]
+    },
+    {
+        title: "Payments & Settlements",
+        description: "Monitor your inflow/outflow and settle instantly.",
+        items: [
+            { title: "Daily Settlements", href: "#", icon: Download, isWIP: true },
+            { title: "Payout History", href: "#", icon: RefreshCw, isWIP: true },
+            { title: "Reconciliation", href: "#", icon: BarChart3, isWIP: true },
+            { title: "Transfers", href: "#", icon: ArrowRightLeft, isWIP: true },
+        ]
+    },
+    {
+        title: "Analytics & Reports",
+        description: "Visual business intelligence for agents and businesses.",
+        items: [
+            { title: "View Reports", href: "/agent-life/reports", icon: TrendingUp },
+        ]
+    },
+     {
+        title: "Settings & Support",
+        description: "Manage your account and get help when you need it.",
+        items: [
+            { title: "Merchant Profile", href: "#", icon: User, isWIP: true },
+            { title: "KYC Upgrade", href: "#", icon: Shield, isWIP: true },
+            { title: "Live Support", href: "#", icon: MessageCircle, isWIP: true },
+            { title: "Settings", href: "#", icon: Settings, isWIP: true },
+        ]
+    }
+];
+
+const ServiceTile = ({ item }: { item: ServiceItem }) => {
+    const { toast } = useToast();
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (item.isWIP) {
+            e.preventDefault();
+            toast({
+                title: "Coming Soon!",
+                description: `The "${item.title}" feature is under development.`,
+            });
+        }
+    };
+    return (
+        <Link href={item.href} onClick={handleClick} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors h-28">
+            <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
+                <item.icon className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">{item.title}</span>
+        </Link>
+    );
+};
 
 export function MerchantServicesDashboard() {
   return (
-    <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-      <h2 className="text-3xl font-bold tracking-tight">Merchant Services</h2>
-      <Tabs defaultValue="overview" className="w-full">
-        <div className="w-full overflow-x-auto pb-2">
-          <TabsList className="min-w-max">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="terminals">Terminals</TabsTrigger>
-            <TabsTrigger value="agentlife">AgentLife Hub</TabsTrigger>
-            <TabsTrigger value="staff">Staff</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="overview" className="space-y-4 pt-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Business Wallet</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₦5,432,100.50</div>
-                <p className="text-xs text-muted-foreground">Available Balance</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Settlements</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₦1,200,000.00</div>
-                <p className="text-xs text-muted-foreground">To be settled tomorrow</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
-                <Monitor className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">3 / 5</div>
-                <p className="text-xs text-muted-foreground">Online Terminals</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">AgentLife Tier</CardTitle>
-                <UserCheck className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Gold</div>
-                <p className="text-xs text-muted-foreground">1,250 Points</p>
-              </CardContent>
-            </Card>
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Welcome to Merchant Services</CardTitle>
-              <CardDescription>This is your command center. Manage everything from sales to staff here.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>More dashboard widgets and summaries will appear here.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="terminals" className="pt-4">
-            <TerminalManagement />
-        </TabsContent>
-        <TabsContent value="agentlife" className="pt-4">
-             <Card>
-                <CardHeader><CardTitle>AgentLife Hub</CardTitle></CardHeader>
-                <CardContent><p>Your AgentLife tier, commission leaderboards, and points balance will be displayed here.</p></CardContent>
-            </Card>
-        </TabsContent>
-        <TabsContent value="staff" className="pt-4">
-             <Card>
-                <CardHeader><CardTitle>Staff Management</CardTitle></CardHeader>
-                <CardContent><p>Tools to add staff/cashiers, assign terminals, and manage permissions will be available here.</p></CardContent>
-            </Card>
-        </TabsContent>
-        <TabsContent value="analytics" className="pt-4">
-             <Card>
-                <CardHeader><CardTitle>Business Analytics</CardTitle></CardHeader>
-                <CardContent><p>Sales graphs, customer trends, and settlement reports will be available here.</p></CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
+    <div className="flex-1 space-y-6 bg-gray-50 p-4">
+      <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
+        <h2 className="text-2xl font-bold tracking-tight">Merchant Services</h2>
+        <p className="text-primary-foreground/80 text-sm">Powering your Business, Agents & POS Network</p>
+      </header>
+
+      <div className="space-y-8">
+        {serviceCategories.map((category) => (
+          <section key={category.title}>
+            <h3 className="text-lg font-bold mb-1 text-gray-800">{category.title}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{category.description}</p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {category.items.map((item) => (
+                <ServiceTile key={item.title} item={item} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

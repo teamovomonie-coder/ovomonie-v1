@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,8 +48,8 @@ export function TerminalManagement() {
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <CardTitle>Terminal Management</CardTitle>
-            <CardDescription>Monitor and manage all your POS devices.</CardDescription>
+            <CardTitle>All Terminals</CardTitle>
+            <CardDescription>A list of all POS devices assigned to your business.</CardDescription>
         </div>
         <Button onClick={() => toast({ title: "Coming Soon!", description: "The terminal request feature is under development." })} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
