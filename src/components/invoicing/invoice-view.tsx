@@ -57,10 +57,59 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
   }
 
   const handlePay = () => {
-      toast({
-          title: "Redirecting to Payment",
-          description: "You will be redirected to a secure payment page."
-      })
+    toast({
+        title: "Processing Payment...",
+        description: "Please wait while we confirm the transaction.",
+    });
+
+    // Simulate payment success after a delay
+    setTimeout(() => {
+        const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
+        try {
+            const savedProductsRaw = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
+            if (!savedProductsRaw) {
+                 toast({
+                    variant: 'destructive',
+                    title: "Inventory Not Found",
+                    description: "Could not update stock levels.",
+                });
+                return;
+            }
+
+            let products = JSON.parse(savedProductsRaw);
+            const updatedProductNames = new Set<string>();
+
+            invoice.lineItems.forEach(item => {
+                // In a real app, you'd match by a stable product ID (e.g., SKU)
+                const productIndex = products.findIndex((p: any) => p.name === item.description);
+                if (productIndex !== -1) {
+                    products[productIndex].stock -= item.quantity;
+                    updatedProductNames.add(item.description);
+                }
+            });
+
+            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
+
+            if (updatedProductNames.size > 0) {
+                 toast({
+                    title: "Payment Successful & Inventory Updated!",
+                    description: `Stock for ${updatedProductNames.size} item(s) has been updated.`,
+                });
+            } else {
+                 toast({
+                    title: "Payment Successful!",
+                    description: "No matching items found in inventory to update.",
+                });
+            }
+        } catch (error) {
+            console.error("Failed to update inventory:", error);
+            toast({
+                variant: 'destructive',
+                title: "Inventory Update Failed",
+                description: "There was an error updating stock levels.",
+            });
+        }
+    }, 1500);
   }
   
   return (

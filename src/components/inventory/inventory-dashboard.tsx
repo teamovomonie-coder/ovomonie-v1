@@ -68,7 +68,13 @@ const mockProducts: Product[] = [
   { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stock: 200, minStockLevel: 50, unit: 'pcs' },
   { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: '2025-12-31', category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack' },
   { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stock: 45, minStockLevel: 10, unit: 'pack' },
+  { id: 'prod_6', name: 'Cloud Hosting Services', sku: 'CHS001', category: 'Services', price: 150000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'license' },
+  { id: 'prod_7', name: 'Logo Design & Branding', sku: 'LDB001', category: 'Services', price: 75000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'project' },
+  { id: 'prod_8', name: 'Shipping & Logistics', sku: 'SL001', category: 'Services', price: 100000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'shipment' },
+  { id: 'prod_9', name: 'Export Documentation', sku: 'ED001', category: 'Services', price: 120000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'doc' },
 ];
+
+const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
 
 
 function ProductForm({ product, onSave, onCancel }: { product: Partial<Product> | null, onSave: (data: Product) => void, onCancel: () => void }) {
@@ -254,13 +260,37 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: 
 }
 
 export function InventoryDashboard() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window === 'undefined') {
+        return mockProducts;
+    }
+    try {
+        const savedProducts = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
+        if (savedProducts) {
+            return JSON.parse(savedProducts);
+        } else {
+            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(mockProducts));
+            return mockProducts;
+        }
+    } catch (error) {
+        console.error("Failed to read from localStorage", error);
+        return mockProducts;
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+        window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
+    } catch (error) {
+        console.error("Failed to write to localStorage", error);
+    }
+  }, [products]);
 
   const salesData = [
     { date: 'Mon', sales: 40000 },
