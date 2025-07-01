@@ -71,7 +71,10 @@ export function TerminalManagement() {
             <TableBody>
                 {mockTerminals.map((terminal) => (
                 <TableRow key={terminal.id}>
-                    <TableCell className="font-medium">{terminal.id}<p className="text-xs text-muted-foreground">{terminal.serialNumber}</p></TableCell>
+                    <TableCell className="font-medium">
+                        <div>{terminal.id}</div>
+                        <div className="text-xs text-muted-foreground">{terminal.serialNumber}</div>
+                    </TableCell>
                     <TableCell>
                         <Badge
                             className={cn(

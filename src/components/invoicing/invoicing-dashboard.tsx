@@ -12,10 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { InvoiceFormData } from './invoice-editor';
+import { format } from 'date-fns';
 
 export interface Invoice extends InvoiceFormData {
   id: string;
   status: 'Paid' | 'Unpaid' | 'Overdue' | 'Draft';
+  client: string;
 }
 
 const mockInvoicesData: Invoice[] = [
@@ -24,7 +26,9 @@ const mockInvoicesData: Invoice[] = [
     invoiceNumber: 'INV-003',
     client: 'Tech Solutions Ltd.',
     fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Tech Solutions Ltd.', toAddress: '789 Tech Park, Abuja, Nigeria',
+    toName: 'Tech Solutions Ltd.', 
+    toEmail: 'billing@techsolutions.com',
+    toAddress: '789 Tech Park, Abuja, Nigeria',
     issueDate: new Date('2024-07-10'), dueDate: new Date('2024-07-20'),
     lineItems: [{ description: 'Cloud Hosting Services', quantity: 1, price: 150000 }],
     notes: 'Thank you for your business.',
@@ -35,7 +39,9 @@ const mockInvoicesData: Invoice[] = [
     invoiceNumber: 'INV-002',
     client: 'Creative Designs Inc.',
     fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Creative Designs Inc.', toAddress: '456 Art Plaza, Ibadan, Nigeria',
+    toName: 'Creative Designs Inc.', 
+    toEmail: 'accounts@creativedesigns.com',
+    toAddress: '456 Art Plaza, Ibadan, Nigeria',
     issueDate: new Date('2024-07-15'), dueDate: new Date('2024-08-15'),
     lineItems: [{ description: 'Logo Design & Branding', quantity: 1, price: 75000 }],
     notes: 'Payment is due within 30 days.',
@@ -46,7 +52,9 @@ const mockInvoicesData: Invoice[] = [
     invoiceNumber: 'INV-001', 
     client: 'Global Exports',
     fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Global Exports', toAddress: '101 Trade Fair, Port Harcourt, Nigeria',
+    toName: 'Global Exports',
+    toEmail: 'exports@global.com',
+    toAddress: '101 Trade Fair, Port Harcourt, Nigeria',
     issueDate: new Date('2024-06-01'), dueDate: new Date('2024-07-01'),
     lineItems: [
         { description: 'Shipping & Logistics', quantity: 2, price: 100000 },
@@ -76,6 +84,7 @@ export function InvoicingDashboard() {
       fromName: 'PAAGO DAVID (Ovo Thrive)',
       fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
       toName: '',
+      toEmail: '',
       toAddress: '',
       issueDate: new Date(),
       dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
@@ -113,18 +122,18 @@ export function InvoicingDashboard() {
   const handleSaveInvoice = (data: InvoiceFormData) => {
     if (!selectedInvoice) return;
     
-    // Determine if invoice is overdue
     const isOverdue = new Date() > data.dueDate;
 
     const finalInvoice: Invoice = {
       ...data,
       id: selectedInvoice.id.startsWith('DRAFT') ? data.invoiceNumber : selectedInvoice.id,
       status: isOverdue ? 'Overdue' : 'Unpaid',
-      client: data.toName, // Sync client name
+      client: data.toName,
     };
     upsertInvoice(finalInvoice);
     setSelectedInvoice(finalInvoice);
     setView('viewer');
+    toast({ title: 'Invoice Saved!', description: 'Your invoice has been saved and is ready to be sent.' });
   };
 
   const handleSaveDraft = (data: InvoiceFormData) => {
@@ -133,7 +142,7 @@ export function InvoicingDashboard() {
       ...data,
       id: selectedInvoice.id,
       status: 'Draft',
-      client: data.toName
+      client: data.toName || 'N/A'
     };
     upsertInvoice(draftInvoice);
     toast({ title: 'Draft saved successfully' });
@@ -179,7 +188,7 @@ export function InvoicingDashboard() {
                     {invoice.status}
                 </Badge>
               </TableCell>
-               <TableCell>{invoice.dueDate.toLocaleDateString()}</TableCell>
+               <TableCell>{format(invoice.dueDate, 'PPP')}</TableCell>
               <TableCell className="text-right">₦{calculateTotal(invoice.lineItems).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handlePreview(invoice); }}>
@@ -234,5 +243,3 @@ export function InvoicingDashboard() {
     </div>
   );
 }
-
-    
