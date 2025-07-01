@@ -45,6 +45,9 @@ const locationStockSchema = z.object({
 
 const productSchema = z.object({
   id: z.string().optional(),
+  businessId: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
   name: z.string().min(3, 'Product name is required.'),
   sku: z.string().min(3, 'SKU is required.'),
   barcode: z.string().optional(),
@@ -63,6 +66,9 @@ type Product = z.infer<typeof productSchema>;
 
 const supplierSchema = z.object({
     id: z.string().optional(),
+    businessId: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
     name: z.string().min(3, "Supplier name is required."),
     phone: z.string().optional(),
     email: z.string().email("Please enter a valid email.").optional(),
@@ -72,6 +78,9 @@ type Supplier = z.infer<typeof supplierSchema>;
 
 const locationSchema = z.object({
     id: z.string().optional(),
+    businessId: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
     name: z.string().min(3, 'Location name is required.'),
     address: z.string().optional(),
 });
@@ -79,6 +88,9 @@ type Location = z.infer<typeof locationSchema>;
 
 const categorySchema = z.object({
     id: z.string().optional(),
+    businessId: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
     name: z.string().min(3, 'Category name is required.'),
     description: z.string().optional(),
 });
