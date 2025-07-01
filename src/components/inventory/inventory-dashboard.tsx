@@ -12,9 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
@@ -37,6 +39,14 @@ const productSchema = z.object({
 });
 
 type Product = z.infer<typeof productSchema>;
+
+const stockAdjustmentSchema = z.object({
+  newStock: z.coerce.number().nonnegative('Stock cannot be negative.'),
+  reason: z.string().min(1, 'Please select a reason.'),
+  notes: z.string().optional(),
+});
+
+type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
 
 // Mock Data
 const mockProducts: Product[] = [
@@ -89,12 +99,75 @@ function ProductForm({ product, onSave, onCancel }: { product: Partial<Product> 
     );
 }
 
+function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { product: Product | null, onAdjust: (productId: string, data: StockAdjustmentData) => void, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!product) return null;
+
+    const form = useForm<StockAdjustmentData>({
+        resolver: zodResolver(stockAdjustmentSchema),
+        defaultValues: { newStock: product.stock, reason: '', notes: '' },
+    });
+
+    const onSubmit = (data: StockAdjustmentData) => {
+        onAdjust(product.id!, data);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Adjust Stock for {product.name}</DialogTitle>
+                    <DialogDescription>Current stock: {product.stock} {product.unit}</DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="newStock" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>New Stock Quantity</FormLabel>
+                                <FormControl><Input type="number" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                         <FormField control={form.control} name="reason" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Reason for Adjustment</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="stock-count">Stock Count Correction</SelectItem>
+                                        <SelectItem value="damaged">Damaged Goods</SelectItem>
+                                        <SelectItem value="return">Customer Return</SelectItem>
+                                        <SelectItem value="theft-loss">Theft / Loss</SelectItem>
+                                        <SelectItem value="promotion">Promotional Use</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="notes" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Notes (Optional)</FormLabel>
+                                <FormControl><Textarea placeholder="Add any relevant details..." {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                            <Button type="submit">Confirm Adjustment</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
 
   const filteredProducts = useMemo(() => {
@@ -115,18 +188,18 @@ export function InventoryDashboard() {
         setProducts(prev => [newProduct, ...prev]);
         toast({ title: "Product Added", description: `${data.name} has been added to your inventory.`});
     }
-    setIsDialogOpen(false);
+    setIsFormDialogOpen(false);
     setEditingProduct(null);
   };
 
   const handleAddNew = () => {
     setEditingProduct(null);
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   }
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
   const handleDelete = (productId: string) => {
@@ -134,11 +207,25 @@ export function InventoryDashboard() {
     toast({ variant: "destructive", title: "Product Deleted", description: "The product has been removed from your inventory."});
   };
 
+  const handleOpenAdjustDialog = (product: Product) => {
+    setAdjustingProduct(product);
+  }
+
+  const handleStockAdjustment = (productId: string, data: StockAdjustmentData) => {
+    setProducts(prev =>
+        prev.map(p =>
+            p.id === productId ? { ...p, stock: data.newStock } : p
+        )
+    );
+    toast({ title: "Stock Adjusted", description: `Stock for ${products.find(p => p.id === productId)?.name} has been updated to ${data.newStock}.`});
+    setAdjustingProduct(null);
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+             <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
                 <DialogTrigger asChild>
                     <Button onClick={handleAddNew}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
@@ -151,11 +238,18 @@ export function InventoryDashboard() {
                     <ProductForm 
                         product={editingProduct} 
                         onSave={handleSaveProduct} 
-                        onCancel={() => setIsDialogOpen(false)} 
+                        onCancel={() => setIsFormDialogOpen(false)} 
                     />
                 </DialogContent>
             </Dialog>
         </div>
+
+        <StockAdjustmentDialog 
+            product={adjustingProduct} 
+            open={!!adjustingProduct}
+            onOpenChange={(open) => !open && setAdjustingProduct(null)}
+            onAdjust={handleStockAdjustment}
+        />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{products.length}</div></CardContent></Card>
@@ -206,7 +300,7 @@ export function InventoryDashboard() {
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
-                                                <DropdownMenuItem>Adjust Stock</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
                                                 <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id!)}>Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
