@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -11,48 +12,89 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2 } from 'lucide-react';
+import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+// --- Card Customization Data ---
+const templates = {
+  colors: [
+    { name: 'Ovo Teal', value: 'bg-gradient-to-br from-teal-400 to-blue-500' },
+    { name: 'Midnight Blue', value: 'bg-gradient-to-br from-gray-900 to-blue-900' },
+    { name: 'Sunset Orange', value: 'bg-gradient-to-br from-yellow-400 to-orange-600' },
+    { name: 'Royal Purple', value: 'bg-gradient-to-br from-purple-500 to-indigo-600' },
+  ],
+  patterns: [
+    { name: 'Abstract Lines', value: 'https://placehold.co/600x400.png', hint: 'abstract lines' },
+    { name: 'Floral', value: 'https://placehold.co/600x400.png', hint: 'floral pattern' },
+    { name: 'Geometric', value: 'https://placehold.co/600x400.png', hint: 'geometric pattern' },
+    { name: 'Carbon Fiber', value: 'https://placehold.co/600x400.png', hint: 'carbon fiber' },
+  ]
+};
+
+interface CardDesign {
+  type: 'color' | 'pattern' | 'upload';
+  value: string; // Hex, URL, or data URI
+}
 
 // --- Card Preview Component ---
-const CardPreview = ({ image, name }: { image: string | null, name: string }) => (
-  <div className="w-full max-w-sm aspect-[1.586] rounded-xl shadow-lg overflow-hidden bg-gray-200">
-    <div className="relative w-full h-full">
-      {image ? (
-        <Image src={image} alt="Custom card preview" layout="fill" objectFit="cover" data-ai-hint="background pattern" />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500" />
+const CardPreview = ({ design, name }: { design: CardDesign, name: string }) => {
+  return (
+    <div className="w-full max-w-sm aspect-[1.586] rounded-xl shadow-lg overflow-hidden bg-gray-800 relative select-none">
+      {/* Background Layer */}
+      {design.type === 'color' && <div className={cn("w-full h-full", design.value)} />}
+      {(design.type === 'pattern' || design.type === 'upload') && (
+        <Image src={design.value} alt="Card background" layout="fill" objectFit="cover" data-ai-hint="background pattern" />
       )}
-      <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-6 bg-black/25">
-        <div>
-          <h3 className="text-white font-bold text-lg sm:text-xl">OVO Thrive</h3>
+      
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 bg-black/20" />
+
+      {/* Protected Zones & Content */}
+      <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
+        {/* Top Section: Bank Logo & Chip */}
+        <div className="flex justify-between items-start">
+          {/* Chip (Protected Zone) */}
+          <div className="w-12 h-10 bg-yellow-400/80 rounded-md border border-yellow-500/50 backdrop-blur-sm" data-protected="chip">
+            <div className="w-1/2 h-full bg-yellow-300/50" />
+          </div>
+          {/* Bank Logo (Protected Zone) */}
+           <div className="flex items-center gap-2" data-protected="bank-logo">
+              <Wallet className="w-7 h-7 text-white/90" />
+              <h3 className="text-white/90 font-bold text-lg">OVO Thrive</h3>
+          </div>
         </div>
+
+        {/* Bottom Section: Card Details */}
         <div>
-          <p className="text-white font-mono text-lg sm:text-xl tracking-widest text-shadow">
+          <p className="text-white font-mono text-xl sm:text-2xl tracking-widest text-shadow">
             4000 1234 5678 9010
           </p>
-          <div className="flex justify-between items-end mt-1">
-            <p className="text-white font-semibold uppercase text-sm sm:text-base text-shadow">
-              {name || 'JOHN APPLESEED'}
+          <div className="flex justify-between items-end mt-2">
+            <p className="text-white font-semibold uppercase text-sm sm:text-base text-shadow w-2/3 truncate">
+              {name || 'YOUR NAME HERE'}
             </p>
             <p className="text-white font-bold text-lg sm:text-xl italic text-shadow">VISA</p>
           </div>
         </div>
       </div>
+      <style jsx>{`
+        .text-shadow {
+          text-shadow: 0px 1px 3px rgba(0,0,0,0.7);
+        }
+      `}</style>
     </div>
-    <style jsx>{`
-      .text-shadow {
-        text-shadow: 0px 1px 3px rgba(0,0,0,0.5);
-      }
-    `}</style>
-  </div>
-);
+  );
+};
 
 // --- Zod Schemas for Validation ---
 const cardDetailsSchema = z.object({
   nameOnCard: z.string().min(3, "Name is too short").max(22, "Name is too long"),
-  image: z.any().optional(),
+  design: z.object({
+    type: z.enum(['color', 'pattern', 'upload']),
+    value: z.string().min(1, "A design must be selected."),
+  }),
 });
 
 const shippingSchema = z.object({
@@ -70,13 +112,15 @@ type View = 'customize' | 'review' | 'success';
 // --- Main Customizer Component ---
 export function CardCustomizer() {
   const [view, setView] = useState<View>('customize');
-  const [cardImage, setCardImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const cardDetailsForm = useForm<CardDetailsForm>({
     resolver: zodResolver(cardDetailsSchema),
-    defaultValues: { nameOnCard: "", image: null },
+    defaultValues: {
+      nameOnCard: "",
+      design: { type: 'color', value: templates.colors[0].value },
+    },
   });
   
   const shippingForm = useForm<ShippingForm>({
@@ -84,21 +128,22 @@ export function CardCustomizer() {
       defaultValues: { fullName: "", address: "", city: "", state: "" },
   });
 
+  const cardDesign = cardDetailsForm.watch('design');
   const nameOnCard = cardDetailsForm.watch('nameOnCard');
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      // Basic validation
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({ variant: "destructive", title: "Image Too Large", description: "Please upload an image smaller than 5MB." });
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setCardImage(result);
-        cardDetailsForm.setValue('image', result);
+        cardDetailsForm.setValue('design', {
+            type: 'upload',
+            value: reader.result as string,
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -120,9 +165,11 @@ export function CardCustomizer() {
   };
 
   const resetFlow = () => {
-      cardDetailsForm.reset();
+      cardDetailsForm.reset({ 
+        nameOnCard: "", 
+        design: { type: 'color', value: templates.colors[0].value }
+      });
       shippingForm.reset();
-      setCardImage(null);
       setView('customize');
   }
 
@@ -142,7 +189,7 @@ export function CardCustomizer() {
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8 items-start">
               <div className="flex flex-col items-center gap-2">
-                <CardPreview image={cardImage} name={nameOnCard} />
+                <CardPreview design={cardDesign} name={nameOnCard} />
                 <p className="text-sm text-muted-foreground">Final Preview</p>
               </div>
               <div className="space-y-4">
@@ -195,12 +242,12 @@ export function CardCustomizer() {
           <motion.div key="customize" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <CardHeader>
               <CardTitle>Customize Your ATM Card</CardTitle>
-              <CardDescription>Express yourself! Personalize your card with a photo or logo.</CardDescription>
+              <CardDescription>Personalize your card by selecting a template and adding your name.</CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8 items-center">
               <div className="flex flex-col items-center gap-2">
-                <CardPreview image={cardImage} name={nameOnCard} />
-                <p className="text-sm text-muted-foreground mt-2">Card Preview</p>
+                <CardPreview design={cardDesign} name={nameOnCard} />
+                 <p className="text-sm text-muted-foreground mt-2">Live Preview</p>
               </div>
               <div className="space-y-6">
                 <Form {...cardDetailsForm}>
@@ -212,15 +259,54 @@ export function CardCustomizer() {
                                 <FormMessage />
                             </FormItem>
                          )} />
-                         <FormField control={cardDetailsForm.control} name="image" render={() => (
+
+                        <div className="space-y-3">
+                          <Label>1. Choose a Color</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {templates.colors.map(color => (
+                              <button
+                                key={color.name}
+                                type="button"
+                                title={color.name}
+                                onClick={() => cardDetailsForm.setValue('design', { type: 'color', value: color.value })}
+                                className={cn(
+                                  "w-10 h-10 rounded-full border-2 transition-transform hover:scale-110",
+                                  cardDesign.type === 'color' && cardDesign.value === color.value ? 'border-primary' : 'border-transparent',
+                                  color.value
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label>2. Or Choose a Pattern</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {templates.patterns.map(pattern => (
+                               <button
+                                key={pattern.name}
+                                type="button"
+                                onClick={() => cardDetailsForm.setValue('design', { type: 'pattern', value: pattern.value })}
+                                className={cn(
+                                    "w-full aspect-video rounded-md border-2 overflow-hidden relative",
+                                    cardDesign.type === 'pattern' && cardDesign.value === pattern.value ? 'border-primary' : 'border-transparent'
+                                )}
+                              >
+                                <Image src={pattern.value} alt={pattern.name} layout="fill" objectFit="cover" data-ai-hint={pattern.hint} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                         <FormField control={cardDetailsForm.control} name="design" render={() => (
                             <FormItem>
-                                <Label>Upload your design</Label>
+                                <Label>3. Or Upload Your Own Image</Label>
                                 <div className="relative">
                                   <Input id="image-upload" type="file" accept="image/png, image/jpeg" onChange={handleImageUpload} className="absolute h-full w-full opacity-0 cursor-pointer" />
                                   <label htmlFor="image-upload" className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
                                     <div className="text-center">
                                       <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                                      <p className="mt-2 text-sm text-muted-foreground">Click to upload image</p>
+                                      <p className="mt-2 text-sm text-muted-foreground">Click to upload</p>
                                     </div>
                                   </label>
                                 </div>
@@ -232,7 +318,7 @@ export function CardCustomizer() {
                   <Info className="h-4 w-4 text-amber-600" />
                   <AlertTitle className="text-amber-800">Copyright Warning</AlertTitle>
                   <AlertDescription className="text-amber-700">
-                    Please ensure you own the rights to the image you are uploading. We moderate all submissions.
+                    By uploading an image, you agree that you own the rights to it. All submissions are moderated. Protected zones (chip, logos) cannot be covered.
                   </AlertDescription>
                 </Alert>
               </div>
