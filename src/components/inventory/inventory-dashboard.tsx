@@ -34,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail } from 'lucide-react';
 
 // Product schema for validation
 const productSchema = z.object({
@@ -128,7 +128,7 @@ function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partia
                         <FormItem>
                             <FormLabel>Expiry Date (Optional)</FormLabel>
                             <FormControl>
-                                <Input type="date" {...field} />
+                                <Input type="date" {...field} value={field.value ? field.value.split('T')[0] : ''} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -381,7 +381,7 @@ export function InventoryDashboard() {
     { date: 'Sat', sales: 23900 },
     { date: 'Sun', sales: 34900 },
   ];
-
+  
   const bestSellingProducts = [
     { name: 'Coca-Cola 50cl', sold: 120, revenue: 24000 },
     { name: 'Indomie Noodles Chicken', sold: 98, revenue: 24500 },
@@ -401,13 +401,14 @@ export function InventoryDashboard() {
   }, [products, searchQuery]);
   
   const lowStockCount = useMemo(() => products.filter(p => p.stock <= p.minStockLevel).length, [products]);
+  const lowStockProducts = useMemo(() => products.filter(p => p.stock <= p.minStockLevel), [products]);
   const inventoryValue = useMemo(() => products.reduce((acc, p) => acc + (p.costPrice * p.stock), 0), [products]);
 
   const getExpiryStatus = (expiryDateString?: string) => {
     if (!expiryDateString) return null;
     const expiryDate = new Date(expiryDateString);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
+    today.setHours(0, 0, 0, 0);
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(today.getDate() + 30);
 
@@ -422,7 +423,6 @@ export function InventoryDashboard() {
         return status === 'soon' || status === 'expired';
     }).length;
   }, [products]);
-
 
   const handleSaveProduct = (data: Product) => {
     if (editingProduct?.id) {
@@ -506,6 +506,34 @@ export function InventoryDashboard() {
     setIsFormDialogOpen(true);
     toast({ title: 'New Barcode Scanned', description: 'Please fill in the details for this new product.' });
   };
+  
+  const handleContactSupplier = (action: 'call' | 'email', supplierId?: string) => {
+    if (!supplierId) {
+        toast({ variant: 'destructive', title: 'No Supplier', description: 'This product has no assigned supplier.' });
+        return;
+    }
+    const supplier = suppliers.find(s => s.id === supplierId);
+    if (!supplier) {
+        toast({ variant: 'destructive', title: 'Supplier Not Found' });
+        return;
+    }
+
+    if (action === 'call') {
+        if (!supplier.phone) {
+            toast({ variant: 'destructive', title: 'No Phone Number', description: `No phone number found for ${supplier.name}.` });
+            return;
+        }
+        window.location.href = `tel:${supplier.phone}`;
+        toast({ title: `Calling ${supplier.name}`, description: 'Opening phone app...' });
+    } else if (action === 'email') {
+        if (!supplier.email) {
+            toast({ variant: 'destructive', title: 'No Email Address', description: `No email address found for ${supplier.name}.` });
+            return;
+        }
+        window.location.href = `mailto:${supplier.email}`;
+        toast({ title: `Emailing ${supplier.name}`, description: 'Opening email client...' });
+    }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
@@ -555,25 +583,22 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                <TabsTrigger value="reorder" className="relative">Reorder
+                    {lowStockCount > 0 && (
+                        <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{lowStockCount}</Badge>
+                    )}
+                </TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="space-y-4 mt-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{products.length}</div></CardContent></Card>
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{salesData.reduce((acc, s) => acc + s.sales, 0).toLocaleString()}</div></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div>
-                        </CardContent>
-                    </Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Expiring Soon</CardTitle><AlertTriangle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div></CardContent></Card>
                 </div>
 
                 <Card>
@@ -746,7 +771,63 @@ export function InventoryDashboard() {
                     </CardContent>
                 </Card>
             </TabsContent>
+            <TabsContent value="reorder" className="space-y-4 mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Reorder Suggestions</CardTitle>
+                        <CardDescription>These items are below their minimum stock level. Contact the supplier to restock.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Stock / Min. Level</TableHead>
+                                    <TableHead>Supplier</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {lowStockProducts.map(product => {
+                                    const supplier = suppliers.find(s => s.id === product.supplierId);
+                                    return (
+                                    <TableRow key={product.id}>
+                                        <TableCell className="font-medium">{product.name}</TableCell>
+                                        <TableCell>
+                                            <span className="font-bold text-destructive">{product.stock}</span> / {product.minStockLevel}
+                                        </TableCell>
+                                        <TableCell>{supplier?.name || 'N/A'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="outline" size="sm">Contact Supplier</Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleContactSupplier('call', product.supplierId)} disabled={!supplier?.phone}>
+                                                        <Phone className="mr-2 h-4 w-4" /> Call Supplier
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleContactSupplier('email', product.supplierId)} disabled={!supplier?.email}>
+                                                        <Mail className="mr-2 h-4 w-4" /> Email Supplier
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )})}
+                            </TableBody>
+                        </Table>
+                         {lowStockProducts.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground">
+                                <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
+                                <p className="font-semibold">All stock levels are healthy!</p>
+                                <p>No reorder suggestions at this time.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
         </Tabs>
     </div>
   );
 }
+
