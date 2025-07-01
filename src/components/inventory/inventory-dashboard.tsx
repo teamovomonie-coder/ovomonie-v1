@@ -33,8 +33,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map } from 'lucide-react';
+
+const locationStockSchema = z.object({
+    locationId: z.string(),
+    quantity: z.coerce.number().nonnegative('Stock cannot be negative.'),
+});
 
 // Product schema for validation
 const productSchema = z.object({
@@ -45,7 +52,7 @@ const productSchema = z.object({
   category: z.string().min(2, 'Category is required.'),
   price: z.coerce.number().positive('Price must be a positive number.'),
   costPrice: z.coerce.number().nonnegative('Cost price cannot be negative.'),
-  stock: z.coerce.number().nonnegative('Stock cannot be negative.'),
+  stockByLocation: z.array(locationStockSchema).default([]),
   minStockLevel: z.coerce.number().nonnegative('Minimum stock level cannot be negative.'),
   unit: z.string().min(1, 'Unit is required.'),
   expiryDate: z.string().optional(),
@@ -64,13 +71,28 @@ const supplierSchema = z.object({
 });
 type Supplier = z.infer<typeof supplierSchema>;
 
+const locationSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(3, 'Location name is required.'),
+    address: z.string().optional(),
+});
+type Location = z.infer<typeof locationSchema>;
+
+
 const stockAdjustmentSchema = z.object({
   newStock: z.coerce.number().nonnegative('Stock cannot be negative.'),
+  locationId: z.string().min(1, 'Please select a location'),
   reason: z.string().min(1, 'Please select a reason.'),
   notes: z.string().optional(),
 });
 
 type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
+
+const mockLocations: Location[] = [
+    { id: 'loc_1', name: 'Main Store - Lekki', address: '1 Admiralty Way, Lekki Phase 1, Lagos' },
+    { id: 'loc_2', name: 'Warehouse - Ikeja', address: '25, Industrial Avenue, Ikeja, Lagos' },
+    { id: 'loc_3', name: 'Pop-up Stand - VI', address: 'Eko Hotel Convention Center, VI, Lagos' },
+];
 
 const mockSuppliers: Supplier[] = [
   { id: 'sup_1', name: 'West African Foods Inc.', phone: '08011223344', email: 'sales@wafoods.com', address: '1, Warehouse Road, Apapa, Lagos' },
@@ -79,22 +101,29 @@ const mockSuppliers: Supplier[] = [
 ];
 
 const mockProducts: Product[] = [
-  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stock: 150, minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stock: 80, minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stock: 200, minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
-  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
-  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stock: 45, minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
-  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stock: 12, minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stockByLocation: [{locationId: 'loc_1', quantity: 100}, {locationId: 'loc_2', quantity: 50}], minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stockByLocation: [{locationId: 'loc_1', quantity: 80}], minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stockByLocation: [{locationId: 'loc_1', quantity: 150}, {locationId: 'loc_2', quantity: 50}, {locationId: 'loc_3', quantity: 0}], minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
+  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], category: 'Pharmacy', price: 500, costPrice: 400, stockByLocation: [{locationId: 'loc_1', quantity: 5}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stockByLocation: [{locationId: 'loc_2', quantity: 45}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
+  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stockByLocation: [{locationId: 'loc_1', quantity: 12}], minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
 ];
 
 const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
 const SUPPLIERS_STORAGE_KEY = 'ovomonie-inventory-suppliers';
+const LOCATIONS_STORAGE_KEY = 'ovomonie-inventory-locations';
 
-function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], onSave: (data: Product) => void, onCancel: () => void }) {
+function ProductForm({ product, suppliers, locations, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], locations: Location[], onSave: (data: Product) => void, onCancel: () => void }) {
     const form = useForm<Product>({
         resolver: zodResolver(productSchema),
-        defaultValues: product || {
-            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
+        defaultValues: product ? {
+            ...product,
+            stockByLocation: locations.map(loc => {
+                const existing = product.stockByLocation?.find(s => s.locationId === loc.id);
+                return existing || { locationId: loc.id, quantity: 0 };
+            }),
+        } : {
+            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stockByLocation: locations.map(loc => ({ locationId: loc.id, quantity: 0 })), minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
         },
     });
 
@@ -117,11 +146,31 @@ function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partia
                     <FormField control={form.control} name="price" render={({ field }) => (<FormItem><FormLabel>Selling Price (₦)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="costPrice" render={({ field }) => (<FormItem><FormLabel>Cost Price (₦)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="stock" render={({ field }) => (<FormItem><FormLabel>Stock Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="minStockLevel" render={({ field }) => (<FormItem><FormLabel>Min. Stock Level</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>Unit</FormLabel><FormControl><Input placeholder="e.g., pcs, kg" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                </div>
+                
+                <Card>
+                    <CardHeader><CardTitle className="text-base">Stock Levels</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        {locations.map((loc, index) => (
+                             <FormField
+                                key={loc.id}
+                                control={form.control}
+                                name={`stockByLocation.${index}.quantity`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{loc.name}</FormLabel>
+                                        <FormControl><Input type="number" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="minStockLevel" render={({ field }) => (<FormItem><FormLabel>Min. Stock Level (Per Location)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>Unit</FormLabel><FormControl><Input placeholder="e.g., pcs, kg" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                         </div>
+                    </CardContent>
+                </Card>
+
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="batchNumber" render={({ field }) => (<FormItem><FormLabel>Batch Number (Optional)</FormLabel><FormControl><Input placeholder="e.g., B123XYZ" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="expiryDate" render={({ field }) => (
@@ -189,14 +238,45 @@ function SupplierForm({ supplier, onSave, onCancel }: { supplier: Partial<Suppli
     );
 }
 
-function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { product: Product | null, onAdjust: (productId: string, data: StockAdjustmentData) => void, open: boolean, onOpenChange: (open: boolean) => void }) {
+function LocationForm({ location, onSave, onCancel }: { location: Partial<Location> | null, onSave: (data: Location) => void, onCancel: () => void }) {
+    const form = useForm<Location>({
+        resolver: zodResolver(locationSchema),
+        defaultValues: location || { name: '', address: '' },
+    });
+    
+    const onSubmit = (data: Location) => { onSave({ ...location, ...data }); };
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Location Name</FormLabel><FormControl><Input placeholder="e.g., Main Store - Lekki" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address (Optional)</FormLabel><FormControl><Input placeholder="Full address of the location" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+                    <Button type="submit">Save Location</Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+}
+
+function StockAdjustmentDialog({ product, locations, onAdjust, open, onOpenChange }: { product: Product | null, locations: Location[], onAdjust: (productId: string, data: StockAdjustmentData) => void, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!product) return null;
 
     const form = useForm<StockAdjustmentData>({
         resolver: zodResolver(stockAdjustmentSchema),
-        defaultValues: { newStock: product.stock, reason: '', notes: '' },
+        defaultValues: { newStock: 0, reason: '', notes: '', locationId: '' },
     });
 
+    const watchedLocationId = form.watch('locationId');
+    const currentStockAtLocation = useMemo(() => {
+        return product.stockByLocation.find(s => s.locationId === watchedLocationId)?.quantity || 0;
+    }, [product, watchedLocationId]);
+
+    useEffect(() => {
+        form.setValue('newStock', currentStockAtLocation);
+    }, [currentStockAtLocation, form]);
+    
     const onSubmit = (data: StockAdjustmentData) => {
         onAdjust(product.id!, data);
     };
@@ -206,10 +286,27 @@ function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { prod
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Adjust Stock for {product.name}</DialogTitle>
-                    <DialogDescription>Current stock: {product.stock} {product.unit}</DialogDescription>
+                     <DialogDescription>
+                        Select a location to adjust its stock level.
+                    </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="locationId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Location</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a location to adjust" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {locations.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        {watchedLocationId && (
+                            <div className="text-sm">Current stock at this location: <span className="font-bold">{currentStockAtLocation} {product.unit}</span></div>
+                        )}
                         <FormField control={form.control} name="newStock" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>New Stock Quantity</FormLabel>
@@ -228,6 +325,8 @@ function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { prod
                                         <SelectItem value="return">Customer Return</SelectItem>
                                         <SelectItem value="theft-loss">Theft / Loss</SelectItem>
                                         <SelectItem value="promotion">Promotional Use</SelectItem>
+                                        <SelectItem value="transfer-in">Stock Transfer In</SelectItem>
+                                        <SelectItem value="transfer-out">Stock Transfer Out</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -242,7 +341,7 @@ function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { prod
                         )} />
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                            <Button type="submit">Confirm Adjustment</Button>
+                            <Button type="submit" disabled={!watchedLocationId}>Confirm Adjustment</Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -332,11 +431,15 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: 
 export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
   const [isSupplierFormOpen, setIsSupplierFormOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Partial<Supplier> | null>(null);
+  const [isLocationFormOpen, setIsLocationFormOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<Partial<Location> | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
@@ -346,12 +449,18 @@ export function InventoryDashboard() {
       try {
         const savedProducts = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
         setProducts(savedProducts ? JSON.parse(savedProducts) : mockProducts);
+
         const savedSuppliers = window.localStorage.getItem(SUPPLIERS_STORAGE_KEY);
         setSuppliers(savedSuppliers ? JSON.parse(savedSuppliers) : mockSuppliers);
+
+        const savedLocations = window.localStorage.getItem(LOCATIONS_STORAGE_KEY);
+        setLocations(savedLocations ? JSON.parse(savedLocations) : mockLocations);
+
       } catch (error) {
         console.error("Failed to read from localStorage", error);
         setProducts(mockProducts);
         setSuppliers(mockSuppliers);
+        setLocations(mockLocations);
       }
     }
   }, []);
@@ -371,6 +480,14 @@ export function InventoryDashboard() {
         } catch (error) { console.error("Failed to write suppliers to localStorage", error); }
     }
   }, [suppliers]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        try {
+            window.localStorage.setItem(LOCATIONS_STORAGE_KEY, JSON.stringify(locations));
+        } catch (error) { console.error("Failed to write locations to localStorage", error); }
+    }
+  }, [locations]);
 
   const salesData = [
     { date: 'Mon', sales: 40000 },
@@ -400,9 +517,31 @@ export function InventoryDashboard() {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
   
-  const lowStockCount = useMemo(() => products.filter(p => p.stock <= p.minStockLevel).length, [products]);
-  const lowStockProducts = useMemo(() => products.filter(p => p.stock <= p.minStockLevel), [products]);
-  const inventoryValue = useMemo(() => products.reduce((acc, p) => acc + (p.costPrice * p.stock), 0), [products]);
+  const lowStockProducts = useMemo(() => {
+    const lowStockItems: (Product & { lowStockLocations: Location[] })[] = [];
+    products.forEach(p => {
+        const lowLocations: Location[] = [];
+        p.stockByLocation.forEach(s => {
+            const location = locations.find(l => l.id === s.locationId);
+            if (location && s.quantity <= p.minStockLevel) {
+                lowLocations.push(location);
+            }
+        });
+        if (lowLocations.length > 0) {
+            lowStockItems.push({ ...p, lowStockLocations: lowLocations });
+        }
+    });
+    return lowStockItems;
+  }, [products, locations]);
+
+  const lowStockCount = lowStockProducts.length;
+
+  const inventoryValue = useMemo(() => {
+      return products.reduce((total, p) => {
+          const productStock = p.stockByLocation.reduce((sum, s) => sum + s.quantity, 0);
+          return total + (p.costPrice * productStock);
+      }, 0);
+  }, [products]);
 
   const getExpiryStatus = (expiryDateString?: string) => {
     if (!expiryDateString) return null;
@@ -479,6 +618,39 @@ export function InventoryDashboard() {
     setSuppliers(prev => prev.filter(s => s.id !== supplierId));
     toast({ variant: "destructive", title: "Supplier Deleted"});
   };
+  
+  const handleSaveLocation = (data: Location) => {
+    if (editingLocation?.id) {
+        setLocations(prev => prev.map(l => l.id === editingLocation.id ? { ...l, ...data } : l));
+        toast({ title: "Location Updated", description: `${data.name} has been updated.`});
+    } else {
+        const newLocation = { ...data, id: `loc_${Date.now()}`};
+        setLocations(prev => [newLocation, ...prev]);
+        toast({ title: "Location Added", description: `${data.name} has been added.`});
+    }
+    setIsLocationFormOpen(false);
+    setEditingLocation(null);
+  };
+
+  const handleAddNewLocation = () => {
+    setEditingLocation(null);
+    setIsLocationFormOpen(true);
+  };
+  
+  const handleEditLocation = (location: Location) => {
+    setEditingLocation(location);
+    setIsLocationFormOpen(true);
+  };
+
+  const handleDeleteLocation = (locationId: string) => {
+    setLocations(prev => prev.filter(l => l.id !== locationId));
+    // Also remove stock from this location in all products
+    setProducts(prev => prev.map(p => ({
+        ...p,
+        stockByLocation: p.stockByLocation.filter(s => s.locationId !== locationId)
+    })));
+    toast({ variant: "destructive", title: "Location Deleted"});
+  };
 
   const handleOpenAdjustDialog = (product: Product) => {
     setAdjustingProduct(product);
@@ -486,11 +658,22 @@ export function InventoryDashboard() {
 
   const handleStockAdjustment = (productId: string, data: StockAdjustmentData) => {
     setProducts(prev =>
-        prev.map(p =>
-            p.id === productId ? { ...p, stock: data.newStock } : p
-        )
+        prev.map(p => {
+            if (p.id !== productId) return p;
+            
+            const newStockByLocation = [...p.stockByLocation];
+            const locIndex = newStockByLocation.findIndex(s => s.locationId === data.locationId);
+            
+            if (locIndex > -1) {
+                newStockByLocation[locIndex] = { ...newStockByLocation[locIndex], quantity: data.newStock };
+            } else {
+                newStockByLocation.push({ locationId: data.locationId, quantity: data.newStock });
+            }
+            return { ...p, stockByLocation: newStockByLocation };
+        })
     );
-    toast({ title: "Stock Adjusted", description: `Stock for ${products.find(p => p.id === productId)?.name} has been updated to ${data.newStock}.`});
+    const locationName = locations.find(l => l.id === data.locationId)?.name;
+    toast({ title: "Stock Adjusted", description: `Stock for ${products.find(p => p.id === productId)?.name} at ${locationName} has been updated to ${data.newStock}.`});
     setAdjustingProduct(null);
   };
 
@@ -502,7 +685,7 @@ export function InventoryDashboard() {
 
   const handleScanNew = (barcode: string) => {
     setIsScannerOpen(false);
-    setEditingProduct({ barcode, name: '', sku: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs' });
+    setEditingProduct({ barcode, name: '', sku: '', category: '', price: 0, costPrice: 0, stockByLocation: [], minStockLevel: 0, unit: 'pcs' });
     setIsFormDialogOpen(true);
     toast({ title: 'New Barcode Scanned', description: 'Please fill in the details for this new product.' });
   };
@@ -552,6 +735,7 @@ export function InventoryDashboard() {
                     <ProductForm 
                         product={editingProduct} 
                         suppliers={suppliers}
+                        locations={locations}
                         onSave={handleSaveProduct} 
                         onCancel={() => setIsFormDialogOpen(false)} 
                     />
@@ -568,8 +752,18 @@ export function InventoryDashboard() {
             </DialogContent>
         </Dialog>
 
+         <Dialog open={isLocationFormOpen} onOpenChange={setIsLocationFormOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingLocation ? 'Edit Location' : 'Add New Location'}</DialogTitle>
+                </DialogHeader>
+                <LocationForm location={editingLocation} onSave={handleSaveLocation} onCancel={() => setIsLocationFormOpen(false)} />
+            </DialogContent>
+        </Dialog>
+
         <StockAdjustmentDialog 
             product={adjustingProduct} 
+            locations={locations}
             open={!!adjustingProduct}
             onOpenChange={(open) => !open && setAdjustingProduct(null)}
             onAdjust={handleStockAdjustment}
@@ -583,9 +777,10 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+                <TabsTrigger value="locations">Locations</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 <TabsTrigger value="reorder" className="relative">Reorder
                     {lowStockCount > 0 && (
@@ -650,9 +845,27 @@ export function InventoryDashboard() {
                                             </TableCell>
                                             <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <div className={cn(product.stock <= product.minStockLevel && "text-destructive font-bold")}>
-                                                    {product.stock} {product.unit}
-                                                </div>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="link" className={cn("p-0 h-auto font-bold", product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0) <= product.minStockLevel && "text-destructive")}>
+                                                            {product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0)} {product.unit}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-64">
+                                                        <div className="space-y-2">
+                                                            <h4 className="font-medium leading-none">Stock by Location</h4>
+                                                            {locations.map(loc => {
+                                                                const stock = product.stockByLocation.find(s => s.locationId === loc.id)?.quantity || 0;
+                                                                return (
+                                                                    <div key={loc.id} className="text-sm flex justify-between">
+                                                                        <span>{loc.name}:</span>
+                                                                        <span className={cn("font-semibold", stock <= product.minStockLevel && "text-destructive")}>{stock}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
                                             </TableCell>
                                             <TableCell className="text-right hidden sm:table-cell">₦{product.price.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">
@@ -724,6 +937,49 @@ export function InventoryDashboard() {
                     </CardContent>
                 </Card>
             </TabsContent>
+             <TabsContent value="locations" className="space-y-4 mt-4">
+                 <Card>
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                       <div>
+                         <CardTitle>Locations</CardTitle>
+                         <CardDescription>Manage your stores, warehouses, and other business locations.</CardDescription>
+                       </div>
+                        <Button onClick={handleAddNewLocation}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Location
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Address</TableHead>
+                                    <TableHead>Products In Stock</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {locations.map((location) => (
+                                    <TableRow key={location.id}>
+                                        <TableCell className="font-medium">{location.name}</TableCell>
+                                        <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
+                                        <TableCell>{products.filter(p => p.stockByLocation.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleEditLocation(location)}>Edit</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLocation(location.id!)}>Delete</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
             <TabsContent value="analytics" className="space-y-4 mt-4">
                  <Card>
                     <CardHeader>
@@ -778,44 +1034,52 @@ export function InventoryDashboard() {
                         <CardDescription>These items are below their minimum stock level. Contact the supplier to restock.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Stock / Min. Level</TableHead>
-                                    <TableHead>Supplier</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {lowStockProducts.map(product => {
-                                    const supplier = suppliers.find(s => s.id === product.supplierId);
-                                    return (
-                                    <TableRow key={product.id}>
-                                        <TableCell className="font-medium">{product.name}</TableCell>
-                                        <TableCell>
-                                            <span className="font-bold text-destructive">{product.stock}</span> / {product.minStockLevel}
-                                        </TableCell>
-                                        <TableCell>{supplier?.name || 'N/A'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm">Contact Supplier</Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleContactSupplier('call', product.supplierId)} disabled={!supplier?.phone}>
-                                                        <Phone className="mr-2 h-4 w-4" /> Call Supplier
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleContactSupplier('email', product.supplierId)} disabled={!supplier?.email}>
-                                                        <Mail className="mr-2 h-4 w-4" /> Email Supplier
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                         <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>Stock / Min. Level</TableHead>
+                                        <TableHead>Supplier</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                )})}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {lowStockProducts.flatMap(product =>
+                                        product.lowStockLocations.map(location => {
+                                            const supplier = suppliers.find(s => s.id === product.supplierId);
+                                            const stockInfo = product.stockByLocation.find(s => s.locationId === location.id);
+                                            return (
+                                                <TableRow key={`${product.id}-${location.id}`}>
+                                                    <TableCell className="font-medium">{product.name}</TableCell>
+                                                    <TableCell>{location.name}</TableCell>
+                                                    <TableCell>
+                                                        <span className="font-bold text-destructive">{stockInfo?.quantity}</span> / {product.minStockLevel}
+                                                    </TableCell>
+                                                    <TableCell>{supplier?.name || 'N/A'}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="outline" size="sm">Contact Supplier</Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => handleContactSupplier('call', product.supplierId)} disabled={!supplier?.phone}>
+                                                                    <Phone className="mr-2 h-4 w-4" /> Call Supplier
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleContactSupplier('email', product.supplierId)} disabled={!supplier?.email}>
+                                                                    <Mail className="mr-2 h-4 w-4" /> Email Supplier
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                         </div>
                          {lowStockProducts.length === 0 && (
                             <div className="text-center py-10 text-muted-foreground">
                                 <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
