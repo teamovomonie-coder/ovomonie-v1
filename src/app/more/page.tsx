@@ -65,6 +65,7 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Travel & Lifestyle",
     services: [
+      { label: "Flight Tickets", icon: Plane, href: "/flights" },
       { label: "Hotel Bookings", icon: Hotel, href: "#" },
       { label: "Ride Booking", icon: Car, href: "#" },
       { label: "Event Tickets", icon: Ticket, href: "#" },
