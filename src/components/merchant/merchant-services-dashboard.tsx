@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import {
-    Monitor, UserCheck, Percent, Signal, Siren,
+    Monitor, Award, Percent, Siren,
     Wallet, Briefcase, Link as LinkIcon, CreditCard, Users,
     Download, RefreshCw, BarChart3, TrendingUp, ArrowRightLeft,
     User, Shield, MessageCircle, FileText, Settings, KeyRound
@@ -31,7 +31,7 @@ const serviceCategories: ServiceCategory[] = [
         description: "Manage your POS agents, terminals, and commissions.",
         items: [
             { title: "POS Terminals", href: "/agent-life/terminals", icon: Monitor },
-            { title: "AgentLife Hub", href: "#", icon: UserCheck, isWIP: true },
+            { title: "AgentLife Hub", href: "/agent-life/hub", icon: Award },
             { title: "Commissions", href: "#", icon: Percent, isWIP: true },
             { title: "Report an Issue", href: "#", icon: Siren, isWIP: true },
         ]
