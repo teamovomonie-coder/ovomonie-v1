@@ -918,19 +918,21 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-7">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-                <TabsTrigger value="locations">Locations</TabsTrigger>
-                <TabsTrigger value="categories">Categories</TabsTrigger>
-                <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                <TabsTrigger value="reorder" className="relative">Reorder
-                    {lowStockCount > 0 && (
-                        <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{lowStockCount}</Badge>
-                    )}
-                </TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
-            </TabsList>
+            <div className="w-full overflow-x-auto pb-1">
+                <TabsList className="w-max">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+                    <TabsTrigger value="locations">Locations</TabsTrigger>
+                    <TabsTrigger value="categories">Categories</TabsTrigger>
+                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                    <TabsTrigger value="reorder" className="relative">Reorder
+                        {lowStockCount > 0 && (
+                            <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{lowStockCount}</Badge>
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+            </div>
             {isLoading ? (
                 <div className="mt-4 flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
