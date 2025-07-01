@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, Truck } from 'lucide-react';
 
 // Product schema for validation
 const productSchema = z.object({
@@ -49,9 +49,19 @@ const productSchema = z.object({
   unit: z.string().min(1, 'Unit is required.'),
   expiryDate: z.string().optional(),
   batchNumber: z.string().optional(),
+  supplierId: z.string().optional(),
 });
 
 type Product = z.infer<typeof productSchema>;
+
+const supplierSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(3, "Supplier name is required."),
+    phone: z.string().min(10, "A valid phone number is required.").optional(),
+    email: z.string().email("Please enter a valid email.").optional(),
+    address: z.string().optional(),
+});
+type Supplier = z.infer<typeof supplierSchema>;
 
 const stockAdjustmentSchema = z.object({
   newStock: z.coerce.number().nonnegative('Stock cannot be negative.'),
@@ -61,13 +71,18 @@ const stockAdjustmentSchema = z.object({
 
 type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
 
-// Mock Data
+const mockSuppliers: Supplier[] = [
+  { id: 'sup_1', name: 'West African Foods Inc.', phone: '08011223344', email: 'sales@wafoods.com', address: '1, Warehouse Road, Apapa, Lagos' },
+  { id: 'sup_2', name: 'PharmaDist Nigeria', phone: '09099887766', email: 'orders@pharmadist.ng', address: '25, Industrial Avenue, Ikeja, Lagos' },
+  { id: 'sup_3', name: 'Beverage Masters Ltd.', phone: '07055443322', email: 'contact@bevmasters.com', address: 'Plot 5, Agbara Estate, Ogun' },
+];
+
 const mockProducts: Product[] = [
-  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stock: 150, minStockLevel: 20, unit: 'pcs' },
-  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stock: 80, minStockLevel: 10, unit: 'pcs' },
-  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stock: 200, minStockLevel: 50, unit: 'pcs' },
-  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: '2025-12-31', category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack' },
-  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stock: 45, minStockLevel: 10, unit: 'pack' },
+  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stock: 150, minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stock: 80, minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stock: 200, minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
+  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: '2025-12-31', category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stock: 45, minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
   { id: 'prod_6', name: 'Cloud Hosting Services', sku: 'CHS001', category: 'Services', price: 150000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'license' },
   { id: 'prod_7', name: 'Logo Design & Branding', sku: 'LDB001', category: 'Services', price: 75000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'project' },
   { id: 'prod_8', name: 'Shipping & Logistics', sku: 'SL001', category: 'Services', price: 100000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'shipment' },
@@ -75,13 +90,13 @@ const mockProducts: Product[] = [
 ];
 
 const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
+const SUPPLIERS_STORAGE_KEY = 'ovomonie-inventory-suppliers';
 
-
-function ProductForm({ product, onSave, onCancel }: { product: Partial<Product> | null, onSave: (data: Product) => void, onCancel: () => void }) {
+function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], onSave: (data: Product) => void, onCancel: () => void }) {
     const form = useForm<Product>({
         resolver: zodResolver(productSchema),
         defaultValues: product || {
-            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs'
+            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs', supplierId: ''
         },
     });
 
@@ -109,9 +124,51 @@ function ProductForm({ product, onSave, onCancel }: { product: Partial<Product> 
                     <FormField control={form.control} name="minStockLevel" render={({ field }) => (<FormItem><FormLabel>Min. Stock Level</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>Unit</FormLabel><FormControl><Input placeholder="e.g., pcs, kg" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
+                 <FormField
+                    control={form.control}
+                    name="supplierId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Supplier (Optional)</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a supplier" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <DialogFooter className="sticky bottom-0 bg-background pt-4">
                     <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
                     <Button type="submit">Save Product</Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+}
+
+function SupplierForm({ supplier, onSave, onCancel }: { supplier: Partial<Supplier> | null, onSave: (data: Supplier) => void, onCancel: () => void }) {
+    const form = useForm<Supplier>({
+        resolver: zodResolver(supplierSchema),
+        defaultValues: supplier || { name: '', phone: '', email: '', address: '' },
+    });
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+                <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Supplier Name</FormLabel><FormControl><Input placeholder="e.g., West African Foods Inc." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="orders@supplier.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Supplier's physical address" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+                    <Button type="submit">Save Supplier</Button>
                 </DialogFooter>
             </form>
         </Form>
@@ -208,8 +265,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: 
     }, [open, toast]);
 
     const handleSimulateScan = () => {
-        // Simulate finding an existing or new product
-        const isExisting = Math.random() > 0.3; // 70% chance of finding existing product
+        const isExisting = Math.random() > 0.3;
         if (isExisting) {
             const productWithBarcode = mockProducts.find(p => p.barcode);
             if (productWithBarcode) {
@@ -260,37 +316,47 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: 
 }
 
 export function InventoryDashboard() {
-  const [products, setProducts] = useState<Product[]>(() => {
-    if (typeof window === 'undefined') {
-        return mockProducts;
-    }
-    try {
-        const savedProducts = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
-        if (savedProducts) {
-            return JSON.parse(savedProducts);
-        } else {
-            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(mockProducts));
-            return mockProducts;
-        }
-    } catch (error) {
-        console.error("Failed to read from localStorage", error);
-        return mockProducts;
-    }
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [isSupplierFormOpen, setIsSupplierFormOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Partial<Supplier> | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    try {
-        window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
-    } catch (error) {
-        console.error("Failed to write to localStorage", error);
+    if (typeof window !== 'undefined') {
+      try {
+        const savedProducts = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
+        setProducts(savedProducts ? JSON.parse(savedProducts) : mockProducts);
+        const savedSuppliers = window.localStorage.getItem(SUPPLIERS_STORAGE_KEY);
+        setSuppliers(savedSuppliers ? JSON.parse(savedSuppliers) : mockSuppliers);
+      } catch (error) {
+        console.error("Failed to read from localStorage", error);
+        setProducts(mockProducts);
+        setSuppliers(mockSuppliers);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        try {
+            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
+        } catch (error) { console.error("Failed to write products to localStorage", error); }
     }
   }, [products]);
+
+   useEffect(() => {
+    if (typeof window !== 'undefined') {
+        try {
+            window.localStorage.setItem(SUPPLIERS_STORAGE_KEY, JSON.stringify(suppliers));
+        } catch (error) { console.error("Failed to write suppliers to localStorage", error); }
+    }
+  }, [suppliers]);
 
   const salesData = [
     { date: 'Mon', sales: 40000 },
@@ -316,14 +382,13 @@ export function InventoryDashboard() {
     },
   } satisfies ChartConfig;
 
-
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
   
   const lowStockCount = useMemo(() => products.filter(p => p.stock <= p.minStockLevel).length, [products]);
   const inventoryValue = useMemo(() => products.reduce((acc, p) => acc + (p.costPrice * p.stock), 0), [products]);
-  const todaysSales = 34900; // Mocked value
+  const todaysSales = 34900;
 
   const handleSaveProduct = (data: Product) => {
     if (editingProduct?.id) {
@@ -338,24 +403,52 @@ export function InventoryDashboard() {
     setEditingProduct(null);
   };
 
-  const handleAddNew = () => {
+  const handleAddNewProduct = () => {
     setEditingProduct(null);
     setIsFormDialogOpen(true);
-  }
+  };
 
-  const handleEdit = (product: Product) => {
+  const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setIsFormDialogOpen(true);
   };
 
-  const handleDelete = (productId: string) => {
+  const handleDeleteProduct = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
     toast({ variant: "destructive", title: "Product Deleted", description: "The product has been removed from your inventory."});
   };
 
+  const handleSaveSupplier = (data: Supplier) => {
+    if (editingSupplier?.id) {
+        setSuppliers(prev => prev.map(s => s.id === editingSupplier.id ? { ...s, ...data } : s));
+        toast({ title: "Supplier Updated", description: `${data.name} has been updated.`});
+    } else {
+        const newSupplier = { ...data, id: `sup_${Date.now()}`};
+        setSuppliers(prev => [newSupplier, ...prev]);
+        toast({ title: "Supplier Added", description: `${data.name} has been added.`});
+    }
+    setIsSupplierFormOpen(false);
+    setEditingSupplier(null);
+  };
+
+  const handleAddNewSupplier = () => {
+    setEditingSupplier(null);
+    setIsSupplierFormOpen(true);
+  };
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setIsSupplierFormOpen(true);
+  };
+
+  const handleDeleteSupplier = (supplierId: string) => {
+    setSuppliers(prev => prev.filter(s => s.id !== supplierId));
+    toast({ variant: "destructive", title: "Supplier Deleted"});
+  };
+
   const handleOpenAdjustDialog = (product: Product) => {
     setAdjustingProduct(product);
-  }
+  };
 
   const handleStockAdjustment = (productId: string, data: StockAdjustmentData) => {
     setProducts(prev =>
@@ -365,20 +458,20 @@ export function InventoryDashboard() {
     );
     toast({ title: "Stock Adjusted", description: `Stock for ${products.find(p => p.id === productId)?.name} has been updated to ${data.newStock}.`});
     setAdjustingProduct(null);
-  }
+  };
 
   const handleScanSuccess = (sku: string, name: string) => {
     setSearchQuery(sku);
     setIsScannerOpen(false);
     toast({ title: 'Product Found!', description: `Displaying details for ${name}.` });
-  }
+  };
 
   const handleScanNew = (barcode: string) => {
     setIsScannerOpen(false);
     setEditingProduct({ barcode, name: '', sku: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs' });
     setIsFormDialogOpen(true);
     toast({ title: 'New Barcode Scanned', description: 'Please fill in the details for this new product.' });
-  }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
@@ -386,7 +479,7 @@ export function InventoryDashboard() {
             <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
              <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={handleAddNew}>
+                    <Button onClick={handleAddNewProduct}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                     </Button>
                 </DialogTrigger>
@@ -396,12 +489,22 @@ export function InventoryDashboard() {
                     </DialogHeader>
                     <ProductForm 
                         product={editingProduct} 
+                        suppliers={suppliers}
                         onSave={handleSaveProduct} 
                         onCancel={() => setIsFormDialogOpen(false)} 
                     />
                 </DialogContent>
             </Dialog>
         </div>
+
+        <Dialog open={isSupplierFormOpen} onOpenChange={setIsSupplierFormOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
+                </DialogHeader>
+                <SupplierForm supplier={editingSupplier} onSave={handleSaveSupplier} onCancel={() => setIsSupplierFormOpen(false)} />
+            </DialogContent>
+        </Dialog>
 
         <StockAdjustmentDialog 
             product={adjustingProduct} 
@@ -418,8 +521,9 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="space-y-4 mt-4">
@@ -451,7 +555,7 @@ export function InventoryDashboard() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Product</TableHead>
-                                        <TableHead className="hidden sm:table-cell">Category</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Supplier</TableHead>
                                         <TableHead>Stock</TableHead>
                                         <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -464,7 +568,7 @@ export function InventoryDashboard() {
                                                 <div>{product.name}</div>
                                                 <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
                                             </TableCell>
-                                            <TableCell className="hidden sm:table-cell"><Badge variant="outline">{product.category}</Badge></TableCell>
+                                            <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
                                             <TableCell>
                                                 <div className={cn(product.stock <= product.minStockLevel && "text-destructive font-bold")}>
                                                     {product.stock} {product.unit}
@@ -475,9 +579,9 @@ export function InventoryDashboard() {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEditProduct(product)}>Edit</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id!)}>Delete</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteProduct(product.id!)}>Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -491,6 +595,52 @@ export function InventoryDashboard() {
                                 <p>No products found. Try adjusting your search.</p>
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="suppliers" className="space-y-4 mt-4">
+                 <Card>
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                       <div>
+                         <CardTitle>Suppliers</CardTitle>
+                         <CardDescription>Manage your product suppliers.</CardDescription>
+                       </div>
+                        <Button onClick={handleAddNewSupplier}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Supplier
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Contact</TableHead>
+                                    <TableHead>Products</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {suppliers.map((supplier) => (
+                                    <TableRow key={supplier.id}>
+                                        <TableCell className="font-medium">{supplier.name}</TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <div>{supplier.phone}</div>
+                                            <div className="text-xs text-muted-foreground">{supplier.email}</div>
+                                        </TableCell>
+                                        <TableCell>{products.filter(p => p.supplierId === supplier.id).length}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>Edit</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSupplier(supplier.id!)}>Delete</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
