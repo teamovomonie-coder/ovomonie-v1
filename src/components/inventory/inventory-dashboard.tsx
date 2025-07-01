@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff } from 'lucide-react';
 
 // Product schema for validation
 const productSchema = z.object({
@@ -174,6 +174,84 @@ function StockAdjustmentDialog({ product, onAdjust, open, onOpenChange }: { prod
     );
 }
 
+function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: { open: boolean, onOpenChange: (open: boolean) => void, onScanSuccess: (sku: string, name: string) => void, onScanNew: (barcode: string) => void }) {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (!open) return;
+        
+        const getCameraPermission = async () => {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setHasCameraPermission(true);
+            if (videoRef.current) videoRef.current.srcObject = stream;
+          } catch (error) {
+            setHasCameraPermission(false);
+            toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions in browser settings.' });
+          }
+        };
+        getCameraPermission();
+
+        return () => {
+          if (videoRef.current && videoRef.current.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+          }
+        }
+    }, [open, toast]);
+
+    const handleSimulateScan = () => {
+        // Simulate finding an existing or new product
+        const isExisting = Math.random() > 0.3; // 70% chance of finding existing product
+        if (isExisting) {
+            const productWithBarcode = mockProducts.find(p => p.barcode);
+            if (productWithBarcode) {
+                onScanSuccess(productWithBarcode.sku, productWithBarcode.name);
+            }
+        } else {
+            const newBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+            onScanNew(newBarcode);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Scan Product Barcode</DialogTitle>
+                    <DialogDescription>Position the barcode within the frame. The scan will happen automatically.</DialogDescription>
+                </DialogHeader>
+                <div className="relative w-full aspect-square mx-auto bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="absolute top-4 left-4 border-t-4 border-l-4 border-primary w-12 h-12 rounded-tl-lg"></div>
+                        <div className="absolute top-4 right-4 border-t-4 border-r-4 border-primary w-12 h-12 rounded-tr-lg"></div>
+                        <div className="absolute bottom-4 left-4 border-b-4 border-l-4 border-primary w-12 h-12 rounded-bl-lg"></div>
+                        <div className="absolute bottom-4 right-4 border-b-4 border-r-4 border-primary w-12 h-12 rounded-br-lg"></div>
+                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-[scan_2s_ease-in-out_infinite]" />
+                    </div>
+                    {hasCameraPermission === false && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white z-20 p-4">
+                            <VideoOff className="w-16 h-16 mb-4" />
+                            <h3 className="text-xl font-bold">Camera Access Required</h3>
+                            <p className="text-sm mt-2">Please allow camera access to scan QR codes.</p>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSimulateScan} className="w-full" disabled={hasCameraPermission === false}>Simulate Scan</Button>
+                </DialogFooter>
+                 <style jsx>{`
+                    @keyframes scan {
+                        0%, 100% { transform: translateY(-120px); }
+                        50% { transform: translateY(120px); }
+                    }
+                `}</style>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -181,6 +259,7 @@ export function InventoryDashboard() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
 
   const salesData = [
@@ -258,6 +337,19 @@ export function InventoryDashboard() {
     setAdjustingProduct(null);
   }
 
+  const handleScanSuccess = (sku: string, name: string) => {
+    setSearchQuery(sku);
+    setIsScannerOpen(false);
+    toast({ title: 'Product Found!', description: `Displaying details for ${name}.` });
+  }
+
+  const handleScanNew = (barcode: string) => {
+    setIsScannerOpen(false);
+    setEditingProduct({ barcode, name: '', sku: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs' });
+    setIsFormDialogOpen(true);
+    toast({ title: 'New Barcode Scanned', description: 'Please fill in the details for this new product.' });
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -287,6 +379,13 @@ export function InventoryDashboard() {
             onOpenChange={(open) => !open && setAdjustingProduct(null)}
             onAdjust={handleStockAdjustment}
         />
+        
+        <BarcodeScannerDialog 
+            open={isScannerOpen} 
+            onOpenChange={setIsScannerOpen}
+            onScanSuccess={handleScanSuccess}
+            onScanNew={handleScanNew}
+        />
 
         <Tabs defaultValue="overview">
             <TabsList className="grid w-full grid-cols-2">
@@ -309,7 +408,11 @@ export function InventoryDashboard() {
                         </div>
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input placeholder="Search by name or SKU..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            <Input placeholder="Search by name or SKU..." className="pl-10 pr-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setIsScannerOpen(true)}>
+                                <Camera className="h-5 w-5" />
+                                <span className="sr-only">Scan Barcode</span>
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -412,5 +515,3 @@ export function InventoryDashboard() {
     </div>
   );
 }
-
-    
