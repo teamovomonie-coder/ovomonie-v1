@@ -100,7 +100,7 @@ function FlightSearchForm({ onSearch, isSearching }: { onSearch: (data: SearchCr
               <FormField control={form.control} name="to" render={({ field }) => ( <FormItem> <FormLabel>To</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select arrival airport" /> </SelectTrigger> </FormControl> <SelectContent> {airports.map(a => <SelectItem key={a.code} value={a.code}>{a.city} ({a.code})</SelectItem>)} </SelectContent> </Select> <FormMessage /> </FormItem> )} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
+            <FormField
                 control={form.control}
                 name="departureDate"
                 render={({ field }) => (
@@ -112,7 +112,7 @@ function FlightSearchForm({ onSearch, isSearching }: { onSearch: (data: SearchCr
                           <Button
                             variant={"outline"}
                             className={cn(
-                              "pl-3 text-left font-normal",
+                              "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
                           >
