@@ -15,12 +15,18 @@ interface Supplier {
     address?: string;
 }
 
+interface Category {
+    id: string;
+    name: string;
+    description?: string;
+}
+
 interface Product {
   id: string;
   name: string;
   sku: string;
   barcode?: string;
-  category: string;
+  categoryId: string;
   price: number;
   costPrice: number;
   stockByLocation: { locationId: string; quantity: number }[];
@@ -58,13 +64,20 @@ const initialSuppliers: Supplier[] = [
   { id: 'sup_3', name: 'Beverage Masters Ltd.', phone: '07055443322', email: 'contact@bevmasters.com', address: 'Plot 5, Agbara Estate, Ogun' },
 ];
 
+const initialCategories: Category[] = [
+    { id: 'cat_1', name: 'Groceries', description: 'Everyday food items and staples.' },
+    { id: 'cat_2', name: 'Beverages', description: 'Drinks and related products.' },
+    { id: 'cat_3', name: 'Pharmacy', description: 'Medical and pharmaceutical products.' },
+    { id: 'cat_4', name: 'Electronics', description: 'Gadgets and electronic devices.' },
+];
+
 const initialProducts: Product[] = [
-  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stockByLocation: [{locationId: 'loc_1', quantity: 100}, {locationId: 'loc_2', quantity: 50}], minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stockByLocation: [{locationId: 'loc_1', quantity: 80}], minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stockByLocation: [{locationId: 'loc_1', quantity: 150}, {locationId: 'loc_2', quantity: 50}, {locationId: 'loc_3', quantity: 0}], minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
-  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], category: 'Pharmacy', price: 500, costPrice: 400, stockByLocation: [{locationId: 'loc_1', quantity: 5}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
-  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stockByLocation: [{locationId: 'loc_2', quantity: 45}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
-  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stockByLocation: [{locationId: 'loc_1', quantity: 12}], minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', categoryId: 'cat_1', price: 250, costPrice: 200, stockByLocation: [{locationId: 'loc_1', quantity: 100}, {locationId: 'loc_2', quantity: 50}], minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', categoryId: 'cat_1', price: 400, costPrice: 350, stockByLocation: [{locationId: 'loc_1', quantity: 80}], minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
+  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', categoryId: 'cat_2', price: 200, costPrice: 150, stockByLocation: [{locationId: 'loc_1', quantity: 150}, {locationId: 'loc_2', quantity: 50}, {locationId: 'loc_3', quantity: 0}], minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
+  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], categoryId: 'cat_3', price: 500, costPrice: 400, stockByLocation: [{locationId: 'loc_1', quantity: 5}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', categoryId: 'cat_1', price: 1200, costPrice: 1000, stockByLocation: [{locationId: 'loc_2', quantity: 45}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
+  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], categoryId: 'cat_3', price: 1500, costPrice: 1100, stockByLocation: [{locationId: 'loc_1', quantity: 12}], minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
 ];
 
 const initialInventoryTransactions: InventoryTransaction[] = [];
@@ -73,6 +86,7 @@ const initialInventoryTransactions: InventoryTransaction[] = [];
 let products: Product[] = [...initialProducts];
 let suppliers: Supplier[] = [...initialSuppliers];
 let locations: Location[] = [...initialLocations];
+let categories: Category[] = [...initialCategories];
 let inventoryTransactions: InventoryTransaction[] = [...initialInventoryTransactions];
 
 export const db = {
@@ -141,6 +155,27 @@ export const db = {
                 stockByLocation: p.stockByLocation.filter(s => s.locationId !== id)
             }));
             const [deleted] = locations.splice(index, 1);
+            return deleted;
+        },
+    },
+    categories: {
+        findMany: async () => categories,
+        findById: async (id: string) => categories.find(c => c.id === id),
+        create: async (data: Omit<Category, 'id'>) => {
+            const newCategory = { ...data, id: `cat_${Date.now()}` };
+            categories.push(newCategory);
+            return newCategory;
+        },
+        update: async (id: string, data: Partial<Category>) => {
+            const index = categories.findIndex(c => c.id === id);
+            if (index === -1) return null;
+            categories[index] = { ...categories[index], ...data };
+            return categories[index];
+        },
+        delete: async (id: string) => {
+            const index = categories.findIndex(c => c.id === id);
+            if (index === -1) return null;
+            const [deleted] = categories.splice(index, 1);
             return deleted;
         },
     },

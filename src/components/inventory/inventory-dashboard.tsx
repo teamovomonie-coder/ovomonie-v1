@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map, Loader2, FileClock } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map, Loader2, FileClock, ClipboardList } from 'lucide-react';
 
 const locationStockSchema = z.object({
     locationId: z.string(),
@@ -48,7 +48,7 @@ const productSchema = z.object({
   name: z.string().min(3, 'Product name is required.'),
   sku: z.string().min(3, 'SKU is required.'),
   barcode: z.string().optional(),
-  category: z.string().min(2, 'Category is required.'),
+  categoryId: z.string().min(1, 'Category is required.'),
   price: z.coerce.number().positive('Price must be a positive number.'),
   costPrice: z.coerce.number().nonnegative('Cost price cannot be negative.'),
   stockByLocation: z.array(locationStockSchema).default([]),
@@ -64,7 +64,7 @@ type Product = z.infer<typeof productSchema>;
 const supplierSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(3, "Supplier name is required."),
-    phone: z.string().min(10, "A valid phone number is required.").optional(),
+    phone: z.string().optional(),
     email: z.string().email("Please enter a valid email.").optional(),
     address: z.string().optional(),
 });
@@ -77,6 +77,12 @@ const locationSchema = z.object({
 });
 type Location = z.infer<typeof locationSchema>;
 
+const categorySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(3, 'Category name is required.'),
+    description: z.string().optional(),
+});
+type Category = z.infer<typeof categorySchema>;
 
 const stockAdjustmentSchema = z.object({
   newStock: z.coerce.number().nonnegative('Stock cannot be negative.'),
@@ -84,7 +90,6 @@ const stockAdjustmentSchema = z.object({
   reason: z.string().min(1, 'Please select a reason.'),
   notes: z.string().optional(),
 });
-
 type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
 
 interface EnrichedTransaction {
@@ -103,7 +108,7 @@ interface EnrichedTransaction {
 }
 
 
-function ProductForm({ product, suppliers, locations, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], locations: Location[], onSave: (data: Product) => void, onCancel: () => void }) {
+function ProductForm({ product, suppliers, locations, categories, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], locations: Location[], categories: Category[], onSave: (data: Product) => void, onCancel: () => void }) {
     const form = useForm<Product>({
         resolver: zodResolver(productSchema),
         defaultValues: product ? {
@@ -113,7 +118,7 @@ function ProductForm({ product, suppliers, locations, onSave, onCancel }: { prod
                 return existing || { locationId: loc.id!, quantity: 0 };
             }),
         } : {
-            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stockByLocation: locations.map(loc => ({ locationId: loc.id!, quantity: 0 })), minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
+            name: '', sku: '', barcode: '', categoryId: '', price: 0, costPrice: 0, stockByLocation: locations.map(loc => ({ locationId: loc.id!, quantity: 0 })), minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
         },
     });
 
@@ -126,7 +131,22 @@ function ProductForm({ product, suppliers, locations, onSave, onCancel }: { prod
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g., Indomie Noodles" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="category" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><FormControl><Input placeholder="e.g., Groceries" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="categoryId" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {categories.map(cat => <SelectItem key={cat.id} value={cat.id!}>{cat.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU</FormLabel><FormControl><Input placeholder="Unique Product Code" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -244,6 +264,28 @@ function LocationForm({ location, onSave, onCancel }: { location: Partial<Locati
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
                     <Button type="submit">Save Location</Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+}
+
+function CategoryForm({ category, onSave, onCancel }: { category: Partial<Category> | null, onSave: (data: Category) => void, onCancel: () => void }) {
+    const form = useForm<Category>({
+        resolver: zodResolver(categorySchema),
+        defaultValues: category || { name: '', description: '' },
+    });
+    
+    const onSubmit = (data: Category) => { onSave({ ...category, ...data }); };
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Category Name</FormLabel><FormControl><Input placeholder="e.g., Groceries" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of the category" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+                    <Button type="submit">Save Category</Button>
                 </DialogFooter>
             </form>
         </Form>
@@ -489,6 +531,7 @@ export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -498,6 +541,8 @@ export function InventoryDashboard() {
   const [editingSupplier, setEditingSupplier] = useState<Partial<Supplier> | null>(null);
   const [isLocationFormOpen, setIsLocationFormOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Partial<Location> | null>(null);
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
@@ -505,21 +550,24 @@ export function InventoryDashboard() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [productsRes, suppliersRes, locationsRes] = await Promise.all([
+        const [productsRes, suppliersRes, locationsRes, categoriesRes] = await Promise.all([
             fetch('/api/inventory/products'),
             fetch('/api/inventory/suppliers'),
             fetch('/api/inventory/locations'),
+            fetch('/api/inventory/categories'),
         ]);
-        if (!productsRes.ok || !suppliersRes.ok || !locationsRes.ok) {
+        if (!productsRes.ok || !suppliersRes.ok || !locationsRes.ok || !categoriesRes.ok) {
             throw new Error('Failed to fetch initial data');
         }
         const productsData = await productsRes.json();
         const suppliersData = await suppliersRes.json();
         const locationsData = await locationsRes.json();
+        const categoriesData = await categoriesRes.json();
         
         setProducts(productsData);
         setSuppliers(suppliersData);
         setLocations(locationsData);
+        setCategories(categoriesData);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error fetching data', description: 'Could not load inventory data. Please try again later.' });
         console.error("Failed to fetch data:", error);
@@ -685,6 +733,48 @@ export function InventoryDashboard() {
     }
   };
 
+  const handleSaveCategory = async (data: Category) => {
+     const url = data.id ? `/api/inventory/categories/${data.id}` : '/api/inventory/categories';
+     const method = data.id ? 'PUT' : 'POST';
+     try {
+         const response = await fetch(url, {
+             method: method,
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(data),
+         });
+         if (!response.ok) throw new Error('Failed to save category');
+         await fetchData(); // Refresh data
+         toast({ title: `Category ${data.id ? 'Updated' : 'Added'}`, description: `${data.name} has been saved.`});
+     } catch (error) {
+         toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the category.' });
+     } finally {
+         setIsCategoryFormOpen(false);
+         setEditingCategory(null);
+     }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    // Check if category is in use
+    const isCategoryInUse = products.some(p => p.categoryId === categoryId);
+    if (isCategoryInUse) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Delete Category",
+            description: "This category is currently assigned to one or more products. Please reassign them before deleting."
+        });
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/inventory/categories/${categoryId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete category');
+        await fetchData(); // Refresh data
+        toast({ variant: "destructive", title: "Category Deleted"});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: 'Could not delete the category.' });
+    }
+  };
+
   const handleStockAdjustment = async (productId: string, data: StockAdjustmentData) => {
     try {
         const response = await fetch('/api/inventory/stock/adjust', {
@@ -713,7 +803,7 @@ export function InventoryDashboard() {
 
   const handleScanNew = (barcode: string) => {
     setIsScannerOpen(false);
-    setEditingProduct({ barcode, name: '', sku: '', category: '', price: 0, costPrice: 0, stockByLocation: [], minStockLevel: 0, unit: 'pcs' });
+    setEditingProduct({ barcode, name: '', sku: '', categoryId: '', price: 0, costPrice: 0, stockByLocation: [], minStockLevel: 0, unit: 'pcs' });
     setIsFormDialogOpen(true);
     toast({ title: 'New Barcode Scanned', description: 'Please fill in the details for this new product.' });
   };
@@ -764,6 +854,7 @@ export function InventoryDashboard() {
                         product={editingProduct} 
                         suppliers={suppliers}
                         locations={locations}
+                        categories={categories}
                         onSave={handleSaveProduct} 
                         onCancel={() => setIsFormDialogOpen(false)} 
                     />
@@ -788,6 +879,15 @@ export function InventoryDashboard() {
                 <LocationForm location={editingLocation} onSave={handleSaveLocation} onCancel={() => setIsLocationFormOpen(false)} />
             </DialogContent>
         </Dialog>
+        
+        <Dialog open={isCategoryFormOpen} onOpenChange={setIsCategoryFormOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingCategory ? 'Edit Category' : 'Add New Category'}</DialogTitle>
+                </DialogHeader>
+                <CategoryForm category={editingCategory} onSave={handleSaveCategory} onCancel={() => setIsCategoryFormOpen(false)} />
+            </DialogContent>
+        </Dialog>
 
         <StockAdjustmentDialog 
             product={adjustingProduct} 
@@ -806,10 +906,11 @@ export function InventoryDashboard() {
         />
 
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
                 <TabsTrigger value="locations">Locations</TabsTrigger>
+                <TabsTrigger value="categories">Categories</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 <TabsTrigger value="reorder" className="relative">Reorder
                     {lowStockCount > 0 && (
@@ -853,7 +954,7 @@ export function InventoryDashboard() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Product</TableHead>
-                                            <TableHead className="hidden sm:table-cell">Supplier</TableHead>
+                                            <TableHead className="hidden sm:table-cell">Category</TableHead>
                                             <TableHead>Stock</TableHead>
                                             <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
@@ -879,7 +980,7 @@ export function InventoryDashboard() {
                                                         </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
+                                                <TableCell className="hidden sm:table-cell">{categories.find(c => c.id === product.categoryId)?.name || 'N/A'}</TableCell>
                                                 <TableCell>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
@@ -1006,6 +1107,49 @@ export function InventoryDashboard() {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuItem onClick={() => { setEditingLocation(location); setIsLocationFormOpen(true); }}>Edit</DropdownMenuItem>
                                                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLocation(location.id!)}>Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="categories" className="space-y-4 mt-4">
+                     <Card>
+                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Categories</CardTitle>
+                            <CardDescription>Organize your products into categories.</CardDescription>
+                        </div>
+                            <Button onClick={() => { setEditingCategory(null); setIsCategoryFormOpen(true); }}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Category
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Description</TableHead>
+                                        <TableHead>Products</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {categories.map((category) => (
+                                        <TableRow key={category.id}>
+                                            <TableCell className="font-medium">{category.name}</TableCell>
+                                            <TableCell className="hidden sm:table-cell">{category.description || 'N/A'}</TableCell>
+                                            <TableCell>{products.filter(p => p.categoryId === category.id).length}</TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => { setEditingCategory(category); setIsCategoryFormOpen(true); }}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCategory(category.id!)}>Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
