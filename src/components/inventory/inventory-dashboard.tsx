@@ -5,6 +5,19 @@ import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Bar, Tooltip } from "recharts";
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+} from "@/components/ui/chart"
+import type { ChartConfig } from "@/components/ui/chart"
 
 // Import UI components
 import { Button } from '@/components/ui/button';
@@ -20,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
-import { Package, PackageSearch, Boxes, DollarSign, PlusCircle, MoreHorizontal, Search } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp } from 'lucide-react';
 
 // Product schema for validation
 const productSchema = z.object({
@@ -170,20 +183,44 @@ export function InventoryDashboard() {
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
 
+  const salesData = [
+    { date: 'Mon', sales: 40000 },
+    { date: 'Tue', sales: 30000 },
+    { date: 'Wed', sales: 20000 },
+    { date: 'Thu', sales: 27800 },
+    { date: 'Fri', sales: 18900 },
+    { date: 'Sat', sales: 23900 },
+    { date: 'Sun', sales: 34900 },
+  ];
+
+  const bestSellingProducts = [
+    { name: 'Coca-Cola 50cl', sold: 120, revenue: 24000 },
+    { name: 'Indomie Noodles Chicken', sold: 98, revenue: 24500 },
+    { name: 'Peak Milk Evaporated', sold: 75, revenue: 30000 },
+    { name: 'Golden Penny Semovita 1kg', sold: 40, revenue: 48000 },
+  ];
+
+  const chartConfig = {
+    sales: {
+      label: "Sales (₦)",
+      color: "hsl(var(--chart-1))",
+    },
+  } satisfies ChartConfig;
+
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
   
   const lowStockCount = useMemo(() => products.filter(p => p.stock <= p.minStockLevel).length, [products]);
   const inventoryValue = useMemo(() => products.reduce((acc, p) => acc + (p.costPrice * p.stock), 0), [products]);
+  const todaysSales = 34900; // Mocked value
 
   const handleSaveProduct = (data: Product) => {
     if (editingProduct?.id) {
-        // Update existing product
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...data } : p));
         toast({ title: "Product Updated", description: `${data.name} has been updated.`});
     } else {
-        // Add new product
         const newProduct = { ...data, id: `prod_${Date.now()}`};
         setProducts(prev => [newProduct, ...prev]);
         toast({ title: "Product Added", description: `${data.name} has been added to your inventory.`});
@@ -251,72 +288,129 @@ export function InventoryDashboard() {
             onAdjust={handleStockAdjustment}
         />
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{products.length}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Categories</CardTitle><Boxes className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{new Set(products.map(p=>p.category)).size}</div></CardContent></Card>
-        </div>
+        <Tabs defaultValue="overview">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="space-y-4 mt-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{products.length}</div></CardContent></Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{todaysSales.toLocaleString()}</div></CardContent></Card>
+                </div>
 
-        <Card>
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <CardTitle>Product List</CardTitle>
-                    <CardDescription>Manage all products in your inventory.</CardDescription>
-                </div>
-                <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Search by name or SKU..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead className="hidden sm:table-cell">Category</TableHead>
-                                <TableHead>Stock</TableHead>
-                                <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredProducts.map((product) => (
-                                <TableRow key={product.id}>
-                                    <TableCell className="font-medium">
-                                        <div>{product.name}</div>
-                                        <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
-                                    </TableCell>
-                                    <TableCell className="hidden sm:table-cell"><Badge variant="outline">{product.category}</Badge></TableCell>
-                                    <TableCell>
-                                        <div className={cn(product.stock <= product.minStockLevel && "text-destructive font-bold")}>
-                                            {product.stock} {product.unit}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right hidden sm:table-cell">₦{product.price.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id!)}>Delete</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-                 {filteredProducts.length === 0 && (
-                    <div className="text-center py-10 text-muted-foreground">
-                        <p>No products found. Try adjusting your search.</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                <Card>
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Product List</CardTitle>
+                            <CardDescription>Manage all products in your inventory.</CardDescription>
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input placeholder="Search by name or SKU..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Category</TableHead>
+                                        <TableHead>Stock</TableHead>
+                                        <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredProducts.map((product) => (
+                                        <TableRow key={product.id}>
+                                            <TableCell className="font-medium">
+                                                <div>{product.name}</div>
+                                                <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell"><Badge variant="outline">{product.category}</Badge></TableCell>
+                                            <TableCell>
+                                                <div className={cn(product.stock <= product.minStockLevel && "text-destructive font-bold")}>
+                                                    {product.stock} {product.unit}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right hidden sm:table-cell">₦{product.price.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id!)}>Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                         {filteredProducts.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground">
+                                <p>No products found. Try adjusting your search.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="analytics" className="space-y-4 mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Weekly Sales Trend</CardTitle>
+                        <CardDescription>Sales performance over the last 7 days.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                          <RechartsBarChart accessibilityLayer data={salesData} margin={{ left: 12, right: 12 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis tickFormatter={(value) => `₦${Number(value) / 1000}k`} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                            <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
+                          </RechartsBarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Best-Selling Products</CardTitle>
+                        <CardDescription>Your top-performing products by revenue this week.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead className="text-right">Units Sold</TableHead>
+                                        <TableHead className="text-right">Revenue</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {bestSellingProducts.map((product) => (
+                                        <TableRow key={product.name}>
+                                            <TableCell className="font-medium">{product.name}</TableCell>
+                                            <TableCell className="text-right">{product.sold}</TableCell>
+                                            <TableCell className="text-right">₦{product.revenue.toLocaleString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
+
+    
