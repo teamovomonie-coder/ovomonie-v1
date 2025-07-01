@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,14 +36,13 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle, ShoppingBag, Phone, Mail, Map, Loader2 } from 'lucide-react';
 
 const locationStockSchema = z.object({
     locationId: z.string(),
     quantity: z.coerce.number().nonnegative('Stock cannot be negative.'),
 });
 
-// Product schema for validation
 const productSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3, 'Product name is required.'),
@@ -88,30 +87,6 @@ const stockAdjustmentSchema = z.object({
 
 type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
 
-const mockLocations: Location[] = [
-    { id: 'loc_1', name: 'Main Store - Lekki', address: '1 Admiralty Way, Lekki Phase 1, Lagos' },
-    { id: 'loc_2', name: 'Warehouse - Ikeja', address: '25, Industrial Avenue, Ikeja, Lagos' },
-    { id: 'loc_3', name: 'Pop-up Stand - VI', address: 'Eko Hotel Convention Center, VI, Lagos' },
-];
-
-const mockSuppliers: Supplier[] = [
-  { id: 'sup_1', name: 'West African Foods Inc.', phone: '08011223344', email: 'sales@wafoods.com', address: '1, Warehouse Road, Apapa, Lagos' },
-  { id: 'sup_2', name: 'PharmaDist Nigeria', phone: '09099887766', email: 'orders@pharmadist.ng', address: '25, Industrial Avenue, Ikeja, Lagos' },
-  { id: 'sup_3', name: 'Beverage Masters Ltd.', phone: '07055443322', email: 'contact@bevmasters.com', address: 'Plot 5, Agbara Estate, Ogun' },
-];
-
-const mockProducts: Product[] = [
-  { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stockByLocation: [{locationId: 'loc_1', quantity: 100}, {locationId: 'loc_2', quantity: 50}], minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stockByLocation: [{locationId: 'loc_1', quantity: 80}], minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
-  { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stockByLocation: [{locationId: 'loc_1', quantity: 150}, {locationId: 'loc_2', quantity: 50}, {locationId: 'loc_3', quantity: 0}], minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
-  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], category: 'Pharmacy', price: 500, costPrice: 400, stockByLocation: [{locationId: 'loc_1', quantity: 5}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
-  { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stockByLocation: [{locationId: 'loc_2', quantity: 45}], minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
-  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stockByLocation: [{locationId: 'loc_1', quantity: 12}], minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
-];
-
-const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
-const SUPPLIERS_STORAGE_KEY = 'ovomonie-inventory-suppliers';
-const LOCATIONS_STORAGE_KEY = 'ovomonie-inventory-locations';
 
 function ProductForm({ product, suppliers, locations, onSave, onCancel }: { product: Partial<Product> | null, suppliers: Supplier[], locations: Location[], onSave: (data: Product) => void, onCancel: () => void }) {
     const form = useForm<Product>({
@@ -120,10 +95,10 @@ function ProductForm({ product, suppliers, locations, onSave, onCancel }: { prod
             ...product,
             stockByLocation: locations.map(loc => {
                 const existing = product.stockByLocation?.find(s => s.locationId === loc.id);
-                return existing || { locationId: loc.id, quantity: 0 };
+                return existing || { locationId: loc.id!, quantity: 0 };
             }),
         } : {
-            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stockByLocation: locations.map(loc => ({ locationId: loc.id, quantity: 0 })), minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
+            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stockByLocation: locations.map(loc => ({ locationId: loc.id!, quantity: 0 })), minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
         },
     });
 
@@ -298,7 +273,7 @@ function StockAdjustmentDialog({ product, locations, onAdjust, open, onOpenChang
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a location to adjust" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {locations.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}
+                                        {locations.map(loc => <SelectItem key={loc.id} value={loc.id!}>{loc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -350,7 +325,7 @@ function StockAdjustmentDialog({ product, locations, onAdjust, open, onOpenChang
     );
 }
 
-function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: { open: boolean, onOpenChange: (open: boolean) => void, onScanSuccess: (sku: string, name: string) => void, onScanNew: (barcode: string) => void }) {
+function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew, products }: { open: boolean, onOpenChange: (open: boolean) => void, onScanSuccess: (sku: string, name: string) => void, onScanNew: (barcode: string) => void, products: Product[] }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const { toast } = useToast();
@@ -380,7 +355,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onScanSuccess, onScanNew }: 
     const handleSimulateScan = () => {
         const isExisting = Math.random() > 0.3;
         if (isExisting) {
-            const productWithBarcode = mockProducts.find(p => p.barcode);
+            const productWithBarcode = products.find(p => p.barcode);
             if (productWithBarcode) {
                 onScanSuccess(productWithBarcode.sku, productWithBarcode.name);
             }
@@ -432,6 +407,7 @@ export function InventoryDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -444,74 +420,45 @@ export function InventoryDashboard() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedProducts = window.localStorage.getItem(INVENTORY_STORAGE_KEY);
-        setProducts(savedProducts ? JSON.parse(savedProducts) : mockProducts);
-
-        const savedSuppliers = window.localStorage.getItem(SUPPLIERS_STORAGE_KEY);
-        setSuppliers(savedSuppliers ? JSON.parse(savedSuppliers) : mockSuppliers);
-
-        const savedLocations = window.localStorage.getItem(LOCATIONS_STORAGE_KEY);
-        setLocations(savedLocations ? JSON.parse(savedLocations) : mockLocations);
-
-      } catch (error) {
-        console.error("Failed to read from localStorage", error);
-        setProducts(mockProducts);
-        setSuppliers(mockSuppliers);
-        setLocations(mockLocations);
-      }
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const [productsRes, suppliersRes, locationsRes] = await Promise.all([
+            fetch('/api/inventory/products'),
+            fetch('/api/inventory/suppliers'),
+            fetch('/api/inventory/locations'),
+        ]);
+        if (!productsRes.ok || !suppliersRes.ok || !locationsRes.ok) {
+            throw new Error('Failed to fetch initial data');
+        }
+        const productsData = await productsRes.json();
+        const suppliersData = await suppliersRes.json();
+        const locationsData = await locationsRes.json();
+        
+        setProducts(productsData);
+        setSuppliers(suppliersData);
+        setLocations(locationsData);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error fetching data', description: 'Could not load inventory data. Please try again later.' });
+        console.error("Failed to fetch data:", error);
+    } finally {
+        setIsLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        try {
-            window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(products));
-        } catch (error) { console.error("Failed to write products to localStorage", error); }
-    }
-  }, [products]);
-
-   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        try {
-            window.localStorage.setItem(SUPPLIERS_STORAGE_KEY, JSON.stringify(suppliers));
-        } catch (error) { console.error("Failed to write suppliers to localStorage", error); }
-    }
-  }, [suppliers]);
+  }, [toast]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        try {
-            window.localStorage.setItem(LOCATIONS_STORAGE_KEY, JSON.stringify(locations));
-        } catch (error) { console.error("Failed to write locations to localStorage", error); }
-    }
-  }, [locations]);
+    fetchData();
+  }, [fetchData]);
 
   const salesData = [
-    { date: 'Mon', sales: 40000 },
-    { date: 'Tue', sales: 30000 },
-    { date: 'Wed', sales: 20000 },
-    { date: 'Thu', sales: 27800 },
-    { date: 'Fri', sales: 18900 },
-    { date: 'Sat', sales: 23900 },
-    { date: 'Sun', sales: 34900 },
+    { date: 'Mon', sales: 40000 }, { date: 'Tue', sales: 30000 }, { date: 'Wed', sales: 20000 }, { date: 'Thu', sales: 27800 }, { date: 'Fri', sales: 18900 }, { date: 'Sat', sales: 23900 }, { date: 'Sun', sales: 34900 },
   ];
   
   const bestSellingProducts = [
-    { name: 'Coca-Cola 50cl', sold: 120, revenue: 24000 },
-    { name: 'Indomie Noodles Chicken', sold: 98, revenue: 24500 },
-    { name: 'Peak Milk Evaporated', sold: 75, revenue: 30000 },
-    { name: 'Golden Penny Semovita 1kg', sold: 40, revenue: 48000 },
+    { name: 'Coca-Cola 50cl', sold: 120, revenue: 24000 }, { name: 'Indomie Noodles Chicken', sold: 98, revenue: 24500 }, { name: 'Peak Milk Evaporated', sold: 75, revenue: 30000 }, { name: 'Golden Penny Semovita 1kg', sold: 40, revenue: 48000 },
   ];
 
-  const chartConfig = {
-    sales: {
-      label: "Sales (₦)",
-      color: "hsl(var(--chart-1))",
-    },
-  } satisfies ChartConfig;
+  const chartConfig = { sales: { label: "Sales (₦)", color: "hsl(var(--chart-1))" } } satisfies ChartConfig;
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -563,17 +510,24 @@ export function InventoryDashboard() {
     }).length;
   }, [products]);
 
-  const handleSaveProduct = (data: Product) => {
-    if (editingProduct?.id) {
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...data } : p));
-        toast({ title: "Product Updated", description: `${data.name} has been updated.`});
-    } else {
-        const newProduct = { ...data, id: `prod_${Date.now()}`};
-        setProducts(prev => [newProduct, ...prev]);
-        toast({ title: "Product Added", description: `${data.name} has been added to your inventory.`});
+  const handleSaveProduct = async (data: Product) => {
+    const url = data.id ? `/api/inventory/products/${data.id}` : '/api/inventory/products';
+    const method = data.id ? 'PUT' : 'POST';
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to save product');
+        await fetchData(); // Refresh data
+        toast({ title: `Product ${data.id ? 'Updated' : 'Added'}`, description: `${data.name} has been saved.` });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the product.' });
+    } finally {
+        setIsFormDialogOpen(false);
+        setEditingProduct(null);
     }
-    setIsFormDialogOpen(false);
-    setEditingProduct(null);
   };
 
   const handleAddNewProduct = () => {
@@ -586,95 +540,116 @@ export function InventoryDashboard() {
     setIsFormDialogOpen(true);
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    toast({ variant: "destructive", title: "Product Deleted", description: "The product has been removed from your inventory."});
-  };
-
-  const handleSaveSupplier = (data: Supplier) => {
-    if (editingSupplier?.id) {
-        setSuppliers(prev => prev.map(s => s.id === editingSupplier.id ? { ...s, ...data } : s));
-        toast({ title: "Supplier Updated", description: `${data.name} has been updated.`});
-    } else {
-        const newSupplier = { ...data, id: `sup_${Date.now()}`};
-        setSuppliers(prev => [newSupplier, ...prev]);
-        toast({ title: "Supplier Added", description: `${data.name} has been added.`});
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+        const response = await fetch(`/api/inventory/products/${productId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete product');
+        await fetchData(); // Refresh data
+        toast({ variant: "destructive", title: "Product Deleted", description: "The product has been removed from your inventory."});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: 'Could not delete the product.' });
     }
-    setIsSupplierFormOpen(false);
-    setEditingSupplier(null);
   };
 
-  const handleAddNewSupplier = () => {
-    setEditingSupplier(null);
-    setIsSupplierFormOpen(true);
+  const handleSaveSupplier = async (data: Supplier) => {
+    const url = data.id ? `/api/inventory/suppliers/${data.id}` : '/api/inventory/suppliers';
+    const method = data.id ? 'PUT' : 'POST';
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to save supplier');
+        await fetchData(); // Refresh data
+        toast({ title: `Supplier ${data.id ? 'Updated' : 'Added'}`, description: `${data.name} has been saved.`});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the supplier.' });
+    } finally {
+        setIsSupplierFormOpen(false);
+        setEditingSupplier(null);
+    }
   };
 
-  const handleEditSupplier = (supplier: Supplier) => {
-    setEditingSupplier(supplier);
-    setIsSupplierFormOpen(true);
-  };
+  const handleAddNewSupplier = () => { setEditingSupplier(null); setIsSupplierFormOpen(true); };
+  const handleEditSupplier = (supplier: Supplier) => { setEditingSupplier(supplier); setIsSupplierFormOpen(true); };
 
-  const handleDeleteSupplier = (supplierId: string) => {
-    setSuppliers(prev => prev.filter(s => s.id !== supplierId));
-    toast({ variant: "destructive", title: "Supplier Deleted"});
+  const handleDeleteSupplier = async (supplierId: string) => {
+    try {
+        const response = await fetch(`/api/inventory/suppliers/${supplierId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete supplier');
+        await fetchData(); // Refresh data
+        toast({ variant: "destructive", title: "Supplier Deleted"});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: 'Could not delete the supplier.' });
+    }
   };
   
-  const handleSaveLocation = (data: Location) => {
-    if (editingLocation?.id) {
-        setLocations(prev => prev.map(l => l.id === editingLocation.id ? { ...l, ...data } : l));
-        toast({ title: "Location Updated", description: `${data.name} has been updated.`});
-    } else {
-        const newLocation = { ...data, id: `loc_${Date.now()}`};
-        setLocations(prev => [newLocation, ...prev]);
-        toast({ title: "Location Added", description: `${data.name} has been added.`});
+  const handleSaveLocation = async (data: Location) => {
+     const url = data.id ? `/api/inventory/locations/${data.id}` : '/api/inventory/locations';
+     const method = data.id ? 'PUT' : 'POST';
+     try {
+         const response = await fetch(url, {
+             method: method,
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(data),
+         });
+         if (!response.ok) throw new Error('Failed to save location');
+         await fetchData(); // Refresh data
+         toast({ title: `Location ${data.id ? 'Updated' : 'Added'}`, description: `${data.name} has been saved.`});
+     } catch (error) {
+         toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the location.' });
+     } finally {
+         setIsLocationFormOpen(false);
+         setEditingLocation(null);
+     }
+  };
+
+  const handleAddNewLocation = () => { setEditingLocation(null); setIsLocationFormOpen(true); };
+  const handleEditLocation = (location: Location) => { setEditingLocation(location); setIsLocationFormOpen(true); };
+
+  const handleDeleteLocation = async (locationId: string) => {
+    try {
+        const response = await fetch(`/api/inventory/locations/${locationId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete location');
+        await fetchData(); // Refresh data
+        toast({ variant: "destructive", title: "Location Deleted"});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Delete Failed', description: 'Could not delete the location.' });
     }
-    setIsLocationFormOpen(false);
-    setEditingLocation(null);
   };
 
-  const handleAddNewLocation = () => {
-    setEditingLocation(null);
-    setIsLocationFormOpen(true);
-  };
-  
-  const handleEditLocation = (location: Location) => {
-    setEditingLocation(location);
-    setIsLocationFormOpen(true);
-  };
+  const handleOpenAdjustDialog = (product: Product) => { setAdjustingProduct(product); };
 
-  const handleDeleteLocation = (locationId: string) => {
-    setLocations(prev => prev.filter(l => l.id !== locationId));
-    // Also remove stock from this location in all products
-    setProducts(prev => prev.map(p => ({
-        ...p,
-        stockByLocation: p.stockByLocation.filter(s => s.locationId !== locationId)
-    })));
-    toast({ variant: "destructive", title: "Location Deleted"});
-  };
+  const handleStockAdjustment = async (productId: string, data: StockAdjustmentData) => {
+    const productToAdjust = products.find(p => p.id === productId);
+    if (!productToAdjust) return;
 
-  const handleOpenAdjustDialog = (product: Product) => {
-    setAdjustingProduct(product);
-  };
-
-  const handleStockAdjustment = (productId: string, data: StockAdjustmentData) => {
-    setProducts(prev =>
-        prev.map(p => {
-            if (p.id !== productId) return p;
-            
-            const newStockByLocation = [...p.stockByLocation];
-            const locIndex = newStockByLocation.findIndex(s => s.locationId === data.locationId);
-            
-            if (locIndex > -1) {
-                newStockByLocation[locIndex] = { ...newStockByLocation[locIndex], quantity: data.newStock };
-            } else {
-                newStockByLocation.push({ locationId: data.locationId, quantity: data.newStock });
-            }
-            return { ...p, stockByLocation: newStockByLocation };
-        })
-    );
-    const locationName = locations.find(l => l.id === data.locationId)?.name;
-    toast({ title: "Stock Adjusted", description: `Stock for ${products.find(p => p.id === productId)?.name} at ${locationName} has been updated to ${data.newStock}.`});
-    setAdjustingProduct(null);
+    const newStockByLocation = [...productToAdjust.stockByLocation];
+    const locIndex = newStockByLocation.findIndex(s => s.locationId === data.locationId);
+    
+    if (locIndex > -1) {
+        newStockByLocation[locIndex] = { ...newStockByLocation[locIndex], quantity: data.newStock };
+    } else {
+        newStockByLocation.push({ locationId: data.locationId, quantity: data.newStock });
+    }
+    const updatedProduct = { ...productToAdjust, stockByLocation: newStockByLocation };
+    
+    try {
+        const response = await fetch(`/api/inventory/products/${productId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedProduct),
+        });
+        if (!response.ok) throw new Error('Failed to adjust stock');
+        await fetchData(); // Refresh data
+        const locationName = locations.find(l => l.id === data.locationId)?.name;
+        toast({ title: "Stock Adjusted", description: `Stock for ${productToAdjust.name} at ${locationName} has been updated to ${data.newStock}.`});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Adjustment Failed', description: 'Could not adjust stock.' });
+    } finally {
+        setAdjustingProduct(null);
+    }
   };
 
   const handleScanSuccess = (sku: string, name: string) => {
@@ -774,6 +749,7 @@ export function InventoryDashboard() {
             onOpenChange={setIsScannerOpen}
             onScanSuccess={handleScanSuccess}
             onScanNew={handleScanNew}
+            products={products}
         />
 
         <Tabs defaultValue="overview">
@@ -788,93 +764,151 @@ export function InventoryDashboard() {
                     )}
                 </TabsTrigger>
             </TabsList>
-            <TabsContent value="overview" className="space-y-4 mt-4">
-                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{salesData.reduce((acc, s) => acc + s.sales, 0).toLocaleString()}</div></CardContent></Card>
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Expiring Soon</CardTitle><AlertTriangle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div></CardContent></Card>
+            {isLoading ? (
+                <div className="mt-4 flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
+            ) : (
+                <>
+                <TabsContent value="overview" className="space-y-4 mt-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{salesData.reduce((acc, s) => acc + s.sales, 0).toLocaleString()}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Expiring Soon</CardTitle><AlertTriangle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div></CardContent></Card>
+                    </div>
 
-                <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <Card>
+                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <CardTitle>Product List</CardTitle>
+                                <CardDescription>Manage all products in your inventory.</CardDescription>
+                            </div>
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input placeholder="Search by name or SKU..." className="pl-10 pr-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setIsScannerOpen(true)}>
+                                    <Camera className="h-5 w-5" />
+                                    <span className="sr-only">Scan Barcode</span>
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead className="hidden sm:table-cell">Supplier</TableHead>
+                                            <TableHead>Stock</TableHead>
+                                            <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredProducts.map((product) => (
+                                            <TableRow key={product.id}>
+                                                <TableCell className="font-medium">
+                                                    <div>{product.name}</div>
+                                                    <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
+                                                    {(product.batchNumber || product.expiryDate) && (
+                                                        <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                                            {product.batchNumber && <div>Batch: {product.batchNumber}</div>}
+                                                            {product.expiryDate && (
+                                                                <div className={cn({
+                                                                    'text-destructive font-semibold': getExpiryStatus(product.expiryDate) === 'expired',
+                                                                    'text-amber-600 font-semibold': getExpiryStatus(product.expiryDate) === 'soon',
+                                                                })}>
+                                                                    Expires: {format(new Date(product.expiryDate), 'dd MMM, yyyy')}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
+                                                <TableCell>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="link" className={cn("p-0 h-auto font-bold", product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0) <= product.minStockLevel && "text-destructive")}>
+                                                                {product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0)} {product.unit}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-64">
+                                                            <div className="space-y-2">
+                                                                <h4 className="font-medium leading-none">Stock by Location</h4>
+                                                                {locations.map(loc => {
+                                                                    const stock = product.stockByLocation.find(s => s.locationId === loc.id)?.quantity || 0;
+                                                                    return (
+                                                                        <div key={loc.id} className="text-sm flex justify-between">
+                                                                            <span>{loc.name}:</span>
+                                                                            <span className={cn("font-semibold", stock <= product.minStockLevel && "text-destructive")}>{stock}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </TableCell>
+                                                <TableCell className="text-right hidden sm:table-cell">₦{product.price.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteProduct(product.id!)}>Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            {filteredProducts.length === 0 && (
+                                <div className="text-center py-10 text-muted-foreground">
+                                    <p>No products found. Try adjusting your search.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="suppliers" className="space-y-4 mt-4">
+                    <Card>
+                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Product List</CardTitle>
-                            <CardDescription>Manage all products in your inventory.</CardDescription>
+                            <CardTitle>Suppliers</CardTitle>
+                            <CardDescription>Manage your product suppliers.</CardDescription>
                         </div>
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input placeholder="Search by name or SKU..." className="pl-10 pr-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                            <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setIsScannerOpen(true)}>
-                                <Camera className="h-5 w-5" />
-                                <span className="sr-only">Scan Barcode</span>
+                            <Button onClick={handleAddNewSupplier}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Supplier
                             </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
+                        </CardHeader>
+                        <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Product</TableHead>
-                                        <TableHead className="hidden sm:table-cell">Supplier</TableHead>
-                                        <TableHead>Stock</TableHead>
-                                        <TableHead className="text-right hidden sm:table-cell">Price</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Contact</TableHead>
+                                        <TableHead>Products</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredProducts.map((product) => (
-                                        <TableRow key={product.id}>
-                                            <TableCell className="font-medium">
-                                                <div>{product.name}</div>
-                                                <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
-                                                 {(product.batchNumber || product.expiryDate) && (
-                                                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                                                        {product.batchNumber && <div>Batch: {product.batchNumber}</div>}
-                                                        {product.expiryDate && (
-                                                            <div className={cn({
-                                                                'text-destructive font-semibold': getExpiryStatus(product.expiryDate) === 'expired',
-                                                                'text-amber-600 font-semibold': getExpiryStatus(product.expiryDate) === 'soon',
-                                                            })}>
-                                                                Expires: {format(new Date(product.expiryDate), 'dd MMM, yyyy')}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                    {suppliers.map((supplier) => (
+                                        <TableRow key={supplier.id}>
+                                            <TableCell className="font-medium">{supplier.name}</TableCell>
+                                            <TableCell className="hidden sm:table-cell">
+                                                <div>{supplier.phone}</div>
+                                                <div className="text-xs text-muted-foreground">{supplier.email}</div>
                                             </TableCell>
-                                            <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant="link" className={cn("p-0 h-auto font-bold", product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0) <= product.minStockLevel && "text-destructive")}>
-                                                            {product.stockByLocation.reduce((sum, s) => sum + s.quantity, 0)} {product.unit}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-64">
-                                                        <div className="space-y-2">
-                                                            <h4 className="font-medium leading-none">Stock by Location</h4>
-                                                            {locations.map(loc => {
-                                                                const stock = product.stockByLocation.find(s => s.locationId === loc.id)?.quantity || 0;
-                                                                return (
-                                                                    <div key={loc.id} className="text-sm flex justify-between">
-                                                                        <span>{loc.name}:</span>
-                                                                        <span className={cn("font-semibold", stock <= product.minStockLevel && "text-destructive")}>{stock}</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </TableCell>
-                                            <TableCell className="text-right hidden sm:table-cell">₦{product.price.toLocaleString()}</TableCell>
+                                            <TableCell>{products.filter(p => p.supplierId === supplier.id).length}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEditProduct(product)}>Edit</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleOpenAdjustDialog(product)}>Adjust Stock</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteProduct(product.id!)}>Delete</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSupplier(supplier.id!)}>Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -882,216 +916,165 @@ export function InventoryDashboard() {
                                     ))}
                                 </TableBody>
                             </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="locations" className="space-y-4 mt-4">
+                    <Card>
+                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Locations</CardTitle>
+                            <CardDescription>Manage your stores, warehouses, and other business locations.</CardDescription>
                         </div>
-                         {filteredProducts.length === 0 && (
-                            <div className="text-center py-10 text-muted-foreground">
-                                <p>No products found. Try adjusting your search.</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="suppliers" className="space-y-4 mt-4">
-                 <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                       <div>
-                         <CardTitle>Suppliers</CardTitle>
-                         <CardDescription>Manage your product suppliers.</CardDescription>
-                       </div>
-                        <Button onClick={handleAddNewSupplier}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Supplier
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead className="hidden sm:table-cell">Contact</TableHead>
-                                    <TableHead>Products</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {suppliers.map((supplier) => (
-                                    <TableRow key={supplier.id}>
-                                        <TableCell className="font-medium">{supplier.name}</TableCell>
-                                        <TableCell className="hidden sm:table-cell">
-                                            <div>{supplier.phone}</div>
-                                            <div className="text-xs text-muted-foreground">{supplier.email}</div>
-                                        </TableCell>
-                                        <TableCell>{products.filter(p => p.supplierId === supplier.id).length}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSupplier(supplier.id!)}>Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-             <TabsContent value="locations" className="space-y-4 mt-4">
-                 <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                       <div>
-                         <CardTitle>Locations</CardTitle>
-                         <CardDescription>Manage your stores, warehouses, and other business locations.</CardDescription>
-                       </div>
-                        <Button onClick={handleAddNewLocation}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Location
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead className="hidden sm:table-cell">Address</TableHead>
-                                    <TableHead>Products In Stock</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {locations.map((location) => (
-                                    <TableRow key={location.id}>
-                                        <TableCell className="font-medium">{location.name}</TableCell>
-                                        <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
-                                        <TableCell>{products.filter(p => p.stockByLocation.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEditLocation(location)}>Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLocation(location.id!)}>Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="analytics" className="space-y-4 mt-4">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Weekly Sales Trend</CardTitle>
-                        <CardDescription>Sales performance over the last 7 days.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                          <RechartsBarChart accessibilityLayer data={salesData} margin={{ left: 12, right: 12 }}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis tickFormatter={(value) => `₦${Number(value) / 1000}k`} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                            <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
-                          </RechartsBarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Best-Selling Products</CardTitle>
-                        <CardDescription>Your top-performing products by revenue this week.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
+                            <Button onClick={handleAddNewLocation}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Location
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Product</TableHead>
-                                        <TableHead className="text-right">Units Sold</TableHead>
-                                        <TableHead className="text-right">Revenue</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {bestSellingProducts.map((product) => (
-                                        <TableRow key={product.name}>
-                                            <TableCell className="font-medium">{product.name}</TableCell>
-                                            <TableCell className="text-right">{product.sold}</TableCell>
-                                            <TableCell className="text-right">₦{product.revenue.toLocaleString()}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="reorder" className="space-y-4 mt-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Reorder Suggestions</CardTitle>
-                        <CardDescription>These items are below their minimum stock level. Contact the supplier to restock.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Product</TableHead>
-                                        <TableHead>Location</TableHead>
-                                        <TableHead>Stock / Min. Level</TableHead>
-                                        <TableHead>Supplier</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Address</TableHead>
+                                        <TableHead>Products In Stock</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {lowStockProducts.flatMap(product =>
-                                        product.lowStockLocations.map(location => {
-                                            const supplier = suppliers.find(s => s.id === product.supplierId);
-                                            const stockInfo = product.stockByLocation.find(s => s.locationId === location.id);
-                                            return (
-                                                <TableRow key={`${product.id}-${location.id}`}>
-                                                    <TableCell className="font-medium">{product.name}</TableCell>
-                                                    <TableCell>{location.name}</TableCell>
-                                                    <TableCell>
-                                                        <span className="font-bold text-destructive">{stockInfo?.quantity}</span> / {product.minStockLevel}
-                                                    </TableCell>
-                                                    <TableCell>{supplier?.name || 'N/A'}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="outline" size="sm">Contact Supplier</Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem onClick={() => handleContactSupplier('call', product.supplierId)} disabled={!supplier?.phone}>
-                                                                    <Phone className="mr-2 h-4 w-4" /> Call Supplier
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleContactSupplier('email', product.supplierId)} disabled={!supplier?.email}>
-                                                                    <Mail className="mr-2 h-4 w-4" /> Email Supplier
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
-                                                </TableRow>
-                                            )
-                                        })
-                                    )}
+                                    {locations.map((location) => (
+                                        <TableRow key={location.id}>
+                                            <TableCell className="font-medium">{location.name}</TableCell>
+                                            <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
+                                            <TableCell>{products.filter(p => p.stockByLocation.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => handleEditLocation(location)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLocation(location.id!)}>Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                 </TableBody>
                             </Table>
-                         </div>
-                         {lowStockProducts.length === 0 && (
-                            <div className="text-center py-10 text-muted-foreground">
-                                <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
-                                <p className="font-semibold">All stock levels are healthy!</p>
-                                <p>No reorder suggestions at this time.</p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="analytics" className="space-y-4 mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Weekly Sales Trend</CardTitle>
+                            <CardDescription>Sales performance over the last 7 days.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pl-2">
+                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                            <RechartsBarChart accessibilityLayer data={salesData} margin={{ left: 12, right: 12 }}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis tickFormatter={(value) => `₦${Number(value) / 1000}k`} />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
+                            </RechartsBarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Best-Selling Products</CardTitle>
+                            <CardDescription>Your top-performing products by revenue this week.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead className="text-right">Units Sold</TableHead>
+                                            <TableHead className="text-right">Revenue</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {bestSellingProducts.map((product) => (
+                                            <TableRow key={product.name}>
+                                                <TableCell className="font-medium">{product.name}</TableCell>
+                                                <TableCell className="text-right">{product.sold}</TableCell>
+                                                <TableCell className="text-right">₦{product.revenue.toLocaleString()}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="reorder" className="space-y-4 mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Reorder Suggestions</CardTitle>
+                            <CardDescription>These items are below their minimum stock level. Contact the supplier to restock.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead>Location</TableHead>
+                                            <TableHead>Stock / Min. Level</TableHead>
+                                            <TableHead>Supplier</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {lowStockProducts.flatMap(product =>
+                                            product.lowStockLocations.map(location => {
+                                                const supplier = suppliers.find(s => s.id === product.supplierId);
+                                                const stockInfo = product.stockByLocation.find(s => s.locationId === location.id);
+                                                return (
+                                                    <TableRow key={`${product.id}-${location.id}`}>
+                                                        <TableCell className="font-medium">{product.name}</TableCell>
+                                                        <TableCell>{location.name}</TableCell>
+                                                        <TableCell>
+                                                            <span className="font-bold text-destructive">{stockInfo?.quantity}</span> / {product.minStockLevel}
+                                                        </TableCell>
+                                                        <TableCell>{supplier?.name || 'N/A'}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="outline" size="sm">Contact Supplier</Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onClick={() => handleContactSupplier('call', product.supplierId)} disabled={!supplier?.phone}>
+                                                                        <Phone className="mr-2 h-4 w-4" /> Call Supplier
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleContactSupplier('email', product.supplierId)} disabled={!supplier?.email}>
+                                                                        <Mail className="mr-2 h-4 w-4" /> Email Supplier
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            })
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            {lowStockProducts.length === 0 && (
+                                <div className="text-center py-10 text-muted-foreground">
+                                    <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
+                                    <p className="font-semibold">All stock levels are healthy!</p>
+                                    <p>No reorder suggestions at this time.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                </>
+            )}
         </Tabs>
     </div>
   );
 }
-
