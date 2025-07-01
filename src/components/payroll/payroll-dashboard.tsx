@@ -272,14 +272,16 @@ export function PayrollDashboard() {
                         <div><p className="text-sm text-muted-foreground">Employees</p><p className="font-semibold">{activeBatch?.employees.length}</p></div>
                         <div className="text-right"><p className="text-sm text-muted-foreground">Total Amount</p><p className="font-bold text-lg text-primary">₦{getTotalSalary(activeBatch?.employees || []).toLocaleString()}</p></div>
                     </div>
-                     <Table>
-                        <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Salary (₦)</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {activeBatch?.employees.map(emp => (
-                                <TableRow key={emp.id}><TableCell>{emp.fullName}</TableCell><TableCell>{nigerianBanks.find(b => b.code === emp.bankCode)?.name}</TableCell><TableCell>{emp.accountNumber}</TableCell><TableCell className="text-right font-medium">{emp.salary.toLocaleString()}</TableCell></TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                         <Table>
+                            <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Salary (₦)</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {activeBatch?.employees.map(emp => (
+                                    <TableRow key={emp.id}><TableCell>{emp.fullName}</TableCell><TableCell>{nigerianBanks.find(b => b.code === emp.bankCode)?.name}</TableCell><TableCell>{emp.accountNumber}</TableCell><TableCell className="text-right font-medium">{emp.salary.toLocaleString()}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setView('editor')} disabled={isProcessing}>Back to Edit</Button>
@@ -328,23 +330,25 @@ export function PayrollDashboard() {
             <Card>
                 <CardHeader><CardTitle>Payroll History</CardTitle><CardDescription>Manage your past and draft payrolls.</CardDescription></CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Period</TableHead><TableHead>Group Name</TableHead><TableHead>Status</TableHead><TableHead>Employees</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {batches.map(batch => (
-                                <TableRow key={batch.id}>
-                                    <TableCell><div className="font-medium">{batch.period}</div><div className="text-sm text-muted-foreground hidden md:block">{batch.paymentDate ? format(batch.paymentDate, 'PPP') : 'N/A'}</div></TableCell>
-                                    <TableCell>{batch.groupName}</TableCell>
-                                    <TableCell><Badge variant={batch.status === 'Paid' ? 'default' : 'secondary'} className={batch.status === 'Paid' ? 'bg-green-100 text-green-800' : ''}>{batch.status}</Badge></TableCell>
-                                    <TableCell>{batch.employees.length}</TableCell>
-                                    <TableCell className="text-right font-medium">₦{getTotalSalary(batch.employees).toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" onClick={() => handleEdit(batch.id!)}>View</Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Period</TableHead><TableHead>Group Name</TableHead><TableHead>Status</TableHead><TableHead>Employees</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {batches.map(batch => (
+                                    <TableRow key={batch.id}>
+                                        <TableCell><div className="font-medium">{batch.period}</div><div className="text-sm text-muted-foreground hidden md:block">{batch.paymentDate ? format(batch.paymentDate, 'PPP') : 'N/A'}</div></TableCell>
+                                        <TableCell>{batch.groupName}</TableCell>
+                                        <TableCell><Badge variant={batch.status === 'Paid' ? 'default' : 'secondary'} className={batch.status === 'Paid' ? 'bg-green-100 text-green-800' : ''}>{batch.status}</Badge></TableCell>
+                                        <TableCell>{batch.employees.length}</TableCell>
+                                        <TableCell className="text-right font-medium">₦{getTotalSalary(batch.employees).toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => handleEdit(batch.id!)}>View</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
           </div>
@@ -358,5 +362,3 @@ export function PayrollDashboard() {
     </div>
   );
 }
-
-    

@@ -28,7 +28,7 @@ export const invoiceSchema = z.object({
   fromName: z.string().min(1, 'Your name/business name is required.'),
   fromAddress: z.string().min(1, 'Your address is required.'),
   toName: z.string().min(1, "Client's name is required."),
-  toEmail: z.string().email("Invalid email address.").optional(),
+  toEmail: z.string().email("Invalid email address.").optional().or(z.literal('')),
   toAddress: z.string().min(1, "Client's address is required."),
   invoiceNumber: z.string().min(1, 'Invoice number is required.'),
   issueDate: z.date(),
@@ -185,27 +185,29 @@ export function InvoiceEditor({ invoice, onSave, onSaveDraft, onBack }: InvoiceE
                 <Separator className="my-8" />
                 
                 <div className="overflow-x-auto">
-                     <div className="grid grid-cols-[1fr,100px,100px,120px,auto] gap-2 mb-2 font-semibold min-w-[600px]">
-                        <span>Description</span>
-                        <span className="text-right">Qty</span>
-                        <span className="text-right">Price</span>
-                        <span className="text-right">Total</span>
-                        <span></span>
-                    </div>
                     <div className="min-w-[600px]">
-                        {fields.map((field, index) => (
-                            <div key={field.id} className="grid grid-cols-[1fr,100px,100px,120px,auto] gap-2 items-start mb-2">
-                                <FormField control={form.control} name={`lineItems.${index}.description`} render={({ field }) => (<FormItem><FormControl><Textarea {...field} placeholder="Item description" className="min-h-0" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`lineItems.${index}.quantity`} render={({ field }) => (<FormItem><FormControl><Input type="number" {...field} className="text-right" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`lineItems.${index}.price`} render={({ field }) => (<FormItem><FormControl><Input type="number" {...field} className="text-right" /></FormControl><FormMessage /></FormItem>)} />
-                                <Input readOnly value={`₦${((watchedLineItems[index]?.quantity || 0) * (watchedLineItems[index]?.price || 0)).toLocaleString()}`} className="text-right bg-muted" />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
-                        ))}
+                        <div className="grid grid-cols-[1fr,100px,100px,120px,auto] gap-2 mb-2 font-semibold">
+                            <span>Description</span>
+                            <span className="text-right">Qty</span>
+                            <span className="text-right">Price</span>
+                            <span className="text-right">Total</span>
+                            <span></span>
+                        </div>
+                        <div>
+                            {fields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-[1fr,100px,100px,120px,auto] gap-2 items-start mb-2">
+                                    <FormField control={form.control} name={`lineItems.${index}.description`} render={({ field }) => (<FormItem><FormControl><Textarea {...field} placeholder="Item description" className="min-h-0" /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`lineItems.${index}.quantity`} render={({ field }) => (<FormItem><FormControl><Input type="number" {...field} className="text-right" /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`lineItems.${index}.price`} render={({ field }) => (<FormItem><FormControl><Input type="number" {...field} className="text-right" /></FormControl><FormMessage /></FormItem>)} />
+                                    <Input readOnly value={`₦${((watchedLineItems[index]?.quantity || 0) * (watchedLineItems[index]?.price || 0)).toLocaleString()}`} className="text-right bg-muted" />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                            ))}
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0 })} className="mt-2">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                        </Button>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0 })} className="mt-2">
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Item
-                    </Button>
                 </div>
                 
                 <Separator className="my-8" />
