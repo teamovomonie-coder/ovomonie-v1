@@ -58,7 +58,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Loans", icon: BadgeDollarSign, href: "/loan" },
       { label: "Ovo-Wealth", icon: PiggyBank, href: "/ovo-wealth" },
       { label: "Savings Goals", icon: Target, href: "/ovo-wealth" },
-      { label: "Stock Trading", icon: CandlestickChart, href: "#" },
+      { label: "Stock Trading", icon: CandlestickChart, href: "/stock-trading" },
       { label: "Credit Score", icon: Gauge, href: "#" },
     ],
   },
