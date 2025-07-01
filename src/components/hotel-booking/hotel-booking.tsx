@@ -239,7 +239,38 @@ function ConfirmationView({ hotel, room, searchData, bookingData, onReset }: { h
 }
 
 function BookingHistoryView() {
-    return ( <Card> <CardHeader> <CardTitle>My Bookings</CardTitle> <CardDescription>A list of your past and upcoming hotel stays.</CardDescription> </CardHeader> <CardContent> <Table> <TableHeader> <TableRow> <TableHead>Hotel</TableHead> <TableHead>Dates</TableHead> <TableHead>Status</TableHead> <TableHead className="text-right">Action</TableHead> </TableRow> </TableHeader> <TableBody> {mockBookings.map(b => <TableRow key={b.id}> <TableCell>{b.hotelName}</TableCell> <TableCell>{format(new Date(b.checkIn), 'MMM d')} - {format(new Date(b.checkOut), 'MMM d, yyyy')}</TableCell> <TableCell><Badge variant={b.status === 'Completed' ? 'secondary' : 'default'}>{b.status}</Badge></TableCell> <TableCell className="text-right"> <Button variant="outline" size="sm">View</Button> </TableCell> </TableRow>)} </TableBody> </Table> </CardContent> </Card> )
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>My Bookings</CardTitle>
+                <CardDescription>A list of your past and upcoming hotel stays.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Hotel</TableHead>
+                            <TableHead>Dates</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mockBookings.map(b => (
+                            <TableRow key={b.id}>
+                                <TableCell>{b.hotelName}</TableCell>
+                                <TableCell>{format(new Date(b.checkIn), 'MMM d')} - {format(new Date(b.checkOut), 'MMM d, yyyy')}</TableCell>
+                                <TableCell><Badge variant={b.status === 'Completed' ? 'secondary' : 'default'}>{b.status}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="outline" size="sm">View</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
 }
 
 

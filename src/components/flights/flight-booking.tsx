@@ -276,7 +276,44 @@ function ConfirmationView({ flight, searchData, bookingData, onReset }: { flight
 }
 
 function BookingHistory() {
-    return ( <Card> <CardHeader> <CardTitle>My Bookings</CardTitle> <CardDescription>A list of your past and upcoming flights.</CardDescription> </CardHeader> <CardContent> <Table> <TableHeader> <TableRow> <TableHead>Route</TableHead> <TableHead>Date</TableHead> <TableHead>Status</TableHead> <TableHead className="text-right">Action</TableHead> </TableRow> </TableHeader> <TableBody> <TableRow> <TableCell>Lagos (LOS) &rarr; Abuja (ABV)</TableCell> <TableCell>2024-08-15</TableCell> <TableCell><Badge>Upcoming</Badge></TableCell> <TableCell className="text-right"> <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button> </TableCell> </TableRow> <TableRow> <TableCell>Kano (KAN) &rarr; Lagos (LOS)</TableCell> <TableCell>2024-06-01</TableCell> <TableCell><Badge variant="secondary">Completed</Badge></TableCell> <TableCell className="text-right"> <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button> </TableCell> </TableRow> </TableBody> </Table> </CardContent> </Card> )
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>My Bookings</CardTitle>
+                <CardDescription>A list of your past and upcoming flights.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Route</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell>Lagos (LOS) &rarr; Abuja (ABV)</TableCell>
+                            <TableCell>2024-08-15</TableCell>
+                            <TableCell><Badge>Upcoming</Badge></TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell>Kano (KAN) &rarr; Lagos (LOS)</TableCell>
+                            <TableCell>2024-06-01</TableCell>
+                            <TableCell><Badge variant="secondary">Completed</Badge></TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
 }
 
 
