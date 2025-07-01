@@ -18,6 +18,7 @@ import {
     ChartTooltipContent,
 } from "@/components/ui/chart"
 import type { ChartConfig } from "@/components/ui/chart"
+import { format } from 'date-fns';
 
 // Import UI components
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Import Icons
-import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, Truck } from 'lucide-react';
+import { Package, PackageSearch, DollarSign, PlusCircle, MoreHorizontal, Search, TrendingUp, Camera, VideoOff, AlertTriangle } from 'lucide-react';
 
 // Product schema for validation
 const productSchema = z.object({
@@ -81,12 +82,9 @@ const mockProducts: Product[] = [
   { id: 'prod_1', name: 'Indomie Noodles Chicken', sku: 'IN001', barcode: '615110002131', category: 'Groceries', price: 250, costPrice: 200, stock: 150, minStockLevel: 20, unit: 'pcs', supplierId: 'sup_1' },
   { id: 'prod_2', name: 'Peak Milk Evaporated', sku: 'PK001', category: 'Groceries', price: 400, costPrice: 350, stock: 80, minStockLevel: 10, unit: 'pcs', supplierId: 'sup_1' },
   { id: 'prod_3', name: 'Coca-Cola 50cl', sku: 'CC001', barcode: '5449000000996', category: 'Beverages', price: 200, costPrice: 150, stock: 200, minStockLevel: 50, unit: 'pcs', supplierId: 'sup_3' },
-  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: '2025-12-31', category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
+  { id: 'prod_4', name: 'Panadol Extra', sku: 'PN001', batchNumber: 'B12345', expiryDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0], category: 'Pharmacy', price: 500, costPrice: 400, stock: 5, minStockLevel: 10, unit: 'pack', supplierId: 'sup_2' },
   { id: 'prod_5', name: 'Golden Penny Semovita 1kg', sku: 'GP001', category: 'Groceries', price: 1200, costPrice: 1000, stock: 45, minStockLevel: 10, unit: 'pack', supplierId: 'sup_1' },
-  { id: 'prod_6', name: 'Cloud Hosting Services', sku: 'CHS001', category: 'Services', price: 150000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'license' },
-  { id: 'prod_7', name: 'Logo Design & Branding', sku: 'LDB001', category: 'Services', price: 75000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'project' },
-  { id: 'prod_8', name: 'Shipping & Logistics', sku: 'SL001', category: 'Services', price: 100000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'shipment' },
-  { id: 'prod_9', name: 'Export Documentation', sku: 'ED001', category: 'Services', price: 120000, costPrice: 0, stock: 100, minStockLevel: 0, unit: 'doc' },
+  { id: 'prod_6', name: 'Amoxicillin Capsules', sku: 'AMX001', batchNumber: 'AX54321', expiryDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], category: 'Pharmacy', price: 1500, costPrice: 1100, stock: 12, minStockLevel: 5, unit: 'pack', supplierId: 'sup_2' },
 ];
 
 const INVENTORY_STORAGE_KEY = 'ovomonie-inventory-products';
@@ -96,7 +94,7 @@ function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partia
     const form = useForm<Product>({
         resolver: zodResolver(productSchema),
         defaultValues: product || {
-            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs', supplierId: ''
+            name: '', sku: '', barcode: '', category: '', price: 0, costPrice: 0, stock: 0, minStockLevel: 0, unit: 'pcs', supplierId: '', batchNumber: '', expiryDate: ''
         },
     });
 
@@ -124,6 +122,18 @@ function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partia
                     <FormField control={form.control} name="minStockLevel" render={({ field }) => (<FormItem><FormLabel>Min. Stock Level</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>Unit</FormLabel><FormControl><Input placeholder="e.g., pcs, kg" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="batchNumber" render={({ field }) => (<FormItem><FormLabel>Batch Number (Optional)</FormLabel><FormControl><Input placeholder="e.g., B123XYZ" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="expiryDate" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Expiry Date (Optional)</FormLabel>
+                            <FormControl>
+                                <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
                  <FormField
                     control={form.control}
                     name="supplierId"
@@ -137,7 +147,7 @@ function ProductForm({ product, suppliers, onSave, onCancel }: { product: Partia
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                    {suppliers.map(s => <SelectItem key={s.id} value={s.id!}>{s.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -159,9 +169,13 @@ function SupplierForm({ supplier, onSave, onCancel }: { supplier: Partial<Suppli
         defaultValues: supplier || { name: '', phone: '', email: '', address: '' },
     });
 
+    const onSubmit = (data: Supplier) => {
+        onSave({ ...supplier, ...data });
+    };
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Supplier Name</FormLabel><FormControl><Input placeholder="e.g., West African Foods Inc." {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="orders@supplier.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -388,7 +402,27 @@ export function InventoryDashboard() {
   
   const lowStockCount = useMemo(() => products.filter(p => p.stock <= p.minStockLevel).length, [products]);
   const inventoryValue = useMemo(() => products.reduce((acc, p) => acc + (p.costPrice * p.stock), 0), [products]);
-  const todaysSales = 34900;
+
+  const getExpiryStatus = (expiryDateString?: string) => {
+    if (!expiryDateString) return null;
+    const expiryDate = new Date(expiryDateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+    if (expiryDate < today) return 'expired';
+    if (expiryDate <= thirtyDaysFromNow) return 'soon';
+    return 'ok';
+  }
+
+  const expiringSoonCount = useMemo(() => {
+    return products.filter(p => {
+        const status = getExpiryStatus(p.expiryDate);
+        return status === 'soon' || status === 'expired';
+    }).length;
+  }, [products]);
+
 
   const handleSaveProduct = (data: Product) => {
     if (editingProduct?.id) {
@@ -531,7 +565,15 @@ export function InventoryDashboard() {
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{products.length}</div></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
-                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{todaysSales.toLocaleString()}</div></CardContent></Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <Card>
@@ -567,6 +609,19 @@ export function InventoryDashboard() {
                                             <TableCell className="font-medium">
                                                 <div>{product.name}</div>
                                                 <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
+                                                 {(product.batchNumber || product.expiryDate) && (
+                                                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                                        {product.batchNumber && <div>Batch: {product.batchNumber}</div>}
+                                                        {product.expiryDate && (
+                                                            <div className={cn({
+                                                                'text-destructive font-semibold': getExpiryStatus(product.expiryDate) === 'expired',
+                                                                'text-amber-600 font-semibold': getExpiryStatus(product.expiryDate) === 'soon',
+                                                            })}>
+                                                                Expires: {format(new Date(product.expiryDate), 'dd MMM, yyyy')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell className="hidden sm:table-cell">{suppliers.find(s => s.id === product.supplierId)?.name || 'N/A'}</TableCell>
                                             <TableCell>
