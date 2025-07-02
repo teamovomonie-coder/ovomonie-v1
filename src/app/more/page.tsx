@@ -92,9 +92,7 @@ const serviceData: ServiceCategory[] = [
     title: "Engagement & Rewards",
     services: [
       { label: "Invite & Earn", icon: Gift, href: "/invitation" },
-      { label: "Referral Program", icon: Users, href: "/invitation" },
       { label: "Rewards Hub", icon: Trophy, href: "/rewards" },
-      { label: "Daily Offers", icon: Percent, href: "/rewards" },
       { label: "Loyalty Points", icon: Medal, href: "/rewards" },
     ],
   },
