@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Mock user credentials
-        if (phone === '08012345678' && pin === '1234') {
+        if (phone === '08100645569' && pin === '0329') {
           const dummyToken = `fake-token-${Date.now()}`;
           localStorage.setItem('ovo-auth-token', dummyToken);
           setIsAuthenticated(true);
