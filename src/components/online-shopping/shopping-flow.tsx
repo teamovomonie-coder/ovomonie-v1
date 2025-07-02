@@ -177,8 +177,8 @@ function ProductDetailView({ product, onBack, onAddToCart }: { product: Product;
                 <div>
                     <div className="relative h-64 w-full border rounded-lg overflow-hidden mb-2"><Image src={selectedImage} alt={product.name} layout="fill" objectFit="contain" data-ai-hint={product.hint} /></div>
                     <div className="flex gap-2">
-                        {product.images.map(img => (
-                            <div key={img} className={cn("h-16 w-16 border rounded-md cursor-pointer relative", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
+                        {product.images.map((img, index) => (
+                            <div key={index} className={cn("h-16 w-16 border rounded-md cursor-pointer relative", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
                                 <Image src={img} alt="thumbnail" layout="fill" objectFit="cover" data-ai-hint={product.hint} />
                             </div>
                         ))}
