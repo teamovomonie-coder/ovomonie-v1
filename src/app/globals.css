@@ -71,3 +71,23 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .animated-gradient-bg {
+    background: linear-gradient(-45deg, hsl(215, 41%, 95%), hsl(220, 43%, 97%), hsl(210, 40%, 98%), hsl(220, 43%, 97%));
+    background-size: 400% 400%;
+    animation: wave 15s ease infinite;
+  }
+}
+
+@keyframes wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
