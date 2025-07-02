@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -169,48 +169,72 @@ function PersonalDetailsForm({ onNext, initialData }: { onNext: (data: PersonalD
 function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) => void; onBack: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [captureStage, setCaptureStage] = useState<'fingerprint_prompt' | 'fingerprint_scanning' | 'fingerprint_done' | 'selfie_countdown' | 'selfie_captured'>('fingerprint_prompt');
+  const [selfieData, setSelfieData] = useState<string | null>(null);
+  const [captureStage, setCaptureStage] = useState<'selfie_countdown' | 'selfie_captured' | 'fingerprint_prompt' | 'fingerprint_scanning' | 'fingerprint_done'>('selfie_countdown');
   const [countdown, setCountdown] = useState(3);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (captureStage !== 'selfie_countdown' && captureStage !== 'fingerprint_scanning') return;
-
-    let timer: NodeJS.Timeout;
-    if (captureStage === 'fingerprint_scanning') {
-        timer = setTimeout(() => setCaptureStage('fingerprint_done'), 2000);
-    } else if (captureStage === 'selfie_countdown') {
-        if (countdown > 0) {
-            timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-        } else {
-            // In a real app, capture frame from videoRef
-            onNext({ selfie: 'https://placehold.co/400x400.png' }); 
+    const getCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setHasCameraPermission(true);
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (error) {
+            setHasCameraPermission(false);
+            toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions.' });
         }
-    }
-    return () => clearTimeout(timer);
-  }, [captureStage, countdown, onNext]);
-  
-  useEffect(() => {
-    if(captureStage === 'fingerprint_done') {
-        const getCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                setHasCameraPermission(true);
-                if (videoRef.current) videoRef.current.srcObject = stream;
-                setCaptureStage('selfie_countdown');
-              } catch (error) {
-                setHasCameraPermission(false);
-                toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions.' });
-              }
-        };
-        getCamera();
-    }
+    };
+    getCamera();
+
     return () => {
         if (videoRef.current && videoRef.current.srcObject) {
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         }
     }
+  }, [toast]);
+  
+  useEffect(() => {
+    if (captureStage !== 'selfie_countdown' || !hasCameraPermission) return;
+    
+    if (countdown > 0) {
+        const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+        return () => clearTimeout(timer);
+    } else {
+        const selfie = 'https://placehold.co/400x400.png';
+        setSelfieData(selfie);
+        setCaptureStage('selfie_captured');
+
+        if (videoRef.current && videoRef.current.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+        }
+
+        const nextStageTimer = setTimeout(() => setCaptureStage('fingerprint_prompt'), 1000);
+        return () => clearTimeout(nextStageTimer);
+    }
+  }, [captureStage, countdown, hasCameraPermission]);
+
+  useEffect(() => {
+      if (captureStage !== 'fingerprint_scanning') return;
+      const timer = setTimeout(() => {
+          const success = Math.random() > 0.2;
+          if (success) {
+              setCaptureStage('fingerprint_done');
+          } else {
+              toast({ variant: 'destructive', title: 'Scan Failed', description: 'Please reposition your finger and try again.'});
+              setCaptureStage('fingerprint_prompt');
+          }
+      }, 2000);
+      return () => clearTimeout(timer);
   }, [captureStage, toast]);
+
+  useEffect(() => {
+      if (captureStage === 'fingerprint_done' && selfieData) {
+          onNext({ selfie: selfieData });
+      }
+  }, [captureStage, selfieData, onNext]);
 
   return (
      <div className="space-y-4">
@@ -222,19 +246,24 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
                 <div className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted data-ai-hint="person face" />
                     {hasCameraPermission === false && <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white p-4"><VideoOff className="w-12 h-12 mb-2" /><p>Camera access denied</p></div>}
-                    {captureStage === 'selfie_countdown' && countdown > 0 && (
+                    {captureStage === 'selfie_countdown' && countdown > 0 && hasCameraPermission && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                             <p className="text-8xl font-bold text-white">{countdown}</p>
+                        </div>
+                    )}
+                    {captureStage === 'selfie_captured' && (
+                         <div className="absolute inset-0 flex items-center justify-center bg-green-900/80">
+                            <CheckCircle className="w-16 h-16 text-white" />
                         </div>
                     )}
                 </div>
             </CardContent>
         </Card>
          <Card>
-            <CardHeader><CardTitle>Fingerprint Capture</CardTitle><CardDescription>Simulate placing your finger on the scanner.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Fingerprint Capture</CardTitle><CardDescription>Place your finger on the scanner when prompted.</CardDescription></CardHeader>
             <CardContent className="flex items-center justify-center h-48">
                 {captureStage === 'fingerprint_prompt' && (
-                    <Button onClick={() => setCaptureStage('fingerprint_scanning')}>Start Fingerprint Scan</Button>
+                    <Button onClick={() => setCaptureStage('fingerprint_scanning')} disabled={captureStage !== 'fingerprint_prompt'}>Start Fingerprint Scan</Button>
                 )}
                 {captureStage === 'fingerprint_scanning' && (
                      <div className="text-center text-muted-foreground">
@@ -242,10 +271,15 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
                         <p className="mt-2 font-semibold">Scanning...</p>
                     </div>
                 )}
-                 {captureStage !== 'fingerprint_prompt' && captureStage !== 'fingerprint_scanning' && (
+                 {captureStage === 'fingerprint_done' && (
                      <div className="text-center text-green-600">
                         <CheckCircle className="w-16 h-16 mx-auto" />
                         <p className="mt-2 font-semibold">Fingerprint Captured</p>
+                    </div>
+                )}
+                {(captureStage === 'selfie_countdown' || captureStage === 'selfie_captured') && (
+                    <div className="text-center text-muted-foreground">
+                       <p>Waiting for facial capture...</p>
                     </div>
                 )}
             </CardContent>
@@ -426,5 +460,3 @@ function ConfirmationStep({ onDone }: { onDone: () => void }) {
         </div>
     )
 }
-
-    
