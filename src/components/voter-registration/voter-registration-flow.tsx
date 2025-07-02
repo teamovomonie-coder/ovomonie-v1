@@ -133,7 +133,14 @@ export function VoterRegistrationFlow() {
 function PersonalDetailsForm({ onNext, initialData }: { onNext: (data: PersonalDetailsData) => void; initialData: Partial<PersonalDetailsData> }) {
   const form = useForm<PersonalDetailsData>({
     resolver: zodResolver(personalDetailsSchema),
-    defaultValues: initialData,
+    defaultValues: {
+      fullName: initialData.fullName || '',
+      dob: initialData.dob,
+      gender: initialData.gender || '',
+      state: initialData.state || '',
+      phone: initialData.phone || '',
+      email: initialData.email || '',
+    },
   });
 
   return (
