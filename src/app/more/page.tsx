@@ -80,7 +80,7 @@ const serviceData: ServiceCategory[] = [
     services: [
       { label: <><span className="block">CAC</span><span className="text-xs font-normal text-muted-foreground">Business Registration</span></>, icon: Building2, href: "/cac-registration" },
       { label: "Voter Card", icon: Vote, href: "/voter-registration" },
-      { label: <><span className="block">NIN</span><span className="text-xs font-normal text-muted-foreground">Registration</span></>, icon: Fingerprint, href: "#" },
+      { label: <><span className="block">NIN</span><span className="text-xs font-normal text-muted-foreground">Registration</span></>, icon: Fingerprint, href: "/nin-registration" },
       { label: "FRSC License", icon: Car, href: "#" },
       { label: "Tax & Remittance", icon: Landmark, href: "#" },
       { label: "WAEC/NECO PINs", icon: Book, href: "#" },
