@@ -99,7 +99,7 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Account & App Settings",
     services: [
-      { label: "Profile / KYC", icon: User, href: "#" },
+      { label: "Profile / KYC", icon: User, href: "/profile" },
       { label: "Security", icon: Shield, href: "#" },
       { label: "Statements", icon: FileText, href: "#" },
       { label: "Settings", icon: Settings, href: "#" },
