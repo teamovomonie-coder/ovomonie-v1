@@ -43,6 +43,7 @@ export function FashionDealsFlow() {
     const [view, setView] = useState<View>('home');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
+    const [isCartOpen, setIsCartOpen] = useState(false);
     const { toast } = useToast();
 
     const addToCart = (product: Product, quantity: number, size: string, color: string) => {
@@ -78,6 +79,7 @@ export function FashionDealsFlow() {
     }
     
     const handleCheckout = () => {
+        setIsCartOpen(false);
         setView('checkout');
     }
     
@@ -101,7 +103,7 @@ export function FashionDealsFlow() {
         <Card className="w-full h-full min-h-[calc(100vh-4rem)] sm:min-h-0 flex flex-col shadow-none sm:shadow-sm border-none sm:border rounded-none sm:rounded-lg">
             <div className="flex items-center justify-between p-4 border-b">
                  <h2 className="text-2xl font-bold tracking-tight">Fashion Deals</h2>
-                 <CartSheet cart={cart} updateCartQuantity={updateCartQuantity} onCheckout={handleCheckout} />
+                 <CartSheet cart={cart} updateCartQuantity={updateCartQuantity} onCheckout={handleCheckout} isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
             <Tabs defaultValue="shop" className="flex-grow flex flex-col">
                 <TabsList className="m-4">
@@ -193,7 +195,7 @@ function ProductDetailView({ product, onBack, onAddToCart }: { product: Product;
                     </div>
                     <div className="flex gap-2">
                         {product.images.map((img, index) => (
-                            <div key={index} className={cn("h-16 w-16 border rounded-md cursor-pointer relative overflow-hidden", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
+                            <div key={`${img}-${index}`} className={cn("h-16 w-16 border rounded-md cursor-pointer relative overflow-hidden", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
                                 <Image src={img} alt="thumbnail" layout="fill" objectFit="cover" data-ai-hint={product.hint} />
                             </div>
                         ))}
@@ -246,13 +248,13 @@ function ProductDetailView({ product, onBack, onAddToCart }: { product: Product;
     );
 }
 
-function CartSheet({ cart, updateCartQuantity, onCheckout }: { cart: CartItem[], updateCartQuantity: (id: string, size: string, color: string, qty: number) => void, onCheckout: () => void }) {
+function CartSheet({ cart, updateCartQuantity, onCheckout, isOpen, onOpenChange }: { cart: CartItem[], updateCartQuantity: (id: string, size: string, color: string, qty: number) => void, onCheckout: () => void, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.product.discountedPrice * item.quantity, 0), [cart]);
     const shipping = subtotal > 0 ? 2500 : 0; // Mock shipping cost
     const total = subtotal + shipping;
 
     return (
-        <Sheet>
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                     <ShoppingCart />
