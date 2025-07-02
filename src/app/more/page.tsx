@@ -69,7 +69,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Hotel Bookings", icon: Hotel, href: "/hotel-booking" },
       { label: "Ride Booking", icon: Car, href: "/ride-booking" },
       { label: "Event Tickets", icon: Ticket, href: "/events" },
-      { label: "Online Shopping", icon: ShoppingCart, href: "#" },
+      { label: "Online Shopping", icon: ShoppingCart, href: "/online-shopping" },
       { label: "Fashion Deals", icon: ShoppingBag, href: "#" },
     ],
   },
