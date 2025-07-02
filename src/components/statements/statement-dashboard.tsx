@@ -91,12 +91,12 @@ export function StatementDashboard() {
 
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Account Statement</h2>
          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleExport('PDF')}><Download className="mr-2 h-4 w-4" /> PDF</Button>
-            <Button variant="outline" onClick={() => handleExport('Excel')}><Download className="mr-2 h-4 w-4" /> Excel</Button>
-            <Button variant="outline" onClick={() => handleExport('CSV')}><Download className="mr-2 h-4 w-4" /> CSV</Button>
+            <Button variant="outline" onClick={() => handleExport('PDF')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">PDF</span></Button>
+            <Button variant="outline" onClick={() => handleExport('Excel')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span></Button>
+            <Button variant="outline" onClick={() => handleExport('CSV')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">CSV</span></Button>
         </div>
       </div>
       
