@@ -63,6 +63,16 @@ const participantLabels = {
     ngo: { singular: 'Trustee', plural: 'Trustees' },
 };
 
+const defaultFormValues: CacFormData = {
+  businessType: "bn",
+  businessName1: "",
+  businessName2: "",
+  businessDescription: "",
+  businessAddress: "",
+  businessState: "",
+  proprietors: [{ fullName: "", bvn: "", email: "", phone: "", idType: "" }],
+};
+
 export function CacRegistrationFlow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,10 +80,7 @@ export function CacRegistrationFlow() {
 
   const form = useForm<CacFormData>({
     resolver: zodResolver(cacSchema),
-    defaultValues: {
-      businessType: "bn",
-      proprietors: [{ fullName: "", bvn: "", email: "", phone: "", idType: "" }],
-    },
+    defaultValues: defaultFormValues,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -83,6 +90,11 @@ export function CacRegistrationFlow() {
 
   const businessType = form.watch("businessType");
   const currentLabels = participantLabels[businessType];
+
+  const resetFlow = () => {
+    form.reset(defaultFormValues);
+    setCurrentStep(0);
+  };
 
   const processForm = async () => {
     setIsLoading(true);
@@ -211,8 +223,8 @@ export function CacRegistrationFlow() {
                       <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
                         <FormField control={form.control} name={`proprietors.${index}.fullName`} render={({ field }) => <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name={`proprietors.${index}.bvn`} render={({ field }) => <FormItem><FormLabel>BVN</FormLabel><FormControl><Input {...field} type="number" /></FormControl><FormMessage /></FormItem>} />
-                            <FormField control={form.control} name={`proprietors.${index}.phone`} render={({ field }) => <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} type="tel" /></FormControl><FormMessage /></FormItem>} />
+                            <FormField control={form.control} name={`proprietors.${index}.bvn`} render={({ field }) => <FormItem><FormLabel>BVN</FormLabel><FormControl><Input {...field} type="tel" maxLength={11} /></FormControl><FormMessage /></FormItem>} />
+                            <FormField control={form.control} name={`proprietors.${index}.phone`} render={({ field }) => <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} type="tel" maxLength={11} /></FormControl><FormMessage /></FormItem>} />
                         </div>
                         <FormField control={form.control} name={`proprietors.${index}.email`} render={({ field }) => <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl><FormMessage /></FormItem>} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,5 +300,3 @@ export function CacRegistrationFlow() {
     </Card>
   );
 }
-
-    
