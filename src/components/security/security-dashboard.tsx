@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2 } from 'lucide-react';
+import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban } from 'lucide-react';
 
 // Mock data
 const mockDevices = [
@@ -120,7 +120,7 @@ export function SecurityDashboard() {
   return (
     <div className="space-y-6">
        <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Security Center</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Security & Settings</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -136,6 +136,21 @@ export function SecurityDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+                
+                 <Card>
+                    <CardHeader><CardTitle>Transaction Limits</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <Label htmlFor="international-switch" className="flex items-center gap-3"><CreditCard /><span>Block International Txns</span></Label>
+                            <Switch id="international-switch" />
+                        </div>
+                         <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <Label htmlFor="gambling-switch" className="flex items-center gap-3"><Ban /><span>Restrict Betting Payments</span></Label>
+                            <Switch id="gambling-switch" />
+                        </div>
+                    </CardContent>
+                </Card>
+                
                 <Card>
                     <CardHeader><CardTitle>Alerts & Notifications</CardTitle></CardHeader>
                     <CardContent className="space-y-4">

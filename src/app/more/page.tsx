@@ -102,7 +102,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Profile / KYC", icon: User, href: "/profile" },
       { label: "Security", icon: Shield, href: "/security" },
       { label: "Statements", icon: FileText, href: "/statements" },
-      { label: "Settings", icon: Settings, href: "#" },
+      { label: "Settings", icon: Settings, href: "/security" },
       { label: "Support", icon: MessageCircle, href: "#" },
       { label: "Logout", icon: LogOut, href: "#" },
     ],
