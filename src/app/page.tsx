@@ -24,7 +24,7 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="#" className="hidden sm:flex items-center gap-1 text-sm font-semibold">
+          <Link href="/support" className="hidden sm:flex items-center gap-1 text-sm font-semibold">
             <MessageCircle className="h-5 w-5" />
             SUPPORT
           </Link>

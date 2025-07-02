@@ -103,7 +103,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Security", icon: Shield, href: "/security" },
       { label: "Statements", icon: FileText, href: "/statements" },
       { label: "Settings", icon: Settings, href: "/security" },
-      { label: "Support", icon: MessageCircle, href: "#" },
+      { label: "Support", icon: MessageCircle, href: "/support" },
       { label: "Logout", icon: LogOut, href: "#" },
     ],
   },
