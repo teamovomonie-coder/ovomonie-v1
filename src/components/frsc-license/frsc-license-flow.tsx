@@ -124,7 +124,7 @@ export function FrscLicenseFlow() {
         case 1: return <PersonalDetailsStep onNext={handleNext} onBack={handleBack} initialData={formData} />;
         case 2: return <BiometricStep onNext={handleNext} onBack={handleBack} />;
         case 3: return <DocumentUploadStep onNext={handleNext} onBack={handleBack} />;
-        case 4: return <TestCenterStep onNext={handleNext} onBack={handleBack} stateOfResidence={formData.stateOfResidence} />;
+        case 4: return <TestCenterStep onNext={handleNext} onBack={handleBack} stateOfResidence={formData.stateOfResidence} initialData={formData} />;
         case 5: return <PaymentStep onNext={handleFinalSubmit} onBack={handleBack} applicationType={formData.type} isSubmitting={isSubmitting} />;
         case 6: return <ConfirmationStep onDone={resetFlow} data={formData} />;
         default: return null;
@@ -201,7 +201,14 @@ function ApplicationTypeStep({ onNext, initialData }: { onNext: (data: Applicati
 function PersonalDetailsStep({ onNext, onBack, initialData }: { onNext: (data: PersonalDetailsData) => void; onBack: () => void; initialData: Partial<PersonalDetailsData> }) {
   const form = useForm<PersonalDetailsData>({
     resolver: zodResolver(personalDetailsSchema),
-    defaultValues: initialData,
+    defaultValues: {
+        fullName: '',
+        gender: '',
+        stateOfResidence: '',
+        bloodGroup: '',
+        phone: '',
+        ...initialData
+    },
   });
 
   return (
@@ -326,8 +333,15 @@ function DocumentUploadStep({ onNext, onBack }: { onNext: (data: DocumentData) =
   )
 }
 
-function TestCenterStep({ onNext, onBack, stateOfResidence }: { onNext: (data: TestCenterData) => void; onBack: () => void, stateOfResidence?: string }) {
-    const form = useForm<TestCenterData>({ resolver: zodResolver(testCenterSchema), defaultValues: { date: addDays(new Date(), 7) } });
+function TestCenterStep({ onNext, onBack, stateOfResidence, initialData }: { onNext: (data: TestCenterData) => void; onBack: () => void; stateOfResidence?: string, initialData?: Partial<TestCenterData> }) {
+    const form = useForm<TestCenterData>({ 
+        resolver: zodResolver(testCenterSchema), 
+        defaultValues: {
+            center: '',
+            date: addDays(new Date(), 7),
+            ...initialData
+        } 
+    });
     const availableCenters = stateOfResidence ? frscTestCenters[stateOfResidence as keyof typeof frscTestCenters] || [] : [];
     
     return (
