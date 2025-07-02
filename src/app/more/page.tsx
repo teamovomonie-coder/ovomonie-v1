@@ -78,7 +78,7 @@ const serviceData: ServiceCategory[] = [
     title: "Government Services",
     services: [
       { label: <><span className="block">CAC</span><span className="text-xs font-normal text-muted-foreground">Business Registration</span></>, icon: Building2, href: "/cac-registration" },
-      { label: "Voter Card", icon: Vote, href: "#" },
+      { label: "Voter Card", icon: Vote, href: "/voter-registration" },
       { label: "Passport Fees", icon: FileText, href: "#" },
       { label: "FRSC License", icon: Car, href: "#" },
       { label: "Tax & Remittance", icon: Landmark, href: "#" },
