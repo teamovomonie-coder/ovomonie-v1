@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Fingerprint, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Fingerprint, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from 'lucide-react';
 
@@ -69,6 +69,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Hotel Bookings", icon: Hotel, href: "/hotel-booking" },
       { label: "Ride Booking", icon: Car, href: "/ride-booking" },
       { label: "Event Tickets", icon: Ticket, href: "/events" },
+      { label: "Food Delivery", icon: Utensils, href: "/food-delivery" },
       { label: "Online Shopping", icon: ShoppingCart, href: "/online-shopping" },
       { label: "Fashion Deals", icon: ShoppingBag, href: "#" },
     ],
