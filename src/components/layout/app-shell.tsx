@@ -1,3 +1,4 @@
+
 "use client";
 import React from "react";
 import Link from 'next/link';
@@ -28,10 +29,12 @@ import {
   LayoutGrid,
   PlusCircle,
   Award,
-  FileText
+  FileText,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogoutDialog } from "@/components/auth/logout-dialog";
 
 const OvoLogo = () => (
   <div className="flex items-center gap-2">
@@ -80,6 +83,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
             ))}
+             <SidebarMenuItem>
+              <LogoutDialog>
+                <SidebarMenuButton tooltip="Logout">
+                  <LogOut />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+              </LogoutDialog>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
         <div className="mt-auto p-4">

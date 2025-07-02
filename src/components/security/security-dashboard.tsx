@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban } from 'lucide-react';
+import { LogoutDialog } from '@/components/auth/logout-dialog';
 
 // Mock data
 const mockDevices = [
@@ -201,6 +202,20 @@ export function SecurityDashboard() {
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-destructive">
+                    <CardHeader>
+                        <CardTitle className="text-destructive">Account Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <LogoutDialog>
+                           <Button variant="destructive" className="w-full sm:w-auto">
+                                <LogOut className="mr-2"/>
+                                Log Out of This Device
+                            </Button>
+                        </LogoutDialog>
                     </CardContent>
                 </Card>
             </div>

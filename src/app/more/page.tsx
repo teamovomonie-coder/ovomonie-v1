@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from 'lucide-react';
+import { LogoutDialog } from "@/components/auth/logout-dialog";
 
 interface Service {
   label: React.ReactNode;
@@ -109,14 +110,33 @@ const serviceData: ServiceCategory[] = [
   },
 ];
 
-const ServiceTile = ({ service }: { service: Service }) => (
-    <Link href={service.href} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors">
-        <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
-            <service.icon className="h-6 w-6" />
-        </div>
-        <span className="text-sm font-semibold text-foreground leading-tight">{service.label}</span>
+const ServiceTile = ({ service }: { service: Service }) => {
+  const tileClassName = "bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors h-full";
+  const tileContent = (
+    <>
+      <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
+        <service.icon className="h-6 w-6" />
+      </div>
+      <span className="text-sm font-semibold text-foreground leading-tight">{service.label}</span>
+    </>
+  );
+
+  if (service.href === "#" && service.label === "Logout") {
+    return (
+      <LogoutDialog>
+        <button type="button" className={tileClassName}>
+          {tileContent}
+        </button>
+      </LogoutDialog>
+    );
+  }
+
+  return (
+    <Link href={service.href} className={tileClassName}>
+      {tileContent}
     </Link>
-);
+  );
+};
 
 
 export default function MorePage() {
