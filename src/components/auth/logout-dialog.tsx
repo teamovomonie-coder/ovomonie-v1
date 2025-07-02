@@ -14,27 +14,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from '@/context/auth-context';
 
 export function LogoutDialog({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
+  const { logout } = useAuth();
   const router = useRouter();
 
   const handleLogout = () => {
-    // In a real app, you'd call an API to invalidate the session token.
-    // For this demo, we'll simulate the logout process.
-    
-    // 1. Show a success toast
+    logout();
     toast({
       title: "Logged Out",
       description: "You have been logged out successfully.",
     });
-
-    // 2. Clear local storage/session tokens (simulated)
-    // localStorage.removeItem('authToken');
-    
-    // 3. Redirect to the login page (homepage for this demo)
-    // A full page reload is good practice after logout to clear any in-memory state.
-    window.location.href = '/';
+    router.push('/login');
   };
 
   return (

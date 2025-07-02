@@ -2,10 +2,12 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutGrid, Wallet, Monitor, BarChart, MoreHorizontal } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutGrid, Wallet, Monitor, BarChart, MoreHorizontal, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { useEffect } from 'react';
 
 interface NavItem {
     href: string;
@@ -42,6 +44,24 @@ export default function MerchantLayout({
 }: {
   children: React.ReactNode
 }) {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      router.push(`/login?callbackUrl=${pathname}`);
+    }
+  }, [isAuthenticated, router, pathname]);
+
+  if (isAuthenticated === null || isAuthenticated === false) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
         <main className="flex-1 pb-20">

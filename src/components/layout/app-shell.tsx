@@ -1,8 +1,8 @@
 
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -32,19 +32,24 @@ import {
   FileText,
   LogOut,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogoutDialog } from "@/components/auth/logout-dialog";
+import { useAuth } from "@/context/auth-context";
+import { OvoLogo } from "./logo";
+import { Loader2 } from "lucide-react";
 
-const OvoLogo = () => (
-  <div className="flex items-center gap-2">
-    <Wallet className="w-8 h-8 text-primary" />
-    <h1 className="text-2xl font-bold text-primary">OVO Thrive</h1>
-  </div>
-);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const { isAuthenticated } = useAuth();
+    
+    useEffect(() => {
+        if (isAuthenticated === false) {
+          router.push(`/login?callbackUrl=${pathname}`);
+        }
+    }, [isAuthenticated, router, pathname]);
+
     const navItems = [
         { href: "/", label: "Dashboard", icon: LayoutDashboard },
         { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
@@ -61,6 +66,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/invitation", label: "Invitation", icon: Gift },
         { href: "/more", label: "More", icon: LayoutGrid },
     ];
+    
+    if (isAuthenticated === null || isAuthenticated === false) {
+        return (
+          <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        );
+    }
     
   return (
     <SidebarProvider>
