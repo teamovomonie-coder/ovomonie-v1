@@ -142,8 +142,8 @@ function ShoppingHomeView({ onSelectProduct }: { onSelectProduct: (product: Prod
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input placeholder="Search for products..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className="overflow-x-auto pb-2 -mx-4 px-4">
-                <div className="flex gap-2 w-max">
+            <div>
+                <div className="flex flex-wrap gap-2">
                     {[{ name: 'All' }, ...mockCategories].map(cat => (
                         <Button key={cat.name} variant={category === cat.name ? 'default' : 'outline'} onClick={() => setCategory(cat.name)}>{cat.name}</Button>
                     ))}
