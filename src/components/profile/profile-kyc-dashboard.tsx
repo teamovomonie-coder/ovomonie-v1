@@ -183,6 +183,9 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
 
     const form = useForm<z.infer<typeof tier2Schema>>({
         resolver: zodResolver(tier2Schema),
+        defaultValues: {
+            bvn: "",
+        },
     });
 
     const onSubmit = async () => {
@@ -219,6 +222,9 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
 
     const form = useForm<z.infer<typeof tier3Schema>>({
         resolver: zodResolver(tier3Schema),
+        defaultValues: {
+            cacNumber: "",
+        },
     });
 
     const onSubmit = async () => {
