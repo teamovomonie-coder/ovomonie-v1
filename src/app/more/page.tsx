@@ -3,7 +3,7 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from 'lucide-react';
 import { LogoutDialog } from "@/components/auth/logout-dialog";
@@ -103,6 +103,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Profile / KYC", icon: User, href: "/profile" },
       { label: "Security", icon: Shield, href: "/security" },
       { label: "Statements", icon: FileText, href: "/statements" },
+      { label: "Custom Account No.", icon: Hash, href: "/custom-account-number" },
       { label: "Settings", icon: Settings, href: "/security" },
       { label: "Support", icon: MessageCircle, href: "/support" },
       { label: "Logout", icon: LogOut, href: "#" },
