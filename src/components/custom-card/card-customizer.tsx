@@ -62,7 +62,7 @@ const CardPreview = ({ design, name }: { design: CardDesign, name: string }) => 
           {/* Bank Logo (Protected Zone) */}
            <div className="flex items-center gap-2" data-protected="bank-logo">
               <Wallet className="w-7 h-7 text-white/90" />
-              <h3 className="text-white/90 font-bold text-lg">OVO Thrive</h3>
+              <h3 className="text-white/90 font-bold text-lg">OVOMONIE</h3>
           </div>
         </div>
 
@@ -209,7 +209,7 @@ export function CardCustomizer() {
             <CardFooter>
                  <Button form="shipping-form" type="submit" className="w-full md:w-auto ml-auto" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Confirm & Pay ₦1,500
+                    Confirm &amp; Pay ₦1,500
                  </Button>
             </CardFooter>
           </motion.div>

@@ -45,7 +45,7 @@ export default function WelcomePage() {
                         transition={{ duration: 0.8 }}
                         className="flex flex-col items-center"
                     >
-                        <OvoLogo iconClassName="text-white" textClassName="text-white" />
+                        <OvoLogo />
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -63,8 +63,8 @@ export default function WelcomePage() {
                         transition={{ duration: 0.5 }}
                         className="w-full max-w-sm text-center"
                     >
-                        <OvoLogo iconClassName="text-white" textClassName="text-white" />
-                        <h2 className="text-3xl font-bold mt-8 mb-4">Welcome to OVO Thrive</h2>
+                        <OvoLogo />
+                        <h2 className="text-3xl font-bold mt-8 mb-4">Welcome to OVOMONIE</h2>
                         <p className="text-gray-300 mb-12">Your partner in financial wellness. Register today to start enjoying modern banking solutions.</p>
                         <div className="space-y-4">
                              <Button asChild size="lg" className="w-full bg-white text-[#001f4d] hover:bg-gray-200">

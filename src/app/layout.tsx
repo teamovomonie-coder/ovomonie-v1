@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 
 export const metadata: Metadata = {
-  title: 'OVO Thrive',
+  title: 'OVOMONIE',
   description: 'A revolutionary platform that combines modern banking with innovative lifestyle and financial solutions.',
 };
 
