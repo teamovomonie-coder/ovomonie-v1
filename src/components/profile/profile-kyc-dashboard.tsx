@@ -185,6 +185,7 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
         resolver: zodResolver(tier2Schema),
         defaultValues: {
             bvn: "",
+            addressProof: undefined,
         },
     });
 
@@ -206,7 +207,7 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField control={form.control} name="bvn" render={({ field }) => ( <FormItem><FormLabel>Bank Verification Number (BVN)</FormLabel><FormControl><Input placeholder="11-digit BVN" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="addressProof" render={({ field: { onChange, ...field } }) => ( <FormItem><FormLabel>Proof of Address (e.g., Utility Bill)</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files)} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="addressProof" render={({ field: { value, onChange, ...fieldProps } }) => ( <FormItem><FormLabel>Proof of Address (e.g., Utility Bill)</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files)} {...fieldProps} /></FormControl><FormMessage /></FormItem> )} />
                         <Alert><Shield className="h-4 w-4" /><AlertTitle>Liveness Check Required</AlertTitle><AlertDescription>In a real app, you would be prompted to take a live selfie here to verify your identity against your BVN photo.</AlertDescription></Alert>
                         <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Verification</Button></DialogFooter>
                     </form>
@@ -224,6 +225,7 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
         resolver: zodResolver(tier3Schema),
         defaultValues: {
             cacNumber: "",
+            cacDocument: undefined,
         },
     });
 
@@ -245,7 +247,7 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField control={form.control} name="cacNumber" render={({ field }) => ( <FormItem><FormLabel>CAC Registration Number</FormLabel><FormControl><Input placeholder="RC123456" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="cacDocument" render={({ field: { onChange, ...field } }) => ( <FormItem><FormLabel>Upload CAC Certificate</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files)} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="cacDocument" render={({ field: { value, onChange, ...fieldProps } }) => ( <FormItem><FormLabel>Upload CAC Certificate</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files)} {...fieldProps} /></FormControl><FormMessage /></FormItem> )} />
                         <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Review</Button></DialogFooter>
                     </form>
                  </Form>
