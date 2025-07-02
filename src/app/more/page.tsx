@@ -82,7 +82,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Voter Card", icon: Vote, href: "/voter-registration" },
       { label: <><span className="block">NIN</span><span className="text-xs font-normal text-muted-foreground">Registration</span></>, icon: Fingerprint, href: "/nin-registration" },
       { label: "FRSC License", icon: Car, href: "/frsc-license" },
-      { label: "Tax & Remittance", icon: Landmark, href: "#" },
+      { label: "Tax & Remittance", icon: Landmark, href: "/tax-remittance" },
       { label: "WAEC/NECO PINs", icon: Book, href: "#" },
     ],
   },
