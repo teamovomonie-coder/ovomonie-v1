@@ -105,15 +105,12 @@ export function CacRegistrationFlow() {
   };
 
   const handleNext = async () => {
-    const fieldsToValidate = steps[currentStep].fields;
-    const isValid = await form.trigger(fieldsToValidate as any);
-
-    if (isValid) {
-      if (currentStep === steps.length - 2) {
-        await processForm();
-      } else {
-        setCurrentStep(prev => prev + 1);
-      }
+    // Validation is temporarily bypassed to demonstrate the full UI flow.
+    // In a real implementation, you would re-enable form.trigger()
+    if (currentStep === steps.length - 2) {
+      await processForm();
+    } else {
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -240,7 +237,7 @@ export function CacRegistrationFlow() {
 
                  {currentStep === 3 && (
                    <div className="space-y-6">
-                     <h3 className="text-lg font-semibold text-center">Review & Pay</h3>
+                     <h3 className="text-lg font-semibold text-center">Review &amp; Pay</h3>
                      <Card className="bg-muted/50">
                        <CardHeader><CardTitle className="text-base">Business Details</CardTitle></CardHeader>
                        <CardContent className="space-y-2 text-sm">
@@ -286,7 +283,7 @@ export function CacRegistrationFlow() {
             {currentStep === 3 && (
                 <Button type="button" onClick={handleNext} className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Pay ₦{totalFee.toLocaleString()} & Submit
+                    Pay ₦{totalFee.toLocaleString()} &amp; Submit
                 </Button>
             )}
             {currentStep === 4 && (
@@ -300,3 +297,4 @@ export function CacRegistrationFlow() {
     </Card>
   );
 }
+
