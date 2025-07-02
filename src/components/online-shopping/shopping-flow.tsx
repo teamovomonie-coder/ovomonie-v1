@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 import { Search, ArrowLeft, Star, ShoppingCart, Plus, Minus, Trash2, X, Wallet, Loader2, CheckCircle, Package } from 'lucide-react';
 
@@ -178,7 +179,7 @@ function ProductDetailView({ product, onBack, onAddToCart }: { product: Product;
                     <div className="relative h-64 w-full border rounded-lg overflow-hidden mb-2"><Image src={selectedImage} alt={product.name} layout="fill" objectFit="contain" data-ai-hint={product.hint} /></div>
                     <div className="flex gap-2">
                         {product.images.map((img, index) => (
-                            <div key={index} className={cn("h-16 w-16 border rounded-md cursor-pointer relative", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
+                            <div key={`${img}-${index}`} className={cn("h-16 w-16 border rounded-md cursor-pointer relative", selectedImage === img && "ring-2 ring-primary")} onClick={() => setSelectedImage(img)}>
                                 <Image src={img} alt="thumbnail" layout="fill" objectFit="cover" data-ai-hint={product.hint} />
                             </div>
                         ))}
@@ -280,7 +281,7 @@ function CheckoutView({ cart, onBack, onConfirmOrder }: { cart: CartItem[], onBa
         defaultValues: { fullName: 'Paago David', address: '123 Fintech Avenue', city: 'Lagos', phone: '08012345678' }
     });
 
-    const handlePayment = () => {
+    const handlePayment = form.handleSubmit(() => {
         if (!hasSufficientFunds) {
             toast({ variant: "destructive", title: "Insufficient Funds", description: "Please top up your wallet to complete this purchase." });
             return;
@@ -290,16 +291,17 @@ function CheckoutView({ cart, onBack, onConfirmOrder }: { cart: CartItem[], onBa
             onConfirmOrder();
             setIsProcessing(false);
         }, 2000);
-    }
+    });
     
     return (
         <div className="px-4">
             <Button variant="ghost" onClick={onBack} className="mb-2"><ArrowLeft className="mr-2" /> Back</Button>
+            <Form {...form}>
             <div className="grid md:grid-cols-2 gap-8 items-start">
                 <Card>
                     <CardHeader><CardTitle>Delivery Information</CardTitle></CardHeader>
                     <CardContent>
-                        <form className="space-y-4">
+                        <form onSubmit={handlePayment} id="checkout-form" className="space-y-4">
                             <FormField control={form.control} name="fullName" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <div className="grid grid-cols-2 gap-4">
@@ -332,12 +334,13 @@ function CheckoutView({ cart, onBack, onConfirmOrder }: { cart: CartItem[], onBa
                             <AlertTitle>Pay with Ovomonie Wallet</AlertTitle>
                             <AlertDescription>Your balance is ₦{walletBalance.toLocaleString()}. {hasSufficientFunds ? "Sufficient for this transaction." : "Please top up."}</AlertDescription>
                         </Alert>
-                         <Button className="w-full" onClick={handlePayment} disabled={isProcessing || !hasSufficientFunds}>
+                         <Button className="w-full" form="checkout-form" type="submit" disabled={isProcessing || !hasSufficientFunds}>
                             {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm & Pay'}
                          </Button>
                     </CardContent>
                 </Card>
             </div>
+            </Form>
         </div>
     );
 }
