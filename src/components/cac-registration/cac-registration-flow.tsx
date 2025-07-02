@@ -16,11 +16,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Building2, CheckCircle, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle, Loader2, Upload, Handshake, Users as UsersIcon } from "lucide-react";
 
 const proprietorSchema = z.object({
   fullName: z.string().min(3, "Full name is required."),
-  bvn: z.string().length(11, "BVN must be 11 digits."),
+  bvn: z.string().length(11, "BVN must be 11 digits.").optional().or(z.literal('')),
   phone: z.string().length(11, "A valid 11-digit phone number is required."),
   email: z.string().email("Invalid email address."),
   idType: z.string().min(1, "Please select an ID type."),
@@ -28,7 +28,7 @@ const proprietorSchema = z.object({
 });
 
 const cacSchema = z.object({
-  businessType: z.enum(["bn", "ltd"], {
+  businessType: z.enum(["bn", "ltd", "llp", "ngo"], {
     required_error: "You must select a business type.",
   }),
   businessName1: z.string().min(3, "Proposed name is required."),
@@ -36,7 +36,7 @@ const cacSchema = z.object({
   businessDescription: z.string().min(20, "Please provide a detailed business description."),
   businessAddress: z.string().min(10, "Business address is required."),
   businessState: z.string().min(1, "Please select a state."),
-  proprietors: z.array(proprietorSchema).min(1, "At least one proprietor is required."),
+  proprietors: z.array(proprietorSchema).min(1, "At least one proprietor/director/trustee is required."),
 });
 
 type CacFormData = z.infer<typeof cacSchema>;
@@ -51,10 +51,17 @@ const nigerianStates = [
 const steps = [
   { id: 1, name: "Business Type", fields: ["businessType"] },
   { id: 2, name: "Business Details", fields: ["businessName1", "businessName2", "businessDescription", "businessAddress", "businessState"] },
-  { id: 3, name: "Proprietor Details", fields: ["proprietors"] },
+  { id: 3, name: "Participant Details", fields: ["proprietors"] },
   { id: 4, name: "Review & Pay" },
   { id: 5, name: "Confirmation" },
 ];
+
+const participantLabels = {
+    bn: { singular: 'Proprietor', plural: 'Proprietors' },
+    ltd: { singular: 'Director', plural: 'Directors' },
+    llp: { singular: 'Partner', plural: 'Partners' },
+    ngo: { singular: 'Trustee', plural: 'Trustees' },
+};
 
 export function CacRegistrationFlow() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -75,6 +82,7 @@ export function CacRegistrationFlow() {
   });
 
   const businessType = form.watch("businessType");
+  const currentLabels = participantLabels[businessType];
 
   const processForm = async () => {
     setIsLoading(true);
@@ -104,6 +112,8 @@ export function CacRegistrationFlow() {
   const fees = {
     bn: { cac: 10000, legal: 5000, convenience: 500 },
     ltd: { cac: 50000, legal: 20000, convenience: 1000 },
+    llp: { cac: 25000, legal: 15000, convenience: 750 },
+    ngo: { cac: 30000, legal: 20000, convenience: 750 },
   };
   const currentFees = fees[businessType];
   const totalFee = currentFees.cac + currentFees.legal + currentFees.convenience;
@@ -134,7 +144,7 @@ export function CacRegistrationFlow() {
                     name="businessType"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">Choose your Business Type</FormLabel>
+                        <FormLabel className="text-lg font-semibold">Choose your Registration Type</FormLabel>
                         <FormControl>
                           <RadioGroup
                             onValueChange={field.onChange}
@@ -142,29 +152,35 @@ export function CacRegistrationFlow() {
                             className="grid grid-cols-1 md:grid-cols-2 gap-4"
                           >
                             <FormItem>
-                              <FormControl>
-                                <RadioGroupItem value="bn" id="bn" className="sr-only" />
-                              </FormControl>
-                              <FormLabel
-                                htmlFor="bn"
-                                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
-                              >
+                              <FormControl><RadioGroupItem value="bn" id="bn" className="sr-only" /></FormControl>
+                              <FormLabel htmlFor="bn" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
                                 <Building2 className="mb-3 h-6 w-6" />
                                 Business Name
-                                <span className="text-xs text-muted-foreground mt-1">For sole proprietors & partnerships</span>
+                                <span className="text-xs text-muted-foreground mt-1 text-center">For sole proprietors & partnerships</span>
                               </FormLabel>
                             </FormItem>
                             <FormItem>
-                              <FormControl>
-                                <RadioGroupItem value="ltd" id="ltd" className="sr-only" />
-                              </FormControl>
-                              <FormLabel
-                                htmlFor="ltd"
-                                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
-                              >
+                              <FormControl><RadioGroupItem value="ltd" id="ltd" className="sr-only" /></FormControl>
+                              <FormLabel htmlFor="ltd" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
                                 <Building2 className="mb-3 h-6 w-6" />
-                                Limited Liability Company
-                                <span className="text-xs text-muted-foreground mt-1">For incorporated companies with shares</span>
+                                Limited Liability Company (LTD)
+                                <span className="text-xs text-muted-foreground mt-1 text-center">For incorporated companies with shares</span>
+                              </FormLabel>
+                            </FormItem>
+                            <FormItem>
+                              <FormControl><RadioGroupItem value="llp" id="llp" className="sr-only" /></FormControl>
+                              <FormLabel htmlFor="llp" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
+                                <Handshake className="mb-3 h-6 w-6" />
+                                Limited Liability Partnership (LLP)
+                                <span className="text-xs text-muted-foreground mt-1 text-center">For professional service firms (e.g., law, accounting)</span>
+                              </FormLabel>
+                            </FormItem>
+                             <FormItem>
+                              <FormControl><RadioGroupItem value="ngo" id="ngo" className="sr-only" /></FormControl>
+                              <FormLabel htmlFor="ngo" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
+                                <UsersIcon className="mb-3 h-6 w-6" />
+                                Incorporated Trustees (NGO)
+                                <span className="text-xs text-muted-foreground mt-1 text-center">For NGOs, charities, religious bodies, associations</span>
                               </FormLabel>
                             </FormItem>
                           </RadioGroup>
@@ -190,7 +206,7 @@ export function CacRegistrationFlow() {
 
                 {currentStep === 2 && (
                   <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Proprietor / Director Details</h3>
+                    <h3 className="text-lg font-semibold">{currentLabels.plural} Details</h3>
                     {fields.map((item, index) => (
                       <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
                         <FormField control={form.control} name={`proprietors.${index}.fullName`} render={({ field }) => <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
@@ -201,12 +217,12 @@ export function CacRegistrationFlow() {
                         <FormField control={form.control} name={`proprietors.${index}.email`} render={({ field }) => <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl><FormMessage /></FormItem>} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name={`proprietors.${index}.idType`} render={({ field }) => <FormItem><FormLabel>ID Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select ID" /></SelectTrigger></FormControl><SelectContent><SelectItem value="nin">NIN Slip</SelectItem><SelectItem value="passport">Int'l Passport</SelectItem><SelectItem value="drivers_license">Driver's License</SelectItem><SelectItem value="voters_card">Voter's Card</SelectItem></SelectContent></Select><FormMessage /></FormItem>} />
-                            <FormField control={form.control} name={`proprietors.${index}.idFile`} render={({ field }) => <FormItem><FormLabel>Upload ID</FormLabel><FormControl><Input type="file" {...field} /></FormControl><FormMessage /></FormItem>} />
+                            <FormField control={form.control} name={`proprietors.${index}.idFile`} render={({ field }) => <FormItem><FormLabel>Upload ID</FormLabel><FormControl><Input type="file" /></FormControl><FormMessage /></FormItem>} />
                         </div>
                          {index > 0 && <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} className="absolute top-2 right-2">Remove</Button>}
                       </div>
                     ))}
-                    {businessType === 'ltd' && <Button type="button" variant="outline" size="sm" onClick={() => append({ fullName: "", bvn: "", email: "", phone: "", idType: "" })}>Add Director</Button>}
+                    {businessType !== 'bn' && <Button type="button" variant="outline" size="sm" onClick={() => append({ fullName: "", bvn: "", email: "", phone: "", idType: "" })}>Add {currentLabels.singular}</Button>}
                   </div>
                 )}
 
@@ -224,6 +240,7 @@ export function CacRegistrationFlow() {
                      <Card className="bg-muted/50">
                         <CardHeader><CardTitle className="text-base">Payment Summary</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
+                            <p className="text-xs text-muted-foreground pb-2">This is a summary of all fees required for your registration type. Note: Name Search and Stamp Duty fees will be charged separately in a future version.</p>
                             <div className="flex justify-between"><span className="text-muted-foreground">CAC Fee:</span><span>₦{currentFees.cac.toLocaleString()}</span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Accredited Agent Fee:</span><span>₦{currentFees.legal.toLocaleString()}</span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Service Charge:</span><span>₦{currentFees.convenience.toLocaleString()}</span></div>
@@ -261,7 +278,7 @@ export function CacRegistrationFlow() {
                 </Button>
             )}
             {currentStep === 4 && (
-                 <Button type="button" onClick={() => setCurrentStep(0)} className="w-full">
+                 <Button type="button" onClick={resetFlow} className="w-full">
                     Register Another Business
                 </Button>
             )}
@@ -271,3 +288,5 @@ export function CacRegistrationFlow() {
     </Card>
   );
 }
+
+    
