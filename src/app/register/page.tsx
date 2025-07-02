@@ -102,7 +102,7 @@ export default function RegisterPage() {
   };
   
   const progressValue = (currentStep / steps.length) * 100;
-  const accountNumber = form.watch('phone').slice(-10);
+  const accountNumber = form.watch('phone').slice(-10).split('').reverse().join('');
 
   return (
     <div className="animated-gradient-bg flex min-h-screen w-full items-center justify-center p-4">
