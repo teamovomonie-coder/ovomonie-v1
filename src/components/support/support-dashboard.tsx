@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -20,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Icons
-import { Phone, MessageSquare, Mail, HelpCircle, ListChecks, FilePlus, UserClock, ShieldAlert, ArrowLeft, Send, Paperclip, Loader2 } from 'lucide-react';
+import { Phone, MessageSquare, Mail, HelpCircle, ListChecks, FilePlus, PhoneIncoming, ShieldAlert, ArrowLeft, Send, Paperclip, Loader2 } from 'lucide-react';
 
 type View = 'dashboard' | 'chat' | 'email' | 'faq' | 'track' | 'submit' | 'callback' | 'fraud';
 
@@ -29,7 +30,7 @@ const supportOptions = [
     { view: 'faq', title: 'Help Articles / FAQs', icon: HelpCircle },
     { view: 'track', title: 'Track My Complaints', icon: ListChecks },
     { view: 'submit', title: 'Submit New Complaint', icon: FilePlus },
-    { view: 'callback', title: 'Request a Callback', icon: UserClock },
+    { view: 'callback', title: 'Request a Callback', icon: PhoneIncoming },
     { view: 'fraud', title: 'Report Fraud', icon: ShieldAlert },
     { view: 'email', title: 'Email Support', icon: Mail },
     { view: 'call', title: 'Call Support', icon: Phone },
