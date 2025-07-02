@@ -202,12 +202,12 @@ function PersonalDetailsStep({ onNext, onBack, initialData }: { onNext: (data: P
   const form = useForm<PersonalDetailsData>({
     resolver: zodResolver(personalDetailsSchema),
     defaultValues: {
-        fullName: '',
-        gender: '',
-        stateOfResidence: '',
-        bloodGroup: '',
-        phone: '',
-        ...initialData
+        fullName: initialData.fullName || '',
+        dob: initialData.dob || undefined,
+        gender: initialData.gender || '',
+        stateOfResidence: initialData.stateOfResidence || '',
+        bloodGroup: initialData.bloodGroup || '',
+        phone: initialData.phone || '',
     },
   });
 
@@ -248,7 +248,7 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
             if (videoRef.current) videoRef.current.srcObject = stream;
         } catch (error) {
             setHasCameraPermission(false);
-            toast({ variant: 'destructive', title: 'Camera Access Denied' });
+            toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions in your browser settings to proceed.' });
         }
     };
     getCamera();
@@ -272,7 +272,13 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
   useEffect(() => {
       if (captureStage === 'fingerprint_scanning') {
           const timer = setTimeout(() => {
-              setCaptureStage('fingerprint_done');
+              const success = Math.random() > 0.2; // 80% success rate
+              if (success) {
+                setCaptureStage('fingerprint_done');
+              } else {
+                toast({ variant: 'destructive', title: 'Scan Failed', description: 'Please reposition your finger and try again.'});
+                setCaptureStage('fingerprint_prompt');
+              }
           }, 2000);
           return () => clearTimeout(timer);
       }
@@ -283,26 +289,37 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
       <h3 className="text-lg font-semibold">Step 3: Biometric Capture</h3>
        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-            <CardHeader><CardTitle>Facial Capture</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Facial Capture</CardTitle><CardDescription>Keep your face within the frame.</CardDescription></CardHeader>
             <CardContent>
                 <div className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted data-ai-hint="person face" />
                     {hasCameraPermission === false && <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white p-4"><VideoOff className="w-12 h-12 mb-2" /><p>Camera access denied</p></div>}
                     {captureStage === 'selfie_countdown' && countdown > 0 && hasCameraPermission && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50"><p className="text-8xl font-bold text-white">{countdown}</p></div>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <p className="text-8xl font-bold text-white drop-shadow-lg">{countdown}</p>
+                        </div>
                     )}
                     {captureStage === 'selfie_captured' && (
-                         <div className="absolute inset-0 flex items-center justify-center bg-green-900/80"><CheckCircle className="w-16 h-16 text-white" /></div>
+                         <div className="absolute inset-0 flex items-center justify-center bg-green-900/80">
+                            <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                                <CheckCircle className="w-16 h-16 text-white" />
+                            </motion.div>
+                        </div>
                     )}
                 </div>
             </CardContent>
         </Card>
          <Card>
-            <CardHeader><CardTitle>Fingerprint Capture</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Fingerprint Capture</CardTitle><CardDescription>Place your finger on the scanner.</CardDescription></CardHeader>
             <CardContent className="flex items-center justify-center h-48">
                 {captureStage === 'fingerprint_prompt' && (<Button onClick={() => setCaptureStage('fingerprint_scanning')}>Start Fingerprint Scan</Button>)}
                 {captureStage === 'fingerprint_scanning' && (<div className="text-center text-muted-foreground"><Fingerprint className="w-16 h-16 mx-auto text-primary animate-pulse" /><p className="mt-2 font-semibold">Scanning...</p></div>)}
-                {captureStage === 'fingerprint_done' && (<div className="text-center text-green-600"><CheckCircle className="w-16 h-16 mx-auto" /><p className="mt-2 font-semibold">Fingerprint Captured</p></div>)}
+                {captureStage === 'fingerprint_done' && (
+                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center text-green-600">
+                        <CheckCircle className="w-16 h-16 mx-auto" />
+                        <p className="mt-2 font-semibold">Fingerprint Captured</p>
+                    </motion.div>
+                )}
                 {(captureStage === 'selfie_countdown' || captureStage === 'selfie_captured') && (<div className="text-center text-muted-foreground"><p>Waiting for facial capture...</p></div>)}
             </CardContent>
         </Card>
@@ -337,9 +354,8 @@ function TestCenterStep({ onNext, onBack, stateOfResidence, initialData }: { onN
     const form = useForm<TestCenterData>({ 
         resolver: zodResolver(testCenterSchema), 
         defaultValues: {
-            center: '',
-            date: addDays(new Date(), 7),
-            ...initialData
+            center: initialData?.center || '',
+            date: initialData?.date || addDays(new Date(), 7),
         } 
     });
     const availableCenters = stateOfResidence ? frscTestCenters[stateOfResidence as keyof typeof frscTestCenters] || [] : [];
@@ -425,5 +441,3 @@ function ConfirmationStep({ onDone, data }: { onDone: () => void, data: Partial<
         </div>
     )
 }
-
-    
