@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { Loader2 } from 'lucide-react';
 
 const loginSchema = z.object({
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
-  pin: z.string().length(4, 'Your PIN must be 4 digits.'),
+  pin: z.string().length(6, 'Your PIN must be 6 digits.'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -44,7 +45,7 @@ export default function LoginPage() {
         description: 'Welcome back!',
       });
       // Redirect to the originally intended page or dashboard
-      const callbackUrl = searchParams.get('callbackUrl') || '/';
+      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
       router.push(callbackUrl);
     } catch (error) {
       if (error instanceof Error) {
@@ -90,9 +91,9 @@ export default function LoginPage() {
                 name="pin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>4-Digit PIN</FormLabel>
+                    <FormLabel>6-Digit PIN</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••" maxLength={4} {...field} />
+                      <Input type="password" placeholder="••••••" maxLength={6} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -103,6 +104,12 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
+           <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="underline">
+              Register
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
