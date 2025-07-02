@@ -1,11 +1,11 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Fingerprint, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from 'lucide-react';
 
 interface Service {
-  label: string;
+  label: React.ReactNode;
   icon: LucideIcon;
   href: string;
 }
@@ -77,7 +77,7 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Government Services",
     services: [
-      { label: "NIN Linking", icon: Fingerprint, href: "#" },
+      { label: <><span className="block">CAC</span><span className="text-xs font-normal text-muted-foreground">Business Registration</span></>, icon: Building2, href: "#" },
       { label: "Voter Card", icon: Vote, href: "#" },
       { label: "Passport Fees", icon: FileText, href: "#" },
       { label: "FRSC License", icon: Car, href: "#" },
@@ -113,7 +113,7 @@ const ServiceTile = ({ service }: { service: Service }) => (
         <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
             <service.icon className="h-6 w-6" />
         </div>
-        <span className="text-sm font-semibold text-foreground">{service.label}</span>
+        <span className="text-sm font-semibold text-foreground leading-tight">{service.label}</span>
     </Link>
 );
 
@@ -133,8 +133,8 @@ export default function MorePage() {
             <section key={category.title}>
               <h3 className="text-xl font-semibold mb-4 text-primary">{category.title}</h3>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                {category.services.map((service) => (
-                  <ServiceTile key={service.label} service={service} />
+                {category.services.map((service, index) => (
+                  <ServiceTile key={`${service.href}-${index}`} service={service} />
                 ))}
               </div>
             </section>
