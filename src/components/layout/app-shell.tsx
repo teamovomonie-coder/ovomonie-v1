@@ -22,12 +22,12 @@ import {
   Wallet,
   Smartphone,
   Target,
-  Nfc,
   PiggyBank,
   BadgeDollarSign,
   Gift,
   LayoutGrid,
-  PlusCircle
+  PlusCircle,
+  Award
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/betting", label: "Betting", icon: Target },
         { href: "/ovo-wealth", label: "Ovo-Wealth", icon: PiggyBank },
         { href: "/loan", label: "Loans", icon: BadgeDollarSign },
-        { href: "/contactless-banking", label: "Contactless", icon: Nfc },
+        { href: "/rewards", label: "Rewards", icon: Award },
         { href: "/invitation", label: "Invitation", icon: Gift },
         { href: "/more", label: "More", icon: LayoutGrid },
     ];
