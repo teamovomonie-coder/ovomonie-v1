@@ -1,6 +1,7 @@
+
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from 'lucide-react';
 
@@ -79,7 +80,7 @@ const serviceData: ServiceCategory[] = [
     services: [
       { label: <><span className="block">CAC</span><span className="text-xs font-normal text-muted-foreground">Business Registration</span></>, icon: Building2, href: "/cac-registration" },
       { label: "Voter Card", icon: Vote, href: "/voter-registration" },
-      { label: "Passport Fees", icon: FileText, href: "#" },
+      { label: <><span className="block">NIN</span><span className="text-xs font-normal text-muted-foreground">Registration</span></>, icon: Fingerprint, href: "#" },
       { label: "FRSC License", icon: Car, href: "#" },
       { label: "Tax & Remittance", icon: Landmark, href: "#" },
       { label: "WAEC/NECO PINs", icon: Book, href: "#" },
