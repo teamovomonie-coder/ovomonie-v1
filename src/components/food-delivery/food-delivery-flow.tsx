@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
@@ -18,6 +19,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetTrigger
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
 
 import { Search, ArrowLeft, Star, ShoppingCart, Plus, Minus, Trash2, X, Wallet, CheckCircle, Loader2, Utensils, Clock } from 'lucide-react';
 
@@ -263,7 +267,7 @@ function CheckoutScreen({ cart, restaurant, onBack, onConfirmOrder }: { cart: Ca
         defaultValues: { address: '123 Fintech Avenue, Lagos', phone: '08012345678' }
     });
     
-    const handlePayment = () => {
+    const handlePayment = form.handleSubmit(() => {
         if (!hasSufficientFunds) {
             toast({ variant: "destructive", title: "Insufficient Funds" });
             return;
@@ -273,7 +277,7 @@ function CheckoutScreen({ cart, restaurant, onBack, onConfirmOrder }: { cart: Ca
             onConfirmOrder();
             setIsProcessing(false);
         }, 2000);
-    }
+    });
 
     return (
         <div className="p-4 space-y-4">
@@ -281,47 +285,49 @@ function CheckoutScreen({ cart, restaurant, onBack, onConfirmOrder }: { cart: Ca
                 <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft /></Button>
                 <h2 className="text-xl font-bold">Checkout</h2>
             </div>
-            <Card>
-                <CardHeader><CardTitle>Delivery Details</CardTitle></CardHeader>
-                <CardContent>
-                    <form className="space-y-4">
-                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Delivery Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </form>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader><CardTitle>Order Summary from {restaurant.name}</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {cart.map(item => (
-                            <div key={item.menuItem.id} className="flex justify-between items-center text-sm">
-                                <p className="truncate pr-2">{item.menuItem.name} x {item.quantity}</p>
-                                <p className="font-medium">₦{(item.menuItem.price * item.quantity).toLocaleString()}</p>
-                            </div>
-                        ))}
-                    </div>
-                    <Separator />
-                    <div className="space-y-1 text-sm">
-                        <div className="flex justify-between"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
-                        <div className="flex justify-between"><span>Delivery Fee</span><span>₦{deliveryFee.toLocaleString()}</span></div>
-                        <Separator />
-                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
-                    </div>
-                     <Card className={cn("p-4", hasSufficientFunds ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200")}>
-                        <div className="flex items-center gap-3">
-                            <Wallet className={cn(hasSufficientFunds ? "text-green-600" : "text-red-600")} />
-                            <div>
-                                <p className="font-semibold">Pay with Ovomonie Wallet</p>
-                                <p className="text-sm">Balance: ₦{walletBalance.toLocaleString()}</p>
-                            </div>
-                        </div>
+            <Form {...form}>
+                <form onSubmit={handlePayment} className="space-y-4">
+                    <Card>
+                        <CardHeader><CardTitle>Delivery Details</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Delivery Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </CardContent>
                     </Card>
-                    <Button className="w-full" onClick={handlePayment} disabled={isProcessing || !hasSufficientFunds}>
-                        {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm & Pay'}
-                    </Button>
-                </CardContent>
-            </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Order Summary from {restaurant.name}</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                {cart.map(item => (
+                                    <div key={item.menuItem.id} className="flex justify-between items-center text-sm">
+                                        <p className="truncate pr-2">{item.menuItem.name} x {item.quantity}</p>
+                                        <p className="font-medium">₦{(item.menuItem.price * item.quantity).toLocaleString()}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <Separator />
+                            <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span>Delivery Fee</span><span>₦{deliveryFee.toLocaleString()}</span></div>
+                                <Separator />
+                                <div className="flex justify-between font-bold text-lg"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
+                            </div>
+                            <Card className={cn("p-4", hasSufficientFunds ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200")}>
+                                <div className="flex items-center gap-3">
+                                    <Wallet className={cn(hasSufficientFunds ? "text-green-600" : "text-red-600")} />
+                                    <div>
+                                        <p className="font-semibold">Pay with Ovomonie Wallet</p>
+                                        <p className="text-sm">Balance: ₦{walletBalance.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </Card>
+                            <Button type="submit" className="w-full" disabled={isProcessing || !hasSufficientFunds}>
+                                {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm & Pay'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </form>
+            </Form>
         </div>
     );
 }
