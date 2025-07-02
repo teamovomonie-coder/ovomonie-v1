@@ -23,6 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 
 import { Search, ArrowLeft, Star, ShoppingCart, Plus, Minus, Trash2, Wallet, Loader2, CheckCircle, Package, Heart } from 'lucide-react';
 
@@ -89,7 +90,7 @@ export function FashionDealsFlow() {
     const renderView = () => {
         switch (view) {
             case 'product': return <ProductDetailView product={selectedProduct!} onBack={resetToHome} onAddToCart={addToCart} />;
-            case 'checkout': return <CheckoutView cart={cart} onBack={() => setView('home')} onConfirmOrder={handleConfirmOrder} updateCartQuantity={updateCartQuantity} />;
+            case 'checkout': return <CheckoutView cart={cart} onBack={() => setView('home')} onConfirmOrder={handleConfirmOrder} />;
             case 'confirmation': return <ConfirmationView onDone={resetToHome} />;
             case 'home':
             default: return <FashionHomeView onSelectProduct={handleSelectProduct} />;
@@ -222,12 +223,10 @@ function ProductDetailView({ product, onBack, onAddToCart }: { product: Product;
                          <Label>Size</Label>
                          <RadioGroup value={selectedSize} onValueChange={setSelectedSize} className="flex gap-2">
                             {product.sizes.map(size => (
-                                <FormItem key={size}>
-                                    <FormControl>
-                                         <RadioGroupItem value={size} id={size} className="sr-only" />
-                                    </FormControl>
+                                <div key={size}>
+                                    <RadioGroupItem value={size} id={size} className="sr-only" />
                                     <Label htmlFor={size} className={cn("px-4 py-2 border rounded-md cursor-pointer", selectedSize === size && "bg-primary text-primary-foreground border-primary")}>{size}</Label>
-                                </FormItem>
+                                </div>
                             ))}
                          </RadioGroup>
                     </div>
@@ -306,7 +305,7 @@ function CartSheet({ cart, updateCartQuantity, onCheckout }: { cart: CartItem[],
     );
 }
 
-function CheckoutView({ cart, onBack, onConfirmOrder, updateCartQuantity }: { cart: CartItem[], onBack: () => void, onConfirmOrder: () => void, updateCartQuantity: (id: string, size: string, color: string, qty: number) => void }) {
+function CheckoutView({ cart, onBack, onConfirmOrder }: { cart: CartItem[], onBack: () => void, onConfirmOrder: () => void }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.product.discountedPrice * item.quantity, 0), [cart]);
@@ -320,7 +319,7 @@ function CheckoutView({ cart, onBack, onConfirmOrder, updateCartQuantity }: { ca
         defaultValues: { fullName: 'Paago David', address: '123 Fintech Avenue, Lekki', city: 'Lagos', phone: '08012345678' }
     });
 
-    const handlePayment = () => {
+    const handlePayment = form.handleSubmit(() => {
         if (!hasSufficientFunds) {
             toast({ variant: "destructive", title: "Insufficient Funds" });
             return;
@@ -330,54 +329,58 @@ function CheckoutView({ cart, onBack, onConfirmOrder, updateCartQuantity }: { ca
             onConfirmOrder();
             setIsProcessing(false);
         }, 2000);
-    }
+    });
     
     return (
         <div className="px-4 pb-4">
             <Button variant="ghost" onClick={onBack} className="mb-2"><ArrowLeft className="mr-2" /> Back</Button>
-            <div className="grid md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
+            <Form {...form}>
+                <div className="grid md:grid-cols-2 gap-8 items-start">
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Delivery Information</CardTitle></CardHeader>
+                            <CardContent>
+                                <form onSubmit={handlePayment} id="checkout-form" className="space-y-4">
+                                    <FormField control={form.control} name="fullName" render={({ field }) => (<FormItem><Label>Full Name</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="address" render={({ field }) => (<FormItem><Label>Address</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="city" render={({ field }) => (<FormItem><Label>City</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><Label>Phone</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    </div>
+                                </form>
+                            </CardContent>
+                        </Card>
+                    </div>
                     <Card>
-                        <CardHeader><CardTitle>Delivery Information</CardTitle></CardHeader>
-                        <CardContent><form className="space-y-4">
-                            <FormField control={form.control} name="fullName" render={({ field }) => (<FormItem><Label>Full Name</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><Label>Address</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="city" render={({ field }) => (<FormItem><Label>City</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><Label>Phone</Label><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                {cart.map(item => (
+                                    <div key={item.product.id + item.size} className="flex justify-between items-center text-sm">
+                                        <p className="truncate pr-2">{item.product.name} ({item.size}) x {item.quantity}</p>
+                                        <p className="font-medium">₦{(item.product.discountedPrice * item.quantity).toLocaleString()}</p>
+                                    </div>
+                                ))}
                             </div>
-                        </form></CardContent>
+                            <Separator />
+                            <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span>Shipping</span><span>₦{shipping.toLocaleString()}</span></div>
+                                <Separator/>
+                                <div className="flex justify-between font-bold text-lg"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
+                            </div>
+                            <Alert variant={hasSufficientFunds ? "default" : "destructive"}>
+                                <Wallet className="h-4 w-4" />
+                                <AlertTitle>Pay with Ovomonie Wallet</AlertTitle>
+                                <AlertDescription>Your balance is ₦{walletBalance.toLocaleString()}.</AlertDescription>
+                            </Alert>
+                            <Button className="w-full" form="checkout-form" type="submit" disabled={isProcessing || !hasSufficientFunds}>
+                                {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm & Pay'}
+                            </Button>
+                        </CardContent>
                     </Card>
                 </div>
-                <Card>
-                    <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                         <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {cart.map(item => (
-                                <div key={item.product.id + item.size} className="flex justify-between items-center text-sm">
-                                    <p className="truncate pr-2">{item.product.name} ({item.size}) x {item.quantity}</p>
-                                    <p className="font-medium">₦{(item.product.discountedPrice * item.quantity).toLocaleString()}</p>
-                                </div>
-                            ))}
-                        </div>
-                        <Separator />
-                        <div className="space-y-1 text-sm">
-                            <div className="flex justify-between"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
-                            <div className="flex justify-between"><span>Shipping</span><span>₦{shipping.toLocaleString()}</span></div>
-                            <Separator/>
-                            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
-                        </div>
-                        <Alert variant={hasSufficientFunds ? "default" : "destructive"}>
-                            <Wallet className="h-4 w-4" />
-                            <AlertTitle>Pay with Ovomonie Wallet</AlertTitle>
-                            <AlertDescription>Your balance is ₦{walletBalance.toLocaleString()}.</AlertDescription>
-                        </Alert>
-                         <Button className="w-full" onClick={handlePayment} disabled={isProcessing || !hasSufficientFunds}>
-                            {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm & Pay'}
-                         </Button>
-                    </CardContent>
-                </Card>
-            </div>
+            </Form>
         </div>
     );
 }
