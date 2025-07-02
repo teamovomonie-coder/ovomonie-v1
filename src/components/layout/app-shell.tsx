@@ -27,7 +27,8 @@ import {
   Gift,
   LayoutGrid,
   PlusCircle,
-  Award
+  Award,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/memo-transfer", label: "Send Money", icon: Send },
         { href: "/add-money", label: "Add Money", icon: PlusCircle },
         { href: "/withdraw", label: "Withdraw", icon: ArrowDownUp },
+        { href: "/statements", label: "Statements", icon: FileText },
         { href: "/airtime", label: "Airtime/Data", icon: Smartphone },
         { href: "/bill-payment", label: "Bill Payments", icon: Receipt },
         { href: "/betting", label: "Betting", icon: Target },
