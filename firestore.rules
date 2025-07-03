@@ -1,12 +1,11 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // For development purposes, allow any authenticated user to read/write.
-    // In a production environment, you would want to lock this down further.
-    // For example, users should only be able to read/write their own data.
+    // WARNING: Insecure rules for development only.
+    // This allows anyone to read and write to your database.
+    // You MUST secure this before launching your app.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
