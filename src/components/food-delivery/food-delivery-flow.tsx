@@ -172,7 +172,7 @@ function MenuScreen({ restaurant, onBack, onAddToCart, cart, updateCartQuantity,
             <div className="flex-shrink-0">
                 <div className="relative h-40">
                     <Image src={restaurant.image} alt={restaurant.name} layout="fill" objectFit="cover" data-ai-hint={restaurant.hint} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
                     <Button variant="ghost" size="icon" onClick={onBack} className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white hover:text-white"><ArrowLeft /></Button>
                     <div className="absolute bottom-4 left-4 text-white">
                         <h1 className="text-2xl font-bold">{restaurant.name}</h1>
@@ -254,7 +254,7 @@ function CartSheet({ cart, updateCartQuantity, onCheckout, restaurant }: { cart:
 }
 
 function CheckoutScreen({ cart, restaurant, onBack, onConfirmOrder }: { cart: CartItem[]; restaurant: Restaurant; onBack: () => void; onConfirmOrder: () => void; }) {
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [isProcessing, setIsLoading] = useState(false);
     const { toast } = useToast();
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.menuItem.price * item.quantity, 0), [cart]);
     const deliveryFee = 500;

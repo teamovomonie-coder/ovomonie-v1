@@ -6,7 +6,7 @@ export default function AiAssistantPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <Card className="h-[calc(100vh-5rem)] flex flex-col">
+        <Card className="h-[calc(100vh-10rem)] flex flex-col">
           <CardHeader>
             <CardTitle>AI Assistant</CardTitle>
             <CardDescription>

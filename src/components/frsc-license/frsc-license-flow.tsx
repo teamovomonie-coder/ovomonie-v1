@@ -415,7 +415,7 @@ function ConfirmationStep({ onDone, data }: { onDone: () => void, data: Partial<
             <p className="text-muted-foreground max-w-md mb-6">Your application has been sent to FRSC. You will be notified of any updates.</p>
             <div className="w-full max-w-sm">
                 <Card className="text-left shadow-lg">
-                     <CardHeader className="p-3 bg-blue-800 text-white flex flex-row items-center justify-between">
+                     <CardHeader className="p-3 bg-primary text-white flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Image src="https://placehold.co/40x40.png" alt="Nigeria Coat of Arms" width={40} height={40} data-ai-hint="nigeria coat arms" />
                             <div>
@@ -432,7 +432,7 @@ function ConfirmationStep({ onDone, data }: { onDone: () => void, data: Partial<
                             <p className="text-muted-foreground">Name: {data.fullName?.toUpperCase()}</p>
                             <p className="text-muted-foreground">Issued: {format(new Date(), 'dd-MM-yyyy')}</p>
                             <p className="text-muted-foreground">Expires: {format(addDays(new Date(), 365 * 5), 'dd-MM-yyyy')}</p>
-                            <p className="font-bold text-sm font-mono text-blue-800 mt-1">Status: PENDING</p>
+                            <p className="font-bold text-sm font-mono text-primary mt-1">Status: PENDING</p>
                         </div>
                     </CardContent>
                 </Card>

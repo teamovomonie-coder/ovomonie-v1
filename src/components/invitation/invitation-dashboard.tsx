@@ -96,11 +96,11 @@ export function InvitationDashboard() {
 
   return (
     <Card className="max-w-2xl mx-auto shadow-lg">
-      <CardHeader className="text-center bg-slate-900 text-white p-6 rounded-t-lg">
-        <Gift className="mx-auto h-12 w-12 text-accent" />
+      <CardHeader className="text-center bg-primary text-primary-foreground p-6 rounded-t-lg">
+        <Gift className="mx-auto h-12 w-12 text-yellow-400" />
         <CardTitle className="text-2xl mt-2">Invite Friends, Earn Rewards!</CardTitle>
-        <CardDescription className="text-slate-300">
-          Earn <span className="font-bold text-accent">₦500</span> for every friend who signs up and completes their first transaction.
+        <CardDescription className="text-primary-foreground/80">
+          Earn <span className="font-bold text-yellow-400">₦500</span> for every friend who signs up and completes their first transaction.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
@@ -141,10 +141,10 @@ export function InvitationDashboard() {
           <div className="text-center space-y-2">
              <p className="text-sm font-medium text-muted-foreground">Share your link via</p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button variant="outline" size="lg" className="flex-1" onClick={handleUniversalShare}>
+                  <Button variant="outline" size="lg" className="flex-1">
                     <Share2 className="mr-2 h-5 w-5" /> Share Link
                   </Button>
-                  <Button variant="outline" size="lg" className="flex-1" onClick={handleShareToContact}>
+                  <Button variant="outline" size="lg" className="flex-1">
                     <Contact className="mr-2 h-5 w-5" /> Share to Contact
                   </Button>
               </div>

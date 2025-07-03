@@ -18,7 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Download } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,24 +33,19 @@ const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
   amount: z.coerce.number().positive('Amount must be positive.'),
   narration: z.string().max(50, "Narration can't exceed 50 characters.").optional(),
-  message: z.string().max(300, 'Message cannot exceed 300 characters.').optional(),
+  message: z.string().max(150, 'Message is too long.').optional(),
   photo: z.any().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-const memoBanks = [
-    { name: "Ovomonie", code: "000" },
-    ...nigerianBanks,
-];
-
-const topBankCodes = ["000", "058", "044", "057", "011", "033"];
-const topBanks = memoBanks.filter(b => topBankCodes.includes(b.code));
-const otherBanks = memoBanks.filter(b => !topBankCodes.includes(b.code));
+const topBankCodes = ["058", "044", "057", "011", "033"];
+const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
+const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
 function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipientName: string; onReset: () => void }) {
   const { toast } = useToast();
-  const bankName = memoBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank';
+  const bankName = nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank';
 
   const handleShare = () => {
     toast({
@@ -56,24 +53,17 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
       description: "Your memorable receipt has been shared.",
     });
   }
-  
-  const handleSave = () => {
-      toast({
-          title: "Saved!",
-          description: "Your receipt has been saved to your gallery.",
-      })
-  }
 
   return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20 bg-slate-50">
-      <div className="bg-slate-900 text-white p-4 rounded-t-lg flex justify-between items-center">
-        <h2 className="text-lg font-bold">MemoTransfer Receipt</h2>
-        <Wallet className="w-6 h-6" />
+    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
+      <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
+        <h2 className="text-lg font-bold">Transfer Successful!</h2>
+        <Landmark className="w-6 h-6" />
       </div>
-      <CardContent className="p-4">
-        <div className="border-2 border-blue-100 rounded-lg p-4 space-y-4 bg-white">
+      <CardContent className="p-4 bg-white">
+        <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
           {data.photo && (
-            <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden border">
+            <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
               <Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" />
             </div>
           )}
@@ -87,33 +77,28 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             <p className="text-sm text-gray-500">{bankName}</p>
           </div>
           {data.message && (
-            <blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-gray-600 font-serif">
+            <blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-gray-600">
               "{data.message}"
             </blockquote>
           )}
-           <div className="border-t pt-4 mt-4 text-xs text-gray-500 space-y-2">
+          <div className="text-xs text-gray-400 pt-4 space-y-2">
             <div className="flex justify-between">
-              <span>Date:</span>
+              <span>Date</span>
               <span>{new Date().toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span>Ref ID:</span>
-              <span>OVO-MEMO-{Date.now()}</span>
+              <span>Ref ID</span>
+              <span>OVO-EXT-{Date.now()}</span>
             </div>
           </div>
         </div>
       </CardContent>
-       <CardFooter className="flex flex-col gap-2 p-4 pt-0">
-         <div className="flex justify-center items-center gap-2 w-full text-xs text-gray-400 mb-2">
-            <div className="w-1/3 h-px bg-gray-300"></div>
-             🎁 Powered by Ovomonie
-            <div className="w-1/3 h-px bg-gray-300"></div>
-         </div>
-        <div className="flex w-full gap-2">
-            <Button variant="outline" className="w-full" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share</Button>
-            <Button variant="outline" className="w-full" onClick={handleSave}><Download className="mr-2 h-4 w-4" /> Save</Button>
-        </div>
-        <Button className="w-full" onClick={onReset}>
+      <CardFooter className="flex flex-col gap-2 p-4 pt-0">
+        <p className="text-xs text-gray-400 mb-2">Powered by Ovomonie</p>
+        <Button className="w-full" onClick={handleShare}>
+          <Share2 className="mr-2 h-4 w-4" /> Share Receipt
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onReset}>
           Make Another Transfer
         </Button>
       </CardFooter>
@@ -123,6 +108,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
 
 export function TransferForm() {
   const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
+  const [isMemoTransfer, setIsMemoTransfer] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -159,7 +145,6 @@ export function TransferForm() {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
 
             const mockAccounts: {[key: string]: {[key: string]: string}} = {
-                '000': { '0123456789': 'PAAGO DAVID', '8012345678': 'FEMI ADEBAYO' },
                 '058': { '0123456789': 'JANE DOE', '1234567890': 'MARY ANNE' },
                 '044': { '0987654321': 'JOHN SMITH', '9876543210': 'ADAMU CIROMA' },
                 '033': { '1122334455': 'ALICE WONDER', '2233445566': 'NGOZI OKONJO' },
@@ -218,6 +203,7 @@ export function TransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
+    setIsMemoTransfer(false);
     form.reset();
   };
 
@@ -226,7 +212,7 @@ export function TransferForm() {
   }
 
   if (step === 'summary' && submittedData && recipientName) {
-    const bankName = memoBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+    const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
@@ -256,15 +242,15 @@ export function TransferForm() {
               <span className="font-semibold">{submittedData.narration}</span>
             </div>
           )}
-          {submittedData.photo && (
+          {isMemoTransfer && submittedData.photo && (
             <div className="space-y-2">
               <span className="text-muted-foreground">Attached Photo</span>
-              <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+              <div className="relative w-full h-32 rounded-lg overflow-hidden">
                 <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
               </div>
             </div>
           )}
-          {submittedData.message && (
+          {isMemoTransfer && submittedData.message && (
             <div className="space-y-2">
               <span className="text-muted-foreground">Message</span>
               <blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote>
@@ -292,13 +278,20 @@ export function TransferForm() {
             <AlertDescription>
               <p className="mb-2">Use one of these bank/account pairs for successful verification:</p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li><b>Ovomonie (000):</b> 0123456789</li>
-                <li><b>GTB (058):</b> 1234567890</li>
-                <li><b>Access Bank (044):</b> 0987654321</li>
+                <li><b>GTB (058):</b> 0123456789, 1234567890</li>
+                <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
+                <li><b>UBA (033):</b> 1122334455, 2233445566</li>
+                <li><b>First Bank (011):</b> 5566778899, 6677889900</li>
+                <li><b>Zenith Bank (057):</b> 1112223334</li>
               </ul>
             </AlertDescription>
           </Alert>
           
+        <div className="flex items-center space-x-2 justify-end">
+          <Label htmlFor="memo-switch">Switch to MemoTransfer</Label>
+          <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
+        </div>
+
         <FormField
           control={form.control}
           name="bankCode"
@@ -313,7 +306,7 @@ export function TransferForm() {
                         role="combobox"
                         className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
                       >
-                        {field.value ? memoBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}
+                        {field.value ? nigerianBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </FormControl>
@@ -388,7 +381,7 @@ export function TransferForm() {
                   )}
               </div>
               {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-50 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
                      <Check className="h-4 w-4" /> {recipientName}
                   </div>
               )}
@@ -425,15 +418,15 @@ export function TransferForm() {
           )}
         />
 
-        
-        <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold text-lg">Memo Details</h3>
+        {isMemoTransfer && (
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
             <FormField
               control={form.control}
               name="photo"
               render={() => (
                 <FormItem>
-                  <FormLabel>Add a Photo (Optional)</FormLabel>
+                  <FormLabel>Add a Photo</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} className="absolute h-full w-full opacity-0 cursor-pointer" />
@@ -443,7 +436,7 @@ export function TransferForm() {
                         ) : (
                           <div className="text-center text-muted-foreground">
                             <Upload className="mx-auto h-8 w-8" />
-                            <p>Click to upload image</p>
+                            <p>Click to upload</p>
                           </div>
                         )}
                       </label>
@@ -460,13 +453,14 @@ export function TransferForm() {
                 <FormItem>
                   <FormLabel>Custom Message (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="e.g., Happy Birthday! Thanks for everything." {...field} />
+                    <Textarea placeholder="e.g., Enjoy the gift!" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-        </div>
+          </div>
+        )}
 
         <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>
           Continue

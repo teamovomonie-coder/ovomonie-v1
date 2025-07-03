@@ -154,7 +154,7 @@ function SearchScreen({ onSearch, isSearching }: { onSearch: (data: any) => void
         <>
             <div className="relative flex-grow">
                  <Image src="https://placehold.co/600x400.png" layout="fill" objectFit="cover" alt="Map of the city" data-ai-hint="city map" />
-                 <div className="absolute inset-0 bg-black/20"></div>
+                 <div className="absolute inset-0 bg-primary/30"></div>
             </div>
             <Card className="rounded-t-2xl -mt-4 z-10">
                 <CardHeader>
@@ -268,7 +268,7 @@ function TrackingScreen({ onEndRide, ride, searchDetails }: { onEndRide: () => v
                             <div>
                                 <p className="font-bold">{mockDriver.name} <span className="font-normal text-muted-foreground">({mockDriver.rating} <Star className="inline h-4 w-4 mb-1" />)</span></p>
                                 <p className="text-sm">{mockDriver.car}</p>
-                                <p className="text-sm font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md inline-block mt-1">{mockDriver.plate}</p>
+                                <p className="text-sm font-semibold text-primary bg-primary-light-bg px-2 py-1 rounded-md inline-block mt-1">{mockDriver.plate}</p>
                             </div>
                         </div>
                          <Button variant="outline" size="icon" className="w-12 h-12"><Phone className="h-6 w-6" /></Button>

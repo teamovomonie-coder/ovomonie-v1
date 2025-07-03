@@ -399,7 +399,7 @@ function ConfirmationStep({ onDone, data }: { onDone: () => void, data: Partial<
             <p className="text-muted-foreground max-w-md mb-6">Your registration has been successfully submitted to NIMC. You can now download your digital NIN slip.</p>
             <div className="w-full max-w-sm">
                 <Card className="text-left shadow-lg">
-                    <CardHeader className="p-3 bg-green-800 text-white flex flex-row items-center justify-between">
+                    <CardHeader className="p-3 bg-primary text-white flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Image src="https://placehold.co/40x40.png" alt="Nigeria Coat of Arms" width={40} height={40} data-ai-hint="nigeria coat arms" />
                             <div>
@@ -416,7 +416,7 @@ function ConfirmationStep({ onDone, data }: { onDone: () => void, data: Partial<
                             <p className="text-muted-foreground">Name</p>
                             <p className="font-semibold -mt-1">{data.fullName?.toUpperCase()}</p>
                             <p className="text-muted-foreground mt-2">NIN</p>
-                            <p className="font-bold text-lg font-mono text-green-800 -mt-1">{mockNin}</p>
+                            <p className="font-bold text-lg font-mono text-primary -mt-1">{mockNin}</p>
                         </div>
                     </CardContent>
                 </Card>

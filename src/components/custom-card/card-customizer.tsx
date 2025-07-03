@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 // --- Card Customization Data ---
 const templates = {
   colors: [
-    { name: 'Ovo Teal', value: 'bg-gradient-to-br from-teal-400 to-blue-500' },
+    { name: 'Ovo Navy', value: 'bg-gradient-to-br from-primary to-blue-700' },
     { name: 'Midnight Blue', value: 'bg-gradient-to-br from-gray-900 to-blue-900' },
     { name: 'Sunset Orange', value: 'bg-gradient-to-br from-yellow-400 to-orange-600' },
     { name: 'Royal Purple', value: 'bg-gradient-to-br from-purple-500 to-indigo-600' },

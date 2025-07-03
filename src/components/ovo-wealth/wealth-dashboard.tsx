@@ -217,7 +217,7 @@ function InvestNowDialog({ children, onInvest, defaultProductTitle }: { children
                         />
                         <div className="bg-muted p-3 rounded-md text-center">
                             <p className="text-sm text-muted-foreground">Estimated Returns</p>
-                            <p className="text-lg font-bold text-green-600">
+                            <p className="text-lg font-bold text-primary">
                                 ~ ₦{estimatedReturn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                         </div>
@@ -295,7 +295,7 @@ export function WealthDashboard() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-600">+₦{userInvestments.reduce((acc, inv) => acc + inv.returns, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                            <div className="text-2xl font-bold text-primary">+₦{userInvestments.reduce((acc, inv) => acc + inv.returns, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
                             <p className="text-xs text-muted-foreground">Across {userInvestments.filter(i => i.status === 'Active').length} active plans</p>
                         </CardContent>
                     </Card>
@@ -360,7 +360,7 @@ export function WealthDashboard() {
                                                 <div className="font-medium">{investment.plan}</div>
                                                 <div className="text-xs text-muted-foreground">Matures: {investment.maturity}</div>
                                             </TableCell>
-                                            <TableCell className="text-right font-semibold text-green-600">
+                                            <TableCell className="text-right font-semibold text-primary">
                                                 +₦{investment.returns.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                             </TableCell>
                                             <TableCell className="text-center">
@@ -405,5 +405,3 @@ export function WealthDashboard() {
     </div>
   )
 }
-
-    
