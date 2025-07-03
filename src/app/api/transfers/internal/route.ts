@@ -1,8 +1,25 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { mockGetAccountByNumber, performTransfer, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
 
 export async function POST(request: Request) {
     try {
+        // --- API Security Check ---
+        const headersList = headers();
+        const authorization = headersList.get('authorization');
+
+        if (!authorization || !authorization.startsWith('Bearer ')) {
+            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
+        }
+        
+        const token = authorization.split(' ')[1];
+        // In a real app, you'd verify this token (e.g., JWT verify, database lookup)
+        // For this mock, we'll just check if it looks like our fake token.
+        if (!token.startsWith('fake-token-')) {
+             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+        }
+        // --- End Security Check ---
+
         const body = await request.json();
         const { recipientAccountNumber, amount, narration } = body;
 

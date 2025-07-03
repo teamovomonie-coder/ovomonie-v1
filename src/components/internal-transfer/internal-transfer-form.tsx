@@ -110,7 +110,7 @@ export function InternalTransferForm() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -198,10 +198,16 @@ export function InternalTransferForm() {
 
     setIsProcessing(true);
     try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
       const response = await fetch('/api/transfers/internal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           recipientAccountNumber: submittedData.accountNumber,
@@ -213,6 +219,15 @@ export function InternalTransferForm() {
       const result = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+            toast({
+              variant: 'destructive',
+              title: 'Authentication Error',
+              description: 'Your session has expired. Please log in again.',
+            });
+            logout(); // Log out the user on auth error
+            return;
+        }
         throw new Error(result.message || 'An error occurred during the transfer.');
       }
 
