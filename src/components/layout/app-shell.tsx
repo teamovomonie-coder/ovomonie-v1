@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -5,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { OvoLogo } from './logo';
-import { Loader2, LayoutDashboard, ArrowRightLeft, PlusCircle, Briefcase, LayoutGrid, Bell, ArrowLeft } from 'lucide-react';
+import { Loader2, LayoutDashboard, Briefcase, LayoutGrid, Bell, ArrowLeft, Package, CreditCard } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,8 +27,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-    { href: "/memo-transfer", label: "Transfers", icon: ArrowRightLeft, aliases: ['/internal-transfer', '/external-transfer'] },
-    { href: "/add-money", label: "Add", icon: PlusCircle },
+    { href: "/inventory", label: "Inventory", icon: Package },
+    { href: "/custom-card", label: "Custom card", icon: CreditCard },
     { href: "/agent-life", label: "Agent", icon: Briefcase },
     { href: "/more", label: "More", icon: LayoutGrid },
 ];
