@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -25,7 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Mock user credentials
-        if (phone === '08100645569' && pin === '051003') {
+        if (phone === '09033505038' && pin === '123456') {
           const dummyToken = `fake-token-${Date.now()}`;
           localStorage.setItem('ovo-auth-token', dummyToken);
           setIsAuthenticated(true);
