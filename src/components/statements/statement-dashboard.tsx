@@ -1,14 +1,12 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-
-// UI Components
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,12 +15,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Download, Search, FileText, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { cn } from '@/lib/utils';
 
-// Icons
-import { Download, Search, FileText, ArrowUp, ArrowDown } from 'lucide-react';
-
-// Mock Data
-import { mockTransactions, Transaction } from '@/lib/statement-data';
+interface Transaction {
+  id: string;
+  category: 'transfer' | 'bill' | 'airtime' | 'pos' | 'deposit' | 'withdrawal';
+  type: 'debit' | 'credit';
+  amount: number;
+  reference: string;
+  party: {
+    name: string;
+  };
+  timestamp: string;
+}
 
 const chartConfig = {
   credits: { label: "Credits", color: "hsl(var(--chart-1))" },
@@ -31,9 +38,10 @@ const chartConfig = {
 
 export function StatementDashboard() {
   const { toast } = useToast();
-  const [transactions] = useState<Transaction[]>(mockTransactions);
+  const { balance } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Filtering states
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     to: new Date(),
@@ -41,18 +49,36 @@ export function StatementDashboard() {
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    const fetchTransactions = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/transactions');
+            if (!response.ok) {
+                throw new Error('Failed to fetch transactions');
+            }
+            const data = await response.json();
+            setTransactions(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load transaction history.'});
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchTransactions();
+  }, [toast]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
-      const txDate = new Date(tx.createdAt);
+      const txDate = new Date(tx.timestamp);
       const inDateRange = dateRange?.from && dateRange?.to 
         ? txDate >= dateRange.from && txDate <= dateRange.to
         : true;
       
-      const matchesType = filterType === 'all' || tx.type === filterType;
+      const matchesType = filterType === 'all' || tx.category === filterType;
       
       const matchesSearch = searchQuery === '' ||
-        tx.beneficiary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tx.memo && tx.memo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        tx.party.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tx.reference.toLowerCase().includes(searchQuery.toLowerCase());
 
       return inDateRange && matchesType && matchesSearch;
@@ -65,12 +91,12 @@ export function StatementDashboard() {
     const categorySpending: { [key: string]: number } = {};
 
     filteredTransactions.forEach(tx => {
-      if (tx.amount > 0) {
+      if (tx.type === 'credit') {
         credits += tx.amount;
       } else {
-        debits += Math.abs(tx.amount);
-        const category = tx.type;
-        categorySpending[category] = (categorySpending[category] || 0) + Math.abs(tx.amount);
+        debits += tx.amount;
+        const category = tx.category;
+        categorySpending[category] = (categorySpending[category] || 0) + tx.amount;
       }
     });
 
@@ -101,9 +127,9 @@ export function StatementDashboard() {
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Current Balance</CardTitle><FileText className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">₦1,250,345.00</div><p className="text-xs text-muted-foreground">As of today</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Credits</CardTitle><ArrowUp className="h-4 w-4 text-green-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-green-500">+₦{totalCredits.toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Debits</CardTitle><ArrowDown className="h-4 w-4 text-red-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-red-500">-₦{totalDebits.toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Current Balance</CardTitle><FileText className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">₦{(balance || 0 / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">As of today</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Credits</CardTitle><ArrowUp className="h-4 w-4 text-green-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-green-500">+₦{(totalCredits / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Debits</CardTitle><ArrowDown className="h-4 w-4 text-red-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-red-500">-₦{(totalDebits / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
         <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Spending Summary</CardTitle></CardHeader>
             <CardContent className="h-[60px] pb-0">
@@ -147,38 +173,44 @@ export function StatementDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Transaction Details</TableHead>
-                  <TableHead className="hidden sm:table-cell">Type</TableHead>
-                  <TableHead className="hidden md:table-cell">Reference</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.map(tx => (
-                  <TableRow key={tx.id}>
-                    <TableCell>
-                      <p className="font-medium">{tx.beneficiary.name}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(tx.createdAt), 'dd MMM, yyyy, h:mm a')}</p>
-                    </TableCell>
-                     <TableCell className="hidden sm:table-cell"><Badge variant="outline">{tx.type}</Badge></TableCell>
-                    <TableCell className="hidden md:table-cell font-mono text-xs">{tx.reference}</TableCell>
-                    <TableCell className={`text-right font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-foreground'}`}>
-                      {tx.amount > 0 ? '+' : ''}₦{tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-           {filteredTransactions.length === 0 && (
-              <div className="text-center py-10 text-muted-foreground">
-                <p>No transactions found for the selected criteria.</p>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Transaction Details</TableHead>
+                      <TableHead className="hidden sm:table-cell">Type</TableHead>
+                      <TableHead className="hidden md:table-cell">Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTransactions.map(tx => (
+                      <TableRow key={tx.id}>
+                        <TableCell>
+                          <p className="font-medium">{tx.party.name}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(tx.timestamp), 'dd MMM, yyyy, h:mm a')}</p>
+                        </TableCell>
+                         <TableCell className="hidden sm:table-cell"><Badge variant="outline" className="capitalize">{tx.category}</Badge></TableCell>
+                        <TableCell className="hidden md:table-cell font-mono text-xs">{tx.reference}</TableCell>
+                        <TableCell className={cn(`text-right font-bold`, tx.type === 'credit' ? 'text-green-600' : 'text-foreground')}>
+                          {tx.type === 'credit' ? '+' : '-'}₦{(tx.amount / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            )}
+              {filteredTransactions.length === 0 && (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <p>No transactions found for the selected criteria.</p>
+                  </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -64,6 +64,23 @@ interface InventoryTransaction {
     businessId?: string;
 }
 
+interface FinancialTransaction {
+    id: string;
+    userId: string;
+    category: 'transfer' | 'bill' | 'airtime' | 'pos' | 'deposit' | 'withdrawal';
+    type: 'debit' | 'credit';
+    amount: number; // in kobo, always positive
+    reference: string;
+    narration?: string;
+    party: {
+        name: string;
+        account?: string;
+        bank?: string;
+    };
+    timestamp: string;
+    balanceAfter: number;
+}
+
 
 const initialLocations: Location[] = [
     { id: 'loc_1', name: 'Main Store - Lekki', address: '1 Admiralty Way, Lekki Phase 1, Lagos', businessId: 'biz_123', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
@@ -94,6 +111,32 @@ const initialProducts: Product[] = [
 ];
 
 const initialInventoryTransactions: InventoryTransaction[] = [];
+const initialFinancialTransactions: FinancialTransaction[] = [
+    {
+        id: 'fin_txn_1',
+        userId: 'user_paago',
+        category: 'deposit',
+        type: 'credit',
+        amount: 5000000, // 50,000 NGN
+        reference: 'DEPOSIT-SALARY-JULY',
+        narration: 'July Salary',
+        party: { name: 'OVO THRIVE INC' },
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
+        balanceAfter: 130034500,
+    },
+    {
+        id: 'fin_txn_2',
+        userId: 'user_paago',
+        category: 'bill',
+        type: 'debit',
+        amount: 1500000, // 15,000 NGN
+        reference: 'DSTV-SUB-JULY',
+        narration: 'DSTV Subscription',
+        party: { name: 'MultiChoice Nigeria' },
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(),
+        balanceAfter: 128534500,
+    }
+];
 
 
 let products: Product[] = [...initialProducts];
@@ -101,6 +144,7 @@ let suppliers: Supplier[] = [...initialSuppliers];
 let locations: Location[] = [...initialLocations];
 let categories: Category[] = [...initialCategories];
 let inventoryTransactions: InventoryTransaction[] = [...initialInventoryTransactions];
+let financialTransactions: FinancialTransaction[] = [...initialFinancialTransactions];
 
 export const db = {
     products: {
@@ -202,6 +246,14 @@ export const db = {
         create: async (data: Omit<InventoryTransaction, 'id' | 'date'>) => {
             const newTransaction = { ...data, id: `txn_${Date.now()}`, date: new Date().toISOString(), businessId: 'biz_123', recordedBy: 'user_placeholder' };
             inventoryTransactions.push(newTransaction);
+            return newTransaction;
+        },
+    },
+    financialTransactions: {
+        findMany: async () => financialTransactions,
+        create: async (data: Omit<FinancialTransaction, 'id'>) => {
+            const newTransaction = { ...data, id: `fin_txn_${Date.now()}` };
+            financialTransactions.push(newTransaction);
             return newTransaction;
         },
     }
