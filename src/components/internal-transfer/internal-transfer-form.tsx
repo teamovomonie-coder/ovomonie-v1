@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -109,7 +110,7 @@ export function InternalTransferForm() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { updateBalance } = useAuth();
+  const { balance, updateBalance } = useAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -177,6 +178,16 @@ export function InternalTransferForm() {
       setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
       return;
     }
+
+    if (balance === null || (data.amount * 100) > balance) {
+        toast({
+            variant: "destructive",
+            title: "Insufficient Funds",
+            description: `Your balance of ₦${new Intl.NumberFormat('en-NG').format((balance || 0) / 100)} is not enough for this transaction.`,
+        });
+        return;
+    }
+
     const dataWithPhoto = { ...data, photo: photoPreview };
     setSubmittedData(dataWithPhoto);
     setStep('summary');
@@ -209,7 +220,7 @@ export function InternalTransferForm() {
         title: 'Transfer Successful!',
         description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.`,
       });
-      updateBalance(result.data.newBalanceInKobo);
+      updateBalance(result.data.newSenderBalance);
       setIsPinModalOpen(false);
       setStep('receipt');
       
