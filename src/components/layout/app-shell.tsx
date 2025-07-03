@@ -28,7 +28,7 @@ interface NavItem {
 const navItems: NavItem[] = [
     { href: "/dashboard", label: "Home", icon: LayoutDashboard },
     { href: "/inventory", label: "Inventory", icon: Package },
-    { href: "/custom-card", label: "Custom card", icon: CreditCard },
+    { href: "/custom-card", label: "Card", icon: CreditCard },
     { href: "/agent-life", label: "Agent", icon: Briefcase },
     { href: "/more", label: "More", icon: LayoutGrid },
 ];
