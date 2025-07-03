@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         </Button>
                     ) : (
                         <Link href="/dashboard">
-                            <OvoLogo className="h-9 w-9" />
+                            <OvoLogo width={36} height={36} />
                         </Link>
                     )}
                 </div>
