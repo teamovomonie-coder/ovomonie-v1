@@ -87,7 +87,7 @@ const ServiceTile = ({ item }: { item: ServiceItem }) => {
         }
     };
     return (
-        <Link href={item.href} onClick={handleClick} className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors h-28">
+        <Link href={item.href} onClick={handleClick} className="bg-card p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-muted transition-colors h-28">
             <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
                 <item.icon className="h-6 w-6" />
             </div>
@@ -98,7 +98,7 @@ const ServiceTile = ({ item }: { item: ServiceItem }) => {
 
 export function MerchantServicesDashboard() {
   return (
-    <div className="flex-1 space-y-6 bg-gray-50 p-4">
+    <div className="flex-1 space-y-6 bg-background p-4">
       <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
         <h2 className="text-2xl font-bold tracking-tight">Merchant Services</h2>
         <p className="text-primary-foreground/80 text-sm">Powering your Business, Agents & POS Network</p>

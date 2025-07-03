@@ -103,7 +103,7 @@ export default function RegisterPage() {
   
   const progressValue = (currentStep / steps.length) * 100;
   const rawPhoneNumber = form.watch('phone');
-  const accountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(1).split('').reverse().join('') : '';
+  const accountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10).split('').reverse().join('') : '';
 
 
   return (
@@ -116,11 +116,11 @@ export default function RegisterPage() {
       >
         <Form {...form}>
             <form> {/* No submit handler here, buttons will trigger validation */}
-                <Card className="bg-white/80 backdrop-blur-sm shadow-2xl border-white/20 rounded-2xl">
+                <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border-white/20 rounded-2xl">
                 <CardHeader>
                     {currentStep < steps.length + 1 && (
                         <>
-                        <OvoLogo className="mx-auto" />
+                        <div className="mx-auto"><OvoLogo /></div>
                         {currentStep < steps.length ? (
                              <>
                              <CardTitle className="text-2xl font-bold text-primary text-center pt-2">Create Your Account</CardTitle>

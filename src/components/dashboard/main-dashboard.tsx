@@ -8,19 +8,19 @@ import { AgentLifeCard } from '@/components/dashboard/agent-life-card';
 
 export function MainDashboard() {
   return (
-    <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
+    <div className="bg-background min-h-screen font-sans text-foreground">
       <main className="px-4">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-lg p-1">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white rounded-md">Dashboard</TabsTrigger>
-            <TabsTrigger value="ai-assistant" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white rounded-md">AI Assistant</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-muted p-1">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Dashboard</TabsTrigger>
+            <TabsTrigger value="ai-assistant" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">AI Assistant</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard">
-            <Card className="bg-slate-800 text-white shadow-lg rounded-2xl my-4">
+            <Card className="bg-primary text-primary-foreground shadow-lg rounded-2xl my-4">
               <CardContent className="p-4">
-                <div className="flex justify-between items-center text-sm text-gray-300">
+                <div className="flex justify-between items-center text-sm text-primary-foreground/80">
                   <span>Available Balance</span>
-                   <Link href="/add-money" className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">+ Add Money</Link>
+                   <Link href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1 rounded-full">+ Add Money</Link>
                 </div>
                 <div className="text-3xl font-bold mt-2">
                   ₦1,250,345.00

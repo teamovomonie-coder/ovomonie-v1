@@ -30,11 +30,11 @@ export default function WelcomePage() {
     
     if (isAuthenticated === true || isAuthenticated === null) {
         // Show a loader or blank screen while checking auth or redirecting
-        return <div className="h-screen w-screen bg-[#001f4d] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>
+        return <div className="h-screen w-screen bg-primary flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-foreground" /></div>
     }
 
     return (
-        <div className="h-screen w-screen bg-[#001f4d] flex flex-col items-center justify-center p-8 text-white">
+        <div className="h-screen w-screen bg-primary flex flex-col items-center justify-center p-8 text-primary-foreground">
             <AnimatePresence mode="wait">
                 {!showContent ? (
                     <motion.div
@@ -65,12 +65,12 @@ export default function WelcomePage() {
                     >
                         <OvoLogo />
                         <h2 className="text-3xl font-bold mt-8 mb-4">Welcome to OVOMONIE</h2>
-                        <p className="text-gray-300 mb-12">Your partner in financial wellness. Register today to start enjoying modern banking solutions.</p>
+                        <p className="text-primary-foreground/80 mb-12">Your partner in financial wellness. Register today to start enjoying modern banking solutions.</p>
                         <div className="space-y-4">
-                             <Button asChild size="lg" className="w-full bg-white text-[#001f4d] hover:bg-gray-200">
+                             <Button asChild size="lg" className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90">
                                 <Link href="/register">Register Now</Link>
                             </Button>
-                             <Button asChild variant="link" className="text-white">
+                             <Button asChild variant="link" className="text-primary-foreground">
                                 <Link href="/login">Already have an account? Log In</Link>
                             </Button>
                         </div>

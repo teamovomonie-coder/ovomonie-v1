@@ -76,16 +76,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (isAuthenticated === null || isAuthenticated === false) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+            <div className="flex h-screen w-full items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
     
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="flex flex-col min-h-screen bg-background">
             {/* Fixed Header */}
-            <header className="fixed top-0 left-0 right-0 h-16 bg-[#001f4d] text-white flex items-center justify-between px-4 z-50 shadow-md">
+            <header className="fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-between px-4 z-50 shadow-md">
                 <Link href="/dashboard">
                     <OvoLogo className="h-9 w-9" />
                 </Link>
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         </span>
                     </div>
                     <Link href="/profile">
-                         <Avatar className="h-9 w-9 border-2 border-white/50">
+                         <Avatar className="h-9 w-9 border-2 border-primary-foreground/50">
                             <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
                             <AvatarFallback>P</AvatarFallback>
                         </Avatar>
@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </main>
 
             {/* Fixed Footer */}
-            <footer className="fixed bottom-0 left-0 right-0 bg-[#001f4d] text-white z-50 rounded-t-xl shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.1)]">
+            <footer className="fixed bottom-0 left-0 right-0 bg-primary text-primary-foreground z-50 rounded-t-xl shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.1)]">
                 <nav className="flex justify-around items-center h-20 max-w-2xl mx-auto">
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
                 </nav>
