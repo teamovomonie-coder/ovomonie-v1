@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -20,12 +21,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchBalance = useCallback(async () => {
     try {
+      // In a real app, you'd get the current user's account number after login.
+      // For now, we'll use the hardcoded mock sender account.
       const account = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
       if (account) {
         setBalance(account.balance);
+      } else {
+        console.warn(`Could not find account ${MOCK_SENDER_ACCOUNT} in Firestore.`);
+        setBalance(0);
       }
     } catch (error) {
-      console.error("Failed to fetch balance", error);
+      console.error("Failed to fetch balance from Firestore", error);
       setBalance(0);
     }
   }, []);
@@ -41,13 +47,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(async (phone: string, pin: string): Promise<void> => {
     return new Promise((resolve, reject) => {
+      // This remains a mock login for demonstration purposes.
+      // A real implementation would use Firebase Auth.
       setTimeout(() => {
         if (phone === '09033505038' && pin === '123456') {
           const dummyToken = `fake-token-${Date.now()}`;
           localStorage.setItem('ovo-auth-token', dummyToken);
           setIsAuthenticated(true);
-          fetchBalance();
-          resolve();
+          fetchBalance().then(() => resolve());
         } else {
           reject(new Error('Invalid phone number or PIN.'));
         }

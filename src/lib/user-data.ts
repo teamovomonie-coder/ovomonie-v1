@@ -1,26 +1,35 @@
-// Mock user data store
+// This file now interacts directly with Firestore for user account data.
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+    collection, 
+    addDoc, 
+    serverTimestamp, 
+    query, 
+    where, 
+    getDocs,
+    runTransaction,
+    doc
+} from 'firebase/firestore';
 
 interface UserAccount {
-    accountNumber: string; // This is the 10-digit phone number
+    id?: string;
     userId: string;
+    accountNumber: string;
     fullName: string;
-    balance: number; // in kobo to avoid floating point issues
+    balance: number; // in kobo
 }
-
-// Using a Map for easier access by account number
-// This remains in-memory for this simulation, but the transaction log is persistent.
-const accounts = new Map<string, UserAccount>([
-    ['8012345678', { userId: 'user_paago', accountNumber: '8012345678', fullName: 'PAAGO DAVID', balance: 125034500 }],
-    ['0987654321', { userId: 'user_jane', accountNumber: '0987654321', fullName: 'JANE SMITH', balance: 5000000 }],
-    ['1122334455', { userId: 'user_femi', accountNumber: '1122334455', fullName: 'FEMI ADEBOLA', balance: 7500000 }],
-]);
 
 
 export const mockGetAccountByNumber = async (accountNumber: string): Promise<UserAccount | undefined> => {
-    // In a real DB, this would be a 'SELECT * FROM accounts WHERE accountNumber = ?'
-    return accounts.get(accountNumber);
+    const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+        return undefined;
+    }
+    
+    const userDoc = querySnapshot.docs[0];
+    return { id: userDoc.id, ...userDoc.data() } as UserAccount;
 };
 
 export const performTransfer = async (
@@ -29,12 +38,6 @@ export const performTransfer = async (
     amountInKobo: number,
     narration?: string
 ): Promise<{ success: true; newSenderBalance: number; reference: string } | { success: false; message: string }> => {
-    const senderAccount = accounts.get(senderAccountNumber);
-    const recipientAccount = accounts.get(recipientAccountNumber);
-
-    if (!senderAccount || !recipientAccount) {
-        return { success: false, message: 'Invalid account.' };
-    }
     
     const FRAUD_THRESHOLD_KOBO = 10000000; // ₦100,000
     if (amountInKobo > FRAUD_THRESHOLD_KOBO) {
@@ -44,64 +47,88 @@ export const performTransfer = async (
         };
     }
     
-    if (senderAccount.balance < amountInKobo) {
-        return { success: false, message: 'Insufficient funds.' };
-    }
-
-    const reference = `OVO-INT-${Date.now()}`;
-    
-    // While accounts are in-memory, the transaction log is now persistent
     try {
-        const newSenderBalance = senderAccount.balance - amountInKobo;
-        const newRecipientBalance = recipientAccount.balance + amountInKobo;
-        
-        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const reference = `OVO-INT-${Date.now()}`;
+        let newSenderBalance = 0;
 
-        // Log Debit for Sender
-        await addDoc(financialTransactionsRef, {
-            userId: senderAccount.userId,
-            category: 'transfer',
-            type: 'debit',
-            amount: amountInKobo,
-            reference,
-            narration: narration || `Transfer to ${recipientAccount.fullName}`,
-            party: {
-                name: recipientAccount.fullName,
-                account: recipientAccountNumber,
-                bank: 'Ovomonie'
-            },
-            timestamp: serverTimestamp(),
-            balanceAfter: newSenderBalance
+        await runTransaction(db, async (transaction) => {
+            const senderQuery = query(collection(db, "users"), where("accountNumber", "==", senderAccountNumber));
+            const recipientQuery = query(collection(db, "users"), where("accountNumber", "==", recipientAccountNumber));
+
+            const senderSnapshot = await getDocs(senderQuery);
+            const recipientSnapshot = await getDocs(recipientQuery);
+
+            if (senderSnapshot.empty) {
+                throw new Error("Sender account not found.");
+            }
+            if (recipientSnapshot.empty) {
+                throw new Error("Recipient account not found.");
+            }
+            
+            const senderDoc = senderSnapshot.docs[0];
+            const recipientDoc = recipientSnapshot.docs[0];
+
+            const senderData = senderDoc.data() as UserAccount;
+            const recipientData = recipientDoc.data() as UserAccount;
+
+            if (senderData.balance < amountInKobo) {
+                throw new Error("Insufficient funds.");
+            }
+
+            // Perform balance updates
+            newSenderBalance = senderData.balance - amountInKobo;
+            const newRecipientBalance = recipientData.balance + amountInKobo;
+            
+            transaction.update(senderDoc.ref, { balance: newSenderBalance });
+            transaction.update(recipientDoc.ref, { balance: newRecipientBalance });
+            
+            const financialTransactionsRef = collection(db, 'financialTransactions');
+
+            // Log Debit for Sender
+            const senderLog = {
+                userId: senderData.userId,
+                category: 'transfer',
+                type: 'debit',
+                amount: amountInKobo,
+                reference,
+                narration: narration || `Transfer to ${recipientData.fullName}`,
+                party: {
+                    name: recipientData.fullName,
+                    account: recipientAccountNumber,
+                    bank: 'Ovomonie'
+                },
+                timestamp: serverTimestamp(),
+                balanceAfter: newSenderBalance
+            };
+            transaction.set(doc(financialTransactionsRef), senderLog);
+            
+            // Log Credit for Recipient
+            const recipientLog = {
+                userId: recipientData.userId,
+                category: 'transfer',
+                type: 'credit',
+                amount: amountInKobo,
+                reference,
+                narration: narration || `Transfer from ${senderData.fullName}`,
+                party: {
+                    name: senderData.fullName,
+                    account: senderAccountNumber,
+                    bank: 'Ovomonie'
+                },
+                timestamp: serverTimestamp(),
+                balanceAfter: newRecipientBalance
+            };
+            transaction.set(doc(financialTransactionsRef), recipientLog);
         });
-
-        // Log Credit for Recipient
-        await addDoc(financialTransactionsRef, {
-            userId: recipientAccount.userId,
-            category: 'transfer',
-            type: 'credit',
-            amount: amountInKobo,
-            reference,
-            narration: narration || `Transfer from ${senderAccount.fullName}`,
-            party: {
-                name: senderAccount.fullName,
-                account: senderAccountNumber,
-                bank: 'Ovomonie'
-            },
-            timestamp: serverTimestamp(),
-            balanceAfter: newRecipientBalance
-        });
         
-        // Update in-memory account balances
-        senderAccount.balance = newSenderBalance;
-        recipientAccount.balance = newRecipientBalance;
-        accounts.set(senderAccountNumber, senderAccount);
-        accounts.set(recipientAccountNumber, recipientAccount);
-
         return { success: true, newSenderBalance, reference };
 
-    } catch(error) {
-        console.error("Firestore transaction logging failed: ", error);
-        return { success: false, message: 'Transaction could not be logged. Please try again.' };
+    } catch (error) {
+        console.error("Firestore transaction failed: ", error);
+        if (error instanceof Error) {
+           return { success: false, message: error.message };
+        }
+        return { success: false, message: 'An unexpected error occurred during the transfer.' };
     }
 }
 
