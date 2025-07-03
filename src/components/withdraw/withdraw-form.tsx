@@ -83,7 +83,7 @@ function BankTransferWithdrawal() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(b => !topBankCodes.includes(b.code));
+  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
 
   useEffect(() => {
     setRecipientName(null);
@@ -193,9 +193,9 @@ function BankTransferWithdrawal() {
                 <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
                   <PopoverTrigger asChild><FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>{field.value ? nigerianBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl></PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search for a bank..." value={bankSearchQuery} onValueChange={setBankSearchQuery} /><CommandList><CommandEmpty>No bank found.</CommandEmpty>
-                        {filteredTopBanks.length > 0 && (<CommandGroup heading="Top Banks">{filteredTopBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { field.onChange(bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>)}
+                        {filteredTopBanks.length > 0 && (<CommandGroup heading="Top Banks">{filteredTopBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { form.setValue("bankCode", bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>)}
                         {(filteredTopBanks.length > 0 && filteredOtherBanks.length > 0) && <CommandSeparator />}
-                        {filteredOtherBanks.length > 0 && (<CommandGroup heading="All Banks">{filteredOtherBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { field.onChange(bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>)}
+                        {filteredOtherBanks.length > 0 && (<CommandGroup heading="All Banks">{filteredOtherBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { form.setValue("bankCode", bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>)}
                   </CommandList></Command></PopoverContent>
                 </Popover><FormMessage />
             </FormItem>

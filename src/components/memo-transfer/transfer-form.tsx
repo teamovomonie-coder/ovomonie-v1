@@ -127,7 +127,7 @@ export function TransferForm() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(b => !topBankCodes.includes(b.code));
+  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
 
   useEffect(() => {
     setRecipientName(null);
@@ -319,7 +319,7 @@ export function TransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  field.onChange(bank.code);
+                                  form.setValue("bankCode", bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
@@ -338,7 +338,7 @@ export function TransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  field.onChange(bank.code);
+                                  form.setValue("bankCode", bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}

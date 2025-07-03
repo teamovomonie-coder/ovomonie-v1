@@ -77,7 +77,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             <p className="text-sm text-muted-foreground">{bankName}</p>
           </div>
           {data.message && (
-            <blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-muted-foreground">
+            <blockquote className="mt-4 border-l-4 border-primary/20 pl-4 italic text-center text-muted-foreground">
               "{data.message}"
             </blockquote>
           )}
@@ -127,7 +127,7 @@ export function ExternalTransferForm() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(b.code));
+  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
 
   useEffect(() => {
     setRecipientName(null);
@@ -327,7 +327,7 @@ export function ExternalTransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  field.onChange(bank.code);
+                                  form.setValue("bankCode", bank.code)
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
@@ -346,7 +346,7 @@ export function ExternalTransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  field.onChange(bank.code);
+                                  form.setValue("bankCode", bank.code)
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
