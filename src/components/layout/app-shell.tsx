@@ -51,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, router, pathname]);
 
     const navItems = [
-        { href: "/", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/ai-assistant", label: "AI Assistant", icon: MessageCircle },
         { href: "/memo-transfer", label: "Send Money", icon: Send },
         { href: "/add-money", label: "Add Money", icon: PlusCircle },
@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center justify-between">
-            <OvoLogo />
+            <OvoLogo className="h-10 w-10" />
             <SidebarTrigger />
           </div>
         </SidebarHeader>
@@ -121,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <header className="flex items-center justify-between p-4 border-b md:hidden">
-            <OvoLogo />
+            <OvoLogo className="h-10 w-10" />
             <SidebarTrigger />
         </header>
         {children}

@@ -102,7 +102,9 @@ export default function RegisterPage() {
   };
   
   const progressValue = (currentStep / steps.length) * 100;
-  const accountNumber = form.watch('phone').slice(-10).split('').reverse().join('');
+  const rawPhoneNumber = form.watch('phone');
+  const accountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(1).split('').reverse().join('') : '';
+
 
   return (
     <div className="animated-gradient-bg flex min-h-screen w-full items-center justify-center p-4">
@@ -118,9 +120,7 @@ export default function RegisterPage() {
                 <CardHeader>
                     {currentStep < steps.length + 1 && (
                         <>
-                        <div className="mx-auto bg-primary rounded-full p-3 w-16 h-16 flex items-center justify-center shadow-lg">
-                            <OvoLogo className="h-6 w-24" />
-                        </div>
+                        <OvoLogo className="mx-auto" />
                         {currentStep < steps.length ? (
                              <>
                              <CardTitle className="text-2xl font-bold text-primary text-center pt-2">Create Your Account</CardTitle>
