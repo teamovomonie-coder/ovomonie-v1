@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockGetAccountByNumber, mockUpdateBalance, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { mockGetAccountByNumber, performTransfer, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
 
 export async function POST(request: Request) {
     try {
@@ -16,51 +16,31 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'You cannot transfer money to yourself.' }, { status: 400 });
         }
 
-        // 2. Fetch accounts
-        const senderAccount = await mockGetAccountByNumber(senderAccountNumber);
+        // 2. Fetch recipient account to ensure it exists before attempting transfer
         const recipientAccount = await mockGetAccountByNumber(recipientAccountNumber);
-
-        if (!senderAccount) {
-            // This case should ideally not happen for a logged-in user
-            return NextResponse.json({ message: 'Sender account not found.' }, { status: 404 });
-        }
         if (!recipientAccount) {
             return NextResponse.json({ message: 'Recipient account not found.' }, { status: 404 });
         }
-
+        
+        // 3. Perform the "transaction"
         const transferAmountInKobo = Math.round(amount * 100);
+        const transferResult = await performTransfer(senderAccountNumber, recipientAccountNumber, transferAmountInKobo, narration);
 
-        // 3. Check for sufficient funds
-        if (senderAccount.balance < transferAmountInKobo) {
-            return NextResponse.json({ message: 'Insufficient funds.' }, { status: 400 });
+        if (!transferResult.success) {
+            return NextResponse.json({ message: transferResult.message }, { status: 400 });
         }
 
-        // 4. Perform the "transaction"
-        const newSenderBalance = senderAccount.balance - transferAmountInKobo;
-        const newRecipientBalance = recipientAccount.balance + transferAmountInKobo;
+        // 4. Return success response
+        const senderAccount = await mockGetAccountByNumber(senderAccountNumber); // Re-fetch to get latest details
 
-        // In a real DB, this would be an atomic transaction
-        const senderUpdateSuccess = await mockUpdateBalance(senderAccountNumber, newSenderBalance);
-        const recipientUpdateSuccess = await mockUpdateBalance(recipientAccountNumber, newRecipientBalance);
-
-        if (!senderUpdateSuccess || !recipientUpdateSuccess) {
-            // Attempt to roll back - in a real DB, the transaction would handle this.
-            // For this mock, we'll just assume failure and log it.
-            console.error("Critical error: Failed to update balances. Could not complete transaction.");
-            // Revert sender's balance if possible
-            await mockUpdateBalance(senderAccountNumber, senderAccount.balance);
-            return NextResponse.json({ message: 'Transaction failed due to an internal error. Please try again later.' }, { status: 500 });
-        }
-
-        // 5. Return success response
         return NextResponse.json({
             message: 'Transfer successful!',
             data: {
-                sender: senderAccount.fullName,
+                sender: senderAccount?.fullName,
                 recipient: recipientAccount.fullName,
                 amount: amount,
-                newBalanceInKobo: newSenderBalance,
-                reference: `OVO-INT-${Date.now()}`
+                newBalanceInKobo: transferResult.newSenderBalance,
+                reference: transferResult.reference
             }
         }, { status: 200 });
 
