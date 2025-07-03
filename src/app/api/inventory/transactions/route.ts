@@ -1,24 +1,40 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/inventory-db';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 
 export async function GET() {
     try {
-        const transactions = await db.inventoryTransactions.findMany();
-        const products = await db.products.findMany();
-        const locations = await db.locations.findMany();
+        // Fetch all collections in parallel
+        const [transactionsSnapshot, productsSnapshot, locationsSnapshot] = await Promise.all([
+            getDocs(query(collection(db, "inventoryTransactions"), orderBy("date", "desc"))),
+            getDocs(collection(db, "products")),
+            getDocs(collection(db, "locations"))
+        ]);
 
-        const enrichedTransactions = transactions.map(txn => {
-            const product = products.find(p => p.id === txn.productId);
-            const location = txn.locationId ? locations.find(l => l.id === txn.locationId) : null;
+        // Create maps for quick lookups
+        const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data()]));
+        const locationsMap = new Map(locationsSnapshot.docs.map(doc => [doc.id, doc.data()]));
+
+        const enrichedTransactions = transactionsSnapshot.docs.map(doc => {
+            const txn = doc.data();
+            const product = productsMap.get(txn.productId);
+            const location = txn.locationId ? locationsMap.get(txn.locationId) : null;
+            
+            // Convert Firestore Timestamp to JSON-serializable string
+            const date = (txn.date as Timestamp).toDate().toISOString();
+
             return {
+                id: doc.id,
                 ...txn,
+                date,
                 productName: product?.name || 'Unknown Product',
                 locationName: location?.name || 'N/A',
             };
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by most recent first
+        });
 
         return NextResponse.json(enrichedTransactions);
     } catch (error) {
+        console.error("Error fetching transactions: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/inventory-db';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 
 export async function GET() {
     try {
-        const transactions = await db.financialTransactions.findMany();
+        const q = query(collection(db, "financialTransactions"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(q);
         
-        const sortedTransactions = transactions.sort((a, b) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
+        const transactions = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Convert Firestore Timestamp to JSON-serializable string
+            const timestamp = (data.timestamp as Timestamp).toDate().toISOString();
+            return {
+                id: doc.id,
+                ...data,
+                timestamp,
+            };
+        });
 
-        return NextResponse.json(sortedTransactions);
+        return NextResponse.json(transactions);
     } catch (error) {
+        console.error("Error fetching financial transactions: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
