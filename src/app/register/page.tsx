@@ -21,7 +21,6 @@ import { Progress } from "@/components/ui/progress";
 const fullRegisterSchema = z.object({
   fullName: z.string().min(3, "Full name is required."),
   email: z.string().email("Please enter a valid email address."),
-  otp: z.string().length(6, "OTP must be 6 digits."),
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
   nin: z.string().length(11, "NIN must be 11 digits."),
   address: z.string().min(10, "Please provide your residential address."),
@@ -40,11 +39,9 @@ const fullRegisterSchema = z.object({
 type FullFormData = z.infer<typeof fullRegisterSchema>;
 
 const steps: { id: number, name: string, fields: FieldPath<FullFormData>[] }[] = [
-    { id: 1, name: "Personal Info", fields: ["fullName", "email"] },
-    { id: 2, name: "Email Verification", fields: ["otp"] },
-    { id: 3, name: "Account Details", fields: ["phone", "nin", "address"] },
-    { id: 4, name: "Login PIN", fields: ["loginPin", "confirmLoginPin"] },
-    { id: 5, name: "Transaction PIN", fields: ["transactionPin", "confirmTransactionPin"] },
+    { id: 1, name: "Personal & Account Info", fields: ["fullName", "email", "phone", "nin", "address"] },
+    { id: 2, name: "Login PIN", fields: ["loginPin", "confirmLoginPin"] },
+    { id: 3, name: "Transaction PIN", fields: ["transactionPin", "confirmTransactionPin"] },
 ];
 
 export default function RegisterPage() {
@@ -57,7 +54,7 @@ export default function RegisterPage() {
   const form = useForm<FullFormData>({
     resolver: zodResolver(fullRegisterSchema),
     defaultValues: {
-        fullName: "", email: "", otp: "", phone: "", nin: "", address: "",
+        fullName: "", email: "", phone: "", nin: "", address: "",
         loginPin: "", confirmLoginPin: "", transactionPin: "", confirmTransactionPin: ""
     }
   });
@@ -66,19 +63,7 @@ export default function RegisterPage() {
     const fields = steps[currentStep].fields;
     const output = await form.trigger(fields, { shouldFocus: true });
     if (!output) return;
-
-    if (currentStep === 0) { // After name and email
-        // Simulate sending OTP
-        toast({ title: "Verification Code Sent", description: `An OTP has been sent to ${form.getValues("email")}.` });
-    }
     
-    if (currentStep === 1) { // After OTP
-        setIsLoading(true);
-        await new Promise(res => setTimeout(res, 1500)); // Simulate OTP verification
-        setIsLoading(false);
-        toast({ title: "Email Verified!", description: "You can now proceed with your registration." });
-    }
-
     if (currentStep < steps.length) {
         setCurrentStep(prev => prev + 1);
     }
@@ -98,7 +83,6 @@ export default function RegisterPage() {
             throw new Error(errorData.message || 'Registration failed.');
         }
         
-        // Generate account number for display on the success screen
         const rawPhoneNumber = form.getValues('phone');
         const generatedAccountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10).split('').reverse().join('') : '';
         setAccountNumber(generatedAccountNumber);
@@ -193,31 +177,7 @@ export default function RegisterPage() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
-                            </div>
-                        )}
-                        {currentStep === 1 && (
-                            <div className="space-y-4 text-center">
-                                <p className="text-muted-foreground">We've sent a 6-digit OTP to your email. Please enter it below.</p>
-                                <FormField
-                                    control={form.control}
-                                    name="otp"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="sr-only">OTP</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="_ _ _ _ _ _" maxLength={6} className="text-center text-2xl tracking-[0.5em]" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="button" className="w-full" onClick={handleNext} disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Verify</Button>
-                            </div>
-                        )}
-                        {currentStep === 2 && (
-                            <div className="space-y-4">
-                                <FormField
+                                 <FormField
                                     control={form.control}
                                     name="phone"
                                     render={({ field }) => (
@@ -259,7 +219,7 @@ export default function RegisterPage() {
                                 <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
                             </div>
                         )}
-                        {currentStep === 3 && (
+                        {currentStep === 1 && (
                              <div className="space-y-4">
                                 <FormField
                                     control={form.control}
@@ -290,7 +250,7 @@ export default function RegisterPage() {
                                 <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
                             </div>
                         )}
-                        {currentStep === 4 && (
+                        {currentStep === 2 && (
                             <div className="space-y-4">
                                 <FormField
                                     control={form.control}
@@ -321,7 +281,7 @@ export default function RegisterPage() {
                                 <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
                             </div>
                         )}
-                        {currentStep === 5 && (
+                        {currentStep === 3 && (
                              <div className="text-center p-4 flex flex-col items-center">
                                 <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
                                 <h2 className="text-2xl font-bold mb-2">Welcome to OVOMONIE!</h2>
@@ -337,7 +297,7 @@ export default function RegisterPage() {
                         )}
                     </motion.div>
                     </AnimatePresence>
-                     {currentStep < 5 && (
+                     {currentStep < 4 && (
                         <div className="mt-4 text-center text-sm">
                         Already have an account?{" "}
                         <Link href="/login" className="underline text-primary font-semibold">
