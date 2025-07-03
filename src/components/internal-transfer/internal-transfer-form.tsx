@@ -216,13 +216,14 @@ export function InternalTransferForm() {
         }),
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
+        const result = await response.json();
         const error: any = new Error(result.message || 'An error occurred during the transfer.');
         error.response = response; 
         throw error;
       }
+
+      const result = await response.json();
 
       toast({
         title: 'Transfer Successful!',
@@ -236,7 +237,10 @@ export function InternalTransferForm() {
       let title = 'Transfer Failed';
       let description = 'An unknown error occurred.';
 
-      if (error.response?.status === 401) {
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        title = 'Network Error';
+        description = 'Please check your internet connection and try again.';
+      } else if (error.response?.status === 401) {
           title = 'Authentication Error';
           description = 'Your session has expired. Please log in again.';
           logout();
