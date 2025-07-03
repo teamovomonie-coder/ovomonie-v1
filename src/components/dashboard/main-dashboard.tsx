@@ -30,8 +30,8 @@ export function MainDashboard() {
             <QuickAccess />
             <AgentLifeCard />
           </TabsContent>
-          <TabsContent value="ai-assistant">
-             <Card className="h-[calc(100vh-14rem)] flex flex-col mt-4">
+          <TabsContent value="ai-assistant" className="mt-4">
+             <Card className="h-[calc(100vh-14rem)] flex flex-col">
               <CardHeader>
                 <CardTitle>AI Assistant</CardTitle>
                 <CardDescription>

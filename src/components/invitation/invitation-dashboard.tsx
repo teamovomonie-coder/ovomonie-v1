@@ -141,10 +141,10 @@ export function InvitationDashboard() {
           <div className="text-center space-y-2">
              <p className="text-sm font-medium text-muted-foreground">Share your link via</p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button variant="outline" size="lg" className="flex-1">
+                  <Button size="lg" className="flex-1" onClick={handleUniversalShare}>
                     <Share2 className="mr-2 h-5 w-5" /> Share Link
                   </Button>
-                  <Button variant="outline" size="lg" className="flex-1">
+                  <Button variant="secondary" size="lg" className="flex-1" onClick={handleShareToContact}>
                     <Contact className="mr-2 h-5 w-5" /> Share to Contact
                   </Button>
               </div>

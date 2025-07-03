@@ -60,7 +60,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
         <h2 className="text-lg font-bold">Transfer Successful!</h2>
         <Landmark className="w-6 h-6" />
       </div>
-      <CardContent className="p-4 bg-white">
+      <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
           {data.photo && (
             <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
@@ -68,20 +68,20 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             </div>
           )}
           <div className="text-center space-y-1">
-            <p className="text-sm text-gray-500">You sent</p>
-            <p className="text-4xl font-bold text-slate-800">
+            <p className="text-sm text-muted-foreground">You sent</p>
+            <p className="text-4xl font-bold text-foreground">
               ₦{data.amount.toLocaleString()}
             </p>
-            <p className="text-sm text-gray-500">to</p>
-            <p className="text-lg font-semibold text-slate-800">{recipientName}</p>
-            <p className="text-sm text-gray-500">{bankName}</p>
+            <p className="text-sm text-muted-foreground">to</p>
+            <p className="text-lg font-semibold text-foreground">{recipientName}</p>
+            <p className="text-sm text-muted-foreground">{bankName}</p>
           </div>
           {data.message && (
-            <blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-gray-600">
+            <blockquote className="mt-4 border-l-4 border-primary/20 pl-4 italic text-center text-muted-foreground">
               "{data.message}"
             </blockquote>
           )}
-          <div className="text-xs text-gray-400 pt-4 space-y-2">
+          <div className="text-xs text-muted-foreground pt-4 space-y-2">
             <div className="flex justify-between">
               <span>Date</span>
               <span>{new Date().toLocaleString()}</span>
@@ -94,7 +94,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
         </div>
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4 pt-0">
-        <p className="text-xs text-gray-400 mb-2">Powered by Ovomonie</p>
+        <p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
         <Button className="w-full" onClick={handleShare}>
           <Share2 className="mr-2 h-4 w-4" /> Share Receipt
         </Button>
@@ -108,7 +108,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
 
 export function TransferForm() {
   const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
-  const [isMemoTransfer, setIsMemoTransfer] = useState(false);
+  const [isMemoTransfer, setIsMemoTransfer] = useState(true);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -127,7 +127,7 @@ export function TransferForm() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
+  const filteredOtherBanks = otherBanks.filter(b => !topBankCodes.includes(b.code));
 
   useEffect(() => {
     setRecipientName(null);
@@ -203,7 +203,7 @@ export function TransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
-    setIsMemoTransfer(false);
+    setIsMemoTransfer(true);
     form.reset();
   };
 
@@ -280,17 +280,9 @@ export function TransferForm() {
               <ul className="list-disc pl-5 space-y-1 text-xs">
                 <li><b>GTB (058):</b> 0123456789, 1234567890</li>
                 <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
-                <li><b>UBA (033):</b> 1122334455, 2233445566</li>
-                <li><b>First Bank (011):</b> 5566778899, 6677889900</li>
-                <li><b>Zenith Bank (057):</b> 1112223334</li>
               </ul>
             </AlertDescription>
           </Alert>
-          
-        <div className="flex items-center space-x-2 justify-end">
-          <Label htmlFor="memo-switch">Switch to MemoTransfer</Label>
-          <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
-        </div>
 
         <FormField
           control={form.control}
@@ -403,64 +395,48 @@ export function TransferForm() {
             </FormItem>
           )}
         />
-
-        <FormField
-          control={form.control}
-          name="narration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Narration (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., For groceries" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {isMemoTransfer && (
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
-            <FormField
-              control={form.control}
-              name="photo"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Add a Photo</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} className="absolute h-full w-full opacity-0 cursor-pointer" />
-                      <label htmlFor="photo-upload" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
-                        {photoPreview ? (
-                          <Image src={photoPreview} alt="Preview" width={100} height={100} className="object-contain h-full" data-ai-hint="person" />
-                        ) : (
-                          <div className="text-center text-muted-foreground">
-                            <Upload className="mx-auto h-8 w-8" />
-                            <p>Click to upload</p>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Custom Message (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., Enjoy the gift!" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
+        
+        <div className="space-y-4 pt-4 border-t">
+          <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
+          <FormField
+            control={form.control}
+            name="photo"
+            render={() => (
+              <FormItem>
+                <FormLabel>Add a Photo</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} className="absolute h-full w-full opacity-0 cursor-pointer" />
+                    <label htmlFor="photo-upload" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
+                      {photoPreview ? (
+                        <Image src={photoPreview} alt="Preview" width={100} height={100} className="object-contain h-full" data-ai-hint="person" />
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <Upload className="mx-auto h-8 w-8" />
+                          <p>Click to upload</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="message"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Custom Message (Optional)</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="e.g., Enjoy the gift!" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>
           Continue

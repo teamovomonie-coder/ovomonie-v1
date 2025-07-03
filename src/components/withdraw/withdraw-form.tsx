@@ -83,7 +83,7 @@ function BankTransferWithdrawal() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
+  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(b.code));
 
   useEffect(() => {
     setRecipientName(null);
@@ -220,13 +220,13 @@ function WithdrawalReceipt({ data, recipientName, onReset }: { data: FormData; r
   return (
     <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
       <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center"><h2 className="text-lg font-bold">Withdrawal Successful!</h2><Landmark className="w-6 h-6" /></div>
-      <CardContent className="p-4 bg-white"><div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
+      <CardContent className="p-4 bg-card"><div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
           {data.photo && (<div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden"><Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" /></div>)}
-          <div className="text-center space-y-1"><p className="text-sm text-gray-500">You withdrew</p><p className="text-4xl font-bold text-slate-800">₦{data.amount.toLocaleString()}</p><p className="text-sm text-gray-500">to</p><p className="text-lg font-semibold text-slate-800">{recipientName}</p><p className="text-sm text-gray-500">{bankName}</p></div>
-          {data.message && (<blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-gray-600">"{data.message}"</blockquote>)}
-          <div className="text-xs text-gray-400 pt-4 space-y-2"><div className="flex justify-between"><span>Date</span><span>{new Date().toLocaleString()}</span></div><div className="flex justify-between"><span>Ref ID</span><span>OVO-WTH-{Date.now()}</span></div></div>
+          <div className="text-center space-y-1"><p className="text-sm text-muted-foreground">You withdrew</p><p className="text-4xl font-bold text-foreground">₦{data.amount.toLocaleString()}</p><p className="text-sm text-muted-foreground">to</p><p className="text-lg font-semibold text-foreground">{recipientName}</p><p className="text-sm text-muted-foreground">{bankName}</p></div>
+          {data.message && (<blockquote className="mt-4 border-l-4 border-primary/20 pl-4 italic text-center text-muted-foreground">"{data.message}"</blockquote>)}
+          <div className="text-xs text-muted-foreground pt-4 space-y-2"><div className="flex justify-between"><span>Date</span><span>{new Date().toLocaleString()}</span></div><div className="flex justify-between"><span>Ref ID</span><span>OVO-WTH-{Date.now()}</span></div></div>
       </div></CardContent>
-      <CardFooter className="flex flex-col gap-2 p-4 pt-0"><p className="text-xs text-gray-400 mb-2">Powered by Ovomonie</p><Button className="w-full" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share Receipt</Button><Button variant="outline" className="w-full" onClick={onReset}>Make Another Withdrawal</Button></CardFooter>
+      <CardFooter className="flex flex-col gap-2 p-4 pt-0"><p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p><Button className="w-full" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share Receipt</Button><Button variant="outline" className="w-full" onClick={onReset}>Make Another Withdrawal</Button></CardFooter>
     </Card>
   );
 }
