@@ -59,7 +59,7 @@ export async function POST(request: Request) {
                 sender: senderAccount.fullName,
                 recipient: recipientAccount.fullName,
                 amount: amount,
-                newBalance: newSenderBalance / 100,
+                newBalanceInKobo: newSenderBalance,
                 reference: `OVO-INT-${Date.now()}`
             }
         }, { status: 200 });

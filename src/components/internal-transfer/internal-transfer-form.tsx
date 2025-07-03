@@ -23,6 +23,7 @@ import { Upload, Share2, Wallet, Loader2, ArrowLeft, Info, Check } from 'lucide-
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -108,6 +109,7 @@ export function InternalTransferForm() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { updateBalance } = useAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -207,6 +209,7 @@ export function InternalTransferForm() {
         title: 'Transfer Successful!',
         description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.`,
       });
+      updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
       setStep('receipt');
       

@@ -1,48 +1,72 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
 
 interface AuthContextType {
-  isAuthenticated: boolean | null; // null when loading, boolean when determined
+  isAuthenticated: boolean | null;
+  balance: number | null;
   login: (phone: string, pin: string) => Promise<void>;
   logout: () => void;
+  updateBalance: (newBalanceInKobo: number) => void;
+  fetchBalance: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
 
-  useEffect(() => {
-    // Check for token on initial load
-    const token = localStorage.getItem('ovo-auth-token');
-    setIsAuthenticated(!!token);
+  const fetchBalance = useCallback(async () => {
+    try {
+      const account = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
+      if (account) {
+        setBalance(account.balance);
+      }
+    } catch (error) {
+      console.error("Failed to fetch balance", error);
+      setBalance(0);
+    }
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem('ovo-auth-token');
+    const authenticated = !!token;
+    setIsAuthenticated(authenticated);
+    if (authenticated) {
+      fetchBalance();
+    }
+  }, [fetchBalance]);
+
   const login = useCallback(async (phone: string, pin: string): Promise<void> => {
-    // Simulate API call
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // Mock user credentials
         if (phone === '09033505038' && pin === '123456') {
           const dummyToken = `fake-token-${Date.now()}`;
           localStorage.setItem('ovo-auth-token', dummyToken);
           setIsAuthenticated(true);
+          fetchBalance();
           resolve();
         } else {
           reject(new Error('Invalid phone number or PIN.'));
         }
       }, 1000);
     });
-  }, []);
+  }, [fetchBalance]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
     setIsAuthenticated(false);
+    setBalance(null);
   }, []);
 
+  const updateBalance = (newBalanceInKobo: number) => {
+    setBalance(newBalanceInKobo);
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, balance, login, logout, updateBalance, fetchBalance }}>
       {children}
     </AuthContext.Provider>
   );
