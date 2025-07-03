@@ -39,7 +39,6 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
     const pathname = usePathname();
     let isActive = false;
     
-    // Updated logic to better handle active state for nested routes
     const isRootTab = navItems.some(item => item.href === href);
     if (isRootTab) {
         isActive = pathname.startsWith(href);
@@ -129,7 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Fixed Footer */}
             <footer className="fixed bottom-0 left-0 right-0 bg-primary text-primary-foreground z-50 rounded-t-xl shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.1)]">
-                <nav className="flex justify-around items-center h-20 max-w-2xl mx-auto">
+                <nav className="flex items-center h-16 max-w-2xl mx-auto">
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
                 </nav>
             </footer>
