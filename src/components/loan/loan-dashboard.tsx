@@ -253,10 +253,7 @@ export function LoanDashboard() {
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setView('dashboard')}><ArrowLeft/></Button>
-                <CardTitle>Apply for a Loan</CardTitle>
-            </div>
+            <CardTitle>Apply for a Loan</CardTitle>
             <CardDescription>Fill in the details below. Our system will evaluate your eligibility in real-time.</CardDescription>
           </CardHeader>
           <CardContent>

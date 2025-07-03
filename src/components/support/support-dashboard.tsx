@@ -50,7 +50,7 @@ const callbackSchema = z.object({
 });
 
 
-function DashboardView({ setView }: { setView: (view: View) => void }) {
+function DashboardView({ setView }: { setView: (view: View, title: string) => void }) {
   const { toast } = useToast();
   
   const handleCall = () => {
@@ -61,20 +61,22 @@ function DashboardView({ setView }: { setView: (view: View) => void }) {
     // In a real app: window.location.href = 'tel:+23412345678';
   }
 
-  const handleClick = (view: View) => {
-    if (view === 'call') {
+  const handleClick = (opt: typeof supportOptions[0]) => {
+    if (opt.view === 'call') {
       handleCall();
     } else {
-      setView(view);
+      setView(opt.view as View, opt.title);
     }
   }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {supportOptions.map(opt => (
-        <Card key={opt.view} className="cursor-pointer hover:shadow-lg transition-shadow text-center" onClick={() => handleClick(opt.view as View)}>
+        <Card key={opt.view} className="cursor-pointer hover:shadow-lg transition-shadow text-center" onClick={() => handleClick(opt)}>
           <CardHeader className="items-center">
-            <opt.icon className="h-10 w-10 text-primary" />
+            <div className="p-3 bg-primary-light-bg rounded-full text-primary">
+                <opt.icon className="h-8 w-8" />
+            </div>
           </CardHeader>
           <CardContent>
             <p className="font-semibold text-sm">{opt.title}</p>
@@ -233,16 +235,13 @@ export function SupportDashboard() {
             case 'fraud': return <Card><CardHeader><CardTitle>Report Fraud</CardTitle></CardHeader><CardContent><SubmitComplaintForm /></CardContent></Card>;
             case 'email': return <Card><CardHeader><CardTitle>Email Support</CardTitle></CardHeader><CardContent><SubmitComplaintForm /></CardContent></Card>;
             case 'dashboard':
-            default: return <DashboardView setView={setView} />;
+            default: return <DashboardView setView={handleSetView} />;
         }
     }
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2">
-                {view !== 'dashboard' && <Button variant="ghost" size="icon" onClick={() => handleSetView('dashboard', 'Support Center')}><ArrowLeft/></Button>}
-                <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-            </div>
+            <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
             <AnimatePresence mode="wait">
                 <motion.div
                     key={view}

@@ -120,7 +120,7 @@ function HotelResultsView({ hotels, onSelectHotel }: { hotels: typeof mockHotels
     );
 }
 
-function HotelDetailsView({ hotel, rooms, searchData, onBook }: { hotel: typeof mockHotels[0], rooms: typeof mockRooms, searchData: SearchFormData, onBook: (data: BookingFormData, room: typeof mockRooms[0]) => void }) {
+function HotelDetailsView({ hotel, rooms, searchData, onBook, onBack }: { hotel: typeof mockHotels[0], rooms: typeof mockRooms, searchData: SearchFormData, onBook: (data: BookingFormData, room: typeof mockRooms[0]) => void, onBack: () => void }) {
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const form = useForm<BookingFormData>({
         resolver: zodResolver(bookingSchema),
@@ -188,10 +188,7 @@ function PaymentView({ onPay, onBack, totalAmount }: { onPay: () => void, onBack
     return (
         <Card className="max-w-md mx-auto">
             <CardHeader>
-                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
-                    <CardTitle>Confirm Payment</CardTitle>
-                </div>
+                <CardTitle>Confirm Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex justify-between items-center font-bold text-2xl"><p>Total Amount:</p><p>₦{totalAmount.toLocaleString()}</p></div>
@@ -327,9 +324,9 @@ export function HotelBooking() {
   const renderContent = () => {
     switch(view) {
         case 'results':
-            return <div><Button variant="link" onClick={reset}><ArrowLeft className="mr-2"/>New Search</Button><HotelResultsView hotels={filteredHotels} onSelectHotel={handleSelectHotel} /></div>;
+            return <HotelResultsView hotels={filteredHotels} onSelectHotel={handleSelectHotel} />;
         case 'details':
-            return <div><Button variant="link" onClick={() => setView('results')}><ArrowLeft className="mr-2"/>Back to Results</Button><HotelDetailsView hotel={selectedHotel!} rooms={mockRooms.filter(r => r.hotelId === selectedHotel?.id)} searchData={searchData!} onBook={handleBook} /></div>
+            return <HotelDetailsView hotel={selectedHotel!} rooms={mockRooms.filter(r => r.hotelId === selectedHotel?.id)} searchData={searchData!} onBook={handleBook} onBack={() => setView('results')} />;
         case 'payment':
             const numberOfNights = differenceInDays(searchData!.dates.to!, searchData!.dates.from!);
             const totalAmount = selectedRoom!.price * numberOfNights;
@@ -344,9 +341,7 @@ export function HotelBooking() {
 
   return (
     <>
-      <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">Hotel Booking</h2>
-        </div>
+      <h2 className="text-3xl font-bold tracking-tight">Hotel Booking</h2>
       <Tabs defaultValue="book_hotel" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="book_hotel">Book a Hotel</TabsTrigger>

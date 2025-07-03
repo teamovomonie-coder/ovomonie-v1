@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -6,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { OvoLogo } from './logo';
-import { Loader2, LayoutDashboard, ArrowRightLeft, PlusCircle, Briefcase, LayoutGrid, Bell } from 'lucide-react';
+import { Loader2, LayoutDashboard, ArrowRightLeft, PlusCircle, Briefcase, LayoutGrid, Bell, ArrowLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Button } from '@/components/ui/button';
 
 interface NavItem {
     href: string;
@@ -32,16 +32,21 @@ const navItems: NavItem[] = [
     { href: "/more", label: "More", icon: LayoutGrid },
 ];
 
+const rootPaths = navItems.map(item => item.href);
+
 const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
     const pathname = usePathname();
     let isActive = false;
     
+    // Updated logic to better handle active state for nested routes
+    const isRootTab = navItems.some(item => item.href === href);
+    if (isRootTab) {
+        isActive = pathname.startsWith(href);
+    }
     if (href === '/dashboard') {
         isActive = pathname === '/dashboard';
-    } else {
-        const allPaths = [href, ...aliases];
-        isActive = allPaths.some(path => pathname.startsWith(path));
     }
+
 
     return (
         <TooltipProvider>
@@ -82,13 +87,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         );
     }
     
+    const showBackButton = !rootPaths.includes(pathname);
+    
     return (
         <div className="flex flex-col min-h-screen bg-background">
             {/* Fixed Header */}
             <header className="fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-between px-4 z-50 shadow-md">
-                <Link href="/dashboard">
-                    <OvoLogo className="h-9 w-9" />
-                </Link>
+                <div className="flex items-center gap-2">
+                     {showBackButton ? (
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/20" onClick={() => router.back()}>
+                            <ArrowLeft className="h-6 w-6" />
+                        </Button>
+                    ) : (
+                        <Link href="/dashboard">
+                            <OvoLogo className="h-9 w-9" />
+                        </Link>
+                    )}
+                </div>
                 <div className="flex items-center gap-4">
                     <div className="relative">
                         <Bell className="h-6 w-6" />

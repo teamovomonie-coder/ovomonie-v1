@@ -157,11 +157,9 @@ export function TerminalManagement() {
     const inactiveTerminals = totalTerminals - activeTerminals;
 
   return (
-    <div className="space-y-4">
-        <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
-            <h2 className="text-2xl font-bold tracking-tight">POS Terminal Management</h2>
-            <p className="text-primary-foreground/80 text-sm">Monitor and manage all your POS devices.</p>
-        </header>
+    <div className="space-y-4 p-4">
+        <h2 className="text-3xl font-bold tracking-tight">POS Terminal Management</h2>
+        <p className="text-muted-foreground -mt-4">Monitor and manage all your POS devices.</p>
 
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>

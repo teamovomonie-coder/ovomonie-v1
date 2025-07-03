@@ -151,10 +151,8 @@ export function AgentLifeHub() {
     if (isLoading || !data) {
         return (
              <div className="p-4 space-y-4">
-                <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
-                    <Skeleton className="h-8 w-48 bg-primary-foreground/20" />
-                    <Skeleton className="h-4 w-64 mt-2 bg-primary-foreground/20" />
-                </header>
+                <Skeleton className="h-8 w-48 bg-primary-foreground/20" />
+                <Skeleton className="h-4 w-64 mt-2 bg-primary-foreground/20" />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Card><CardHeader><Skeleton className="h-5 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
                     <Card><CardHeader><Skeleton className="h-5 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
@@ -167,10 +165,10 @@ export function AgentLifeHub() {
 
     return (
         <div className="p-4 space-y-4">
-            <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
-                <h2 className="text-2xl font-bold tracking-tight">AgentLife Hub</h2>
-                <p className="text-primary-foreground/80 text-sm">Your gateway to rewards, loans, and performance tracking.</p>
-            </header>
+            <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold tracking-tight">AgentLife Hub</h2>
+            </div>
+            <p className="text-muted-foreground -mt-4">Your gateway to rewards, loans, and performance tracking.</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                  <Card>

@@ -127,7 +127,7 @@ function FlightSearchForm({ onSearch, isSearching }: { onSearch: (data: SearchFo
     );
 }
 
-function FlightResultsView({ searchData, flights, onSelectFlight }: { searchData: SearchFormData, flights: Flight[], onSelectFlight: (flight: Flight) => void }) {
+function FlightResultsView({ searchData, flights, onSelectFlight, onBack }: { searchData: SearchFormData, flights: Flight[], onSelectFlight: (flight: Flight) => void, onBack: () => void }) {
     const fromAirport = airports.find(a => a.code === searchData.from)?.city;
     const toAirport = airports.find(a => a.code === searchData.to)?.city;
     
@@ -168,7 +168,7 @@ function FlightResultsView({ searchData, flights, onSelectFlight }: { searchData
     )
 }
 
-function PassengerDetailsView({ flight, searchData, onBook }: { flight: Flight, searchData: SearchFormData, onBook: (data: BookingFormData) => void }) {
+function PassengerDetailsView({ flight, searchData, onBook, onBack }: { flight: Flight, searchData: SearchFormData, onBook: (data: BookingFormData) => void, onBack: () => void }) {
     const form = useForm<BookingFormData>({
         resolver: zodResolver(bookingSchema),
         defaultValues: {
@@ -218,10 +218,7 @@ function PaymentView({ flight, searchData, bookingData, onPay, onBack }: { fligh
     return (
         <Card className="max-w-md mx-auto">
             <CardHeader>
-                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
-                    <CardTitle>Confirm Payment</CardTitle>
-                </div>
+                <CardTitle>Confirm Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg space-y-2">
@@ -370,9 +367,9 @@ export function FlightBooking() {
   const renderContent = () => {
     switch(view) {
         case 'results':
-            return <div><Button variant="link" onClick={reset}><ArrowLeft className="mr-2"/>New Search</Button><FlightResultsView searchData={searchData!} flights={mockFlights} onSelectFlight={handleSelectFlight} /></div>;
+            return <FlightResultsView searchData={searchData!} flights={mockFlights} onSelectFlight={handleSelectFlight} onBack={reset} />;
         case 'details':
-            return <div><Button variant="link" onClick={() => setView('results')}><ArrowLeft className="mr-2"/>Back to Results</Button><PassengerDetailsView flight={selectedFlight!} searchData={searchData!} onBook={handleBook} /></div>
+            return <PassengerDetailsView flight={selectedFlight!} searchData={searchData!} onBook={handleBook} onBack={() => setView('results')} />;
         case 'payment':
             return <PaymentView flight={selectedFlight!} searchData={searchData!} bookingData={bookingData!} onPay={handlePay} onBack={() => setView('details')} />;
         case 'confirmation':

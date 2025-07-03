@@ -7,10 +7,11 @@ export default function ReportsPage() {
     return (
         <AppShell>
             <div className="p-4 space-y-4">
-                <header className="bg-primary text-primary-foreground -mx-4 -mt-4 p-4 py-6 rounded-b-2xl shadow-lg">
-                    <h2 className="text-2xl font-bold tracking-tight">Analytics & Reports</h2>
-                    <p className="text-primary-foreground/80 text-sm">Gain insights into your business performance.</p>
-                </header>
+                <div className="flex items-center justify-between">
+                    <h2 className="text-3xl font-bold tracking-tight">Analytics & Reports</h2>
+                </div>
+                 <p className="text-muted-foreground -mt-4">Gain insights into your business performance.</p>
+
                 <Card className="text-center py-20">
                     <CardHeader>
                         <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
