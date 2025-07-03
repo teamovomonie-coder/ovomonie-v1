@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/inventory-db';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 export async function GET() {
     try {
-        const categories = await db.categories.findMany();
+        const querySnapshot = await getDocs(collection(db, "categories"));
+        const categories = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(categories);
     } catch (error) {
+        console.error("Error fetching categories: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -13,9 +16,14 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const newCategory = await db.categories.create(body);
-        return NextResponse.json(newCategory, { status: 201 });
+        const docRef = await addDoc(collection(db, "categories"), {
+            ...body,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        return NextResponse.json({ id: docRef.id, ...body }, { status: 201 });
     } catch (error) {
+        console.error("Error creating category: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
