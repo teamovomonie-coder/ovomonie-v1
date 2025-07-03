@@ -52,6 +52,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [accountNumber, setAccountNumber] = useState("");
 
   const form = useForm<FullFormData>({
     resolver: zodResolver(fullRegisterSchema),
@@ -83,18 +84,40 @@ export default function RegisterPage() {
     }
   };
 
-  const processRegistration = async () => {
-      const output = await form.trigger(steps[currentStep].fields, { shouldFocus: true });
-      if (!output) return;
-
+  const processRegistration = async (data: FullFormData) => {
       setIsLoading(true);
-      await new Promise(res => setTimeout(res, 2000));
-      setIsLoading(false);
-      toast({
-          title: 'Registration Successful!',
-          description: 'Your account has been created.',
-      });
-      setCurrentStep(prev => prev + 1);
+      try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Registration failed.');
+        }
+        
+        // Generate account number for display on the success screen
+        const rawPhoneNumber = form.getValues('phone');
+        const generatedAccountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10).split('').reverse().join('') : '';
+        setAccountNumber(generatedAccountNumber);
+        
+        toast({
+            title: 'Registration Successful!',
+            description: 'Your account has been created.',
+        });
+        setCurrentStep(prev => prev + 1);
+
+      } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Registration Error',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
   }
   
   const handleBack = () => {
@@ -102,9 +125,6 @@ export default function RegisterPage() {
   };
   
   const progressValue = (currentStep / steps.length) * 100;
-  const rawPhoneNumber = form.watch('phone');
-  const accountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10).split('').reverse().join('') : '';
-
 
   return (
     <div className="animated-gradient-bg flex min-h-screen w-full items-center justify-center p-4">
@@ -115,7 +135,7 @@ export default function RegisterPage() {
         className="w-full max-w-md"
       >
         <Form {...form}>
-            <form> {/* No submit handler here, buttons will trigger validation */}
+            <form onSubmit={form.handleSubmit(processRegistration)}>
                 <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border-white/20 rounded-2xl">
                 <CardHeader>
                     {currentStep < steps.length + 1 && (
@@ -133,7 +153,7 @@ export default function RegisterPage() {
                 </CardHeader>
                 <CardContent>
                     {currentStep > 0 && currentStep <= steps.length && (
-                        <Button variant="ghost" size="sm" onClick={handleBack} className="mb-4">
+                        <Button variant="ghost" size="sm" onClick={handleBack} className="mb-4" type="button">
                             <ArrowLeft className="mr-2 h-4 w-4" /> Back
                         </Button>
                     )}
@@ -298,7 +318,7 @@ export default function RegisterPage() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="button" className="w-full" onClick={processRegistration} disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
+                                <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
                             </div>
                         )}
                         {currentStep === 5 && (

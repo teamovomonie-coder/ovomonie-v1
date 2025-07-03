@@ -21,17 +21,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchBalance = useCallback(async () => {
     try {
-      // In a real app, you'd get the current user's account number after login.
-      // For now, we'll use the hardcoded mock sender account.
-      const account = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
+      const phone = localStorage.getItem('ovo-user-phone');
+      if (!phone) {
+        // If there's a token but no phone, user should be logged out.
+        if (localStorage.getItem('ovo-auth-token')) {
+            logout();
+        }
+        return;
+      }
+      // This is now a mock function, but it could be an API call in a real app
+      // to get account details by phone number.
+      const account = await mockGetAccountByNumber(phone);
       if (account) {
         setBalance(account.balance);
       } else {
-        console.warn(`Could not find account ${MOCK_SENDER_ACCOUNT} in Firestore.`);
+        // Fallback or handle case where user is authenticated but account data is missing
         setBalance(0);
       }
     } catch (error) {
-      console.error("Failed to fetch balance from Firestore", error);
+      console.error("Failed to fetch balance", error);
       setBalance(0);
     }
   }, []);
@@ -46,24 +54,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [fetchBalance]);
 
   const login = useCallback(async (phone: string, pin: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // This remains a mock login for demonstration purposes.
-      // A real implementation would use Firebase Auth.
-      setTimeout(() => {
-        if (phone === '09033505038' && pin === '123456') {
-          const dummyToken = `fake-token-${Date.now()}`;
-          localStorage.setItem('ovo-auth-token', dummyToken);
-          setIsAuthenticated(true);
-          fetchBalance().then(() => resolve());
-        } else {
-          reject(new Error('Invalid phone number or PIN.'));
-        }
-      }, 1000);
-    });
+      const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, pin }),
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Login failed.');
+      }
+      
+      const { token } = await response.json();
+      localStorage.setItem('ovo-auth-token', token);
+      localStorage.setItem('ovo-user-phone', phone); // Store phone to fetch details
+      setIsAuthenticated(true);
+      await fetchBalance();
   }, [fetchBalance]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
+    localStorage.removeItem('ovo-user-phone');
     setIsAuthenticated(false);
     setBalance(null);
   }, []);
