@@ -122,12 +122,12 @@ export function ExternalTransferForm() {
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
   });
 
-  const { watch, clearErrors, setError, setValue } = form;
+  const { watch, clearErrors, setError } = form;
   const watchedAccountNumber = watch('accountNumber');
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
+  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(b.code));
 
   useEffect(() => {
     setRecipientName(null);
@@ -327,7 +327,7 @@ export function ExternalTransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  setValue("bankCode", bank.code);
+                                  field.onChange(bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
@@ -346,7 +346,7 @@ export function ExternalTransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  setValue("bankCode", bank.code);
+                                  field.onChange(bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
@@ -453,7 +453,7 @@ export function ExternalTransferForm() {
                 <FormItem>
                   <FormLabel>Custom Message (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="e.g., Enjoy the gift!" {...field} />
+                    <Textarea placeholder="e.g., Happy Birthday! Enjoy." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

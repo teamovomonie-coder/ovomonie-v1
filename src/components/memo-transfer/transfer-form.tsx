@@ -122,7 +122,7 @@ export function TransferForm() {
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
   });
 
-  const { watch, clearErrors, setError, setValue } = form;
+  const { watch, clearErrors, setError } = form;
   const watchedAccountNumber = watch('accountNumber');
   const watchedBankCode = watch('bankCode');
 
@@ -319,7 +319,7 @@ export function TransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  setValue("bankCode", bank.code);
+                                  field.onChange(bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
@@ -338,7 +338,7 @@ export function TransferForm() {
                                 key={bank.code}
                                 value={bank.name}
                                 onSelect={() => {
-                                  setValue("bankCode", bank.code);
+                                  field.onChange(bank.code);
                                   setIsBankPopoverOpen(false);
                                   setBankSearchQuery("");
                                 }}
