@@ -219,16 +219,9 @@ export function InternalTransferForm() {
       const result = await response.json();
 
       if (!response.ok) {
-        if (response.status === 401) {
-            toast({
-              variant: 'destructive',
-              title: 'Authentication Error',
-              description: 'Your session has expired. Please log in again.',
-            });
-            logout(); // Log out the user on auth error
-            return;
-        }
-        throw new Error(result.message || 'An error occurred during the transfer.');
+        const error: any = new Error(result.message || 'An error occurred during the transfer.');
+        error.response = response; 
+        throw error;
       }
 
       toast({
@@ -239,12 +232,28 @@ export function InternalTransferForm() {
       setIsPinModalOpen(false);
       setStep('receipt');
       
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    } catch (error: any) {
+      let title = 'Transfer Failed';
+      let description = 'An unknown error occurred.';
+
+      if (error.response?.status === 401) {
+          title = 'Authentication Error';
+          description = 'Your session has expired. Please log in again.';
+          logout();
+      } else if (error.message) {
+          description = error.message;
+          // Set a more specific title based on the error message
+          if (description.toLowerCase().includes('insufficient funds')) {
+            title = 'Insufficient Funds';
+          } else if (description.toLowerCase().includes('security review')) {
+            title = 'Security Alert';
+          }
+      }
+      
       toast({
         variant: 'destructive',
-        title: 'Transfer Failed',
-        description: errorMessage,
+        title: title,
+        description: description,
       });
       setIsPinModalOpen(false);
     } finally {
