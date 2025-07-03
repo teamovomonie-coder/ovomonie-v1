@@ -41,8 +41,22 @@ export const performTransfer = async (
     narration?: string
 ): Promise<{ success: true; newSenderBalance: number; reference: string } | { success: false; message: string }> => {
     // This function simulates a database transaction.
-    // In a real database, you would wrap these operations in a transaction block.
     // START TRANSACTION;
+
+    // --- Fraud Detection Simulation ---
+    const FRAUD_THRESHOLD_KOBO = 10000000; // ₦100,000
+    if (amountInKobo > FRAUD_THRESHOLD_KOBO) {
+        // In a real system, this would trigger a more complex workflow:
+        // 1. Log the attempt in a security event stream.
+        // 2. Add the transaction to a manual review queue.
+        // 3. Potentially place a temporary hold on the user's account.
+        // 4. Send a notification to the user about the flagged activity.
+        return {
+            success: false,
+            message: 'This transaction is unusually large and has been flagged for security review. Please contact support if you believe this is an error.'
+        };
+    }
+    // --- End Fraud Detection ---
     
     const senderAccount = accounts.get(senderAccountNumber);
     const recipientAccount = accounts.get(recipientAccountNumber);
