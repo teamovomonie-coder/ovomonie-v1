@@ -112,10 +112,10 @@ const serviceData: ServiceCategory[] = [
 ];
 
 const ServiceTile = ({ service }: { service: Service }) => {
-  const tileClassName = "bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors h-full";
+  const tileClassName = "bg-card p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-muted transition-colors h-full";
   const tileContent = (
     <>
-      <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
+      <div className="bg-primary-light-bg text-primary p-3 rounded-full mb-2">
         <service.icon className="h-6 w-6" />
       </div>
       <span className="text-sm font-semibold text-foreground leading-tight">{service.label}</span>
@@ -143,7 +143,7 @@ const ServiceTile = ({ service }: { service: Service }) => {
 export default function MorePage() {
   return (
     <AppShell>
-      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6 bg-gray-50">
+      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6 bg-background">
         <h2 className="text-3xl font-bold tracking-tight text-primary">All Services</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
