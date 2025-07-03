@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -23,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, Share2, Wallet, Loader2, ArrowLeft, Info, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PinModal } from '@/components/auth/pin-modal';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -105,6 +105,10 @@ export function InternalTransferForm() {
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
 
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { accountNumber: '', amount: 0, narration: '', message: '' },
@@ -176,8 +180,47 @@ export function InternalTransferForm() {
     setStep('summary');
   }
 
-  const handleConfirmTransfer = () => {
-    setStep('receipt');
+  const handleFinalSubmit = async () => {
+    if (!submittedData) return;
+
+    setIsProcessing(true);
+    try {
+      const response = await fetch('/api/transfers/internal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientAccountNumber: submittedData.accountNumber,
+          amount: submittedData.amount,
+          narration: submittedData.narration,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'An error occurred during the transfer.');
+      }
+
+      toast({
+        title: 'Transfer Successful!',
+        description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.`,
+      });
+      setIsPinModalOpen(false);
+      setStep('receipt');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      toast({
+        variant: 'destructive',
+        title: 'Transfer Failed',
+        description: errorMessage,
+      });
+      setIsPinModalOpen(false);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetForm = () => {
@@ -195,58 +238,67 @@ export function InternalTransferForm() {
 
   if (step === 'summary' && submittedData && recipientName) {
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Transfer Summary</CardTitle>
-          <CardDescription>Please review the details before confirming.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Recipient</span>
-            <span className="font-semibold">{recipientName}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Bank</span>
-            <span className="font-semibold">Ovomonie</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Account Number</span>
-            <span className="font-semibold">{submittedData.accountNumber}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Amount</span>
-            <span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span>
-          </div>
-          {submittedData.narration && (
+      <>
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Transfer Summary</CardTitle>
+            <CardDescription>Please review the details before confirming.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Narration</span>
-              <span className="font-semibold">{submittedData.narration}</span>
+              <span className="text-muted-foreground">Recipient</span>
+              <span className="font-semibold">{recipientName}</span>
             </div>
-          )}
-          {isMemoTransfer && submittedData.photo && (
-            <div className="space-y-2">
-              <span className="text-muted-foreground">Attached Photo</span>
-              <div className="relative w-full h-32 rounded-lg overflow-hidden">
-                <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Bank</span>
+              <span className="font-semibold">Ovomonie</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Account Number</span>
+              <span className="font-semibold">{submittedData.accountNumber}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span>
+            </div>
+            {submittedData.narration && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Narration</span>
+                <span className="font-semibold">{submittedData.narration}</span>
               </div>
-            </div>
-          )}
-          {isMemoTransfer && submittedData.message && (
-            <div className="space-y-2">
-              <span className="text-muted-foreground">Message</span>
-              <blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button variant="outline" className="w-full" onClick={() => setStep('form')}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <Button className="w-full" onClick={handleConfirmTransfer}>
-            Confirm Transfer
-          </Button>
-        </CardFooter>
-      </Card>
+            )}
+            {isMemoTransfer && submittedData.photo && (
+              <div className="space-y-2">
+                <span className="text-muted-foreground">Attached Photo</span>
+                <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                  <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
+                </div>
+              </div>
+            )}
+            {isMemoTransfer && submittedData.message && (
+              <div className="space-y-2">
+                <span className="text-muted-foreground">Message</span>
+                <blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>
+              Confirm Transfer
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <PinModal 
+          open={isPinModalOpen} 
+          onOpenChange={setIsPinModalOpen}
+          onConfirm={handleFinalSubmit}
+          isProcessing={isProcessing}
+        />
+      </>
     );
   }
 
