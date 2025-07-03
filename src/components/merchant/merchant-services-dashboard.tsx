@@ -88,7 +88,7 @@ const ServiceTile = ({ item }: { item: ServiceItem }) => {
     };
     return (
         <Link href={item.href} onClick={handleClick} className="bg-card p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-muted transition-colors h-28">
-            <div className="bg-primary/10 text-primary p-3 rounded-full mb-2">
+            <div className="bg-primary-light-bg text-primary p-3 rounded-full mb-2">
                 <item.icon className="h-6 w-6" />
             </div>
             <span className="text-xs font-semibold text-foreground">{item.title}</span>

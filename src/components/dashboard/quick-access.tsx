@@ -25,8 +25,8 @@ export function QuickAccess() {
       <div className="grid grid-cols-3 gap-4">
         {largeFeatures.map((feature) => (
           <Link href={feature.href} key={feature.label} className="bg-card p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-muted transition-colors">
-            <div className="bg-muted rounded-lg p-3 mb-2">
-                <feature.icon className="h-8 w-8 text-foreground" />
+            <div className="bg-primary-light-bg text-primary rounded-lg p-3 mb-2">
+                <feature.icon className="h-8 w-8" />
             </div>
             <span className="font-semibold text-foreground text-sm">{feature.label}</span>
           </Link>
@@ -35,8 +35,8 @@ export function QuickAccess() {
       <div className="grid grid-cols-4 gap-3">
          {smallFeatures.map((feature) => (
           <Link href={feature.href} key={feature.label} className="bg-card p-2 rounded-xl shadow-sm flex flex-col items-center justify-center text-center h-24 hover:bg-muted transition-colors">
-            <div className="bg-muted rounded-lg p-2.5 mb-2">
-                <feature.icon className="h-6 w-6 text-foreground" />
+            <div className="bg-primary-light-bg text-primary rounded-lg p-2.5 mb-2">
+                <feature.icon className="h-6 w-6" />
             </div>
             <span className="font-medium text-foreground text-xs">{feature.label}</span>
           </Link>
