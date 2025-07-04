@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 
 export async function POST(request: Request) {
     try {
@@ -11,12 +11,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Phone number and PIN are required.' }, { status: 400 });
         }
 
-        // Inefficiently get all users to avoid needing a Firestore index during development.
-        // This should be reverted to a query with a 'where' clause in production.
         const usersRef = collection(db, "users");
         const usersSnapshot = await getDocs(usersRef);
         
-        const userDoc = usersSnapshot.docs.find(doc => doc.data().phone === phone);
+        // Defensively find the user document, protecting against malformed docs without a `phone` field.
+        const userDoc = usersSnapshot.docs.find(doc => doc.data()?.phone === phone);
 
         if (!userDoc) {
             return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
@@ -24,8 +23,11 @@ export async function POST(request: Request) {
 
         const userData = userDoc.data();
 
-        // In a real production app, the PIN should be hashed and compared using a library like bcrypt.
-        // Storing PINs in plaintext is not secure.
+        // Protect against documents that might be missing the loginPin field.
+        if (!userData || typeof userData.loginPin === 'undefined') {
+             return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
+        }
+        
         if (String(userData.loginPin) === String(pin)) {
             // This is a mock token. In production, use JWTs (JSON Web Tokens).
             const token = `fake-token-${userDoc.id}-${Date.now()}`;
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error("Login Error:", error);
-        return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+        // Provide a more specific error message if possible
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        return NextResponse.json({ message: `An internal server error occurred: ${errorMessage}` }, { status: 500 });
     }
 }
