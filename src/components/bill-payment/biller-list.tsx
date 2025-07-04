@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription as UICardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Tv, Wifi, Droplet, Search, Loader2 } from 'lucide-react';
+import { Lightbulb, Tv, Wifi, Droplet, Search, Loader2, Share2, CheckCircle, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { PinModal } from '@/components/auth/pin-modal';
+import { Separator } from '@/components/ui/separator';
 
 interface Biller {
   id: string;
@@ -31,6 +32,14 @@ interface Bouquet {
     id: string;
     name: string;
     price: number;
+}
+
+interface ReceiptData {
+    biller: Biller;
+    amount: number;
+    accountId: string;
+    verifiedName: string | null;
+    bouquet?: Bouquet;
 }
 
 const allBillers: Biller[] = [
@@ -91,6 +100,72 @@ interface PaymentData {
     description: string;
 }
 
+function PaymentReceipt({ data, onDone }: { data: ReceiptData; onDone: () => void }) {
+    const { toast } = useToast();
+    const handleShare = () => {
+        toast({ title: "Shared!", description: "Your receipt has been shared." });
+    }
+    const BillerIcon = data.biller.icon;
+
+    return (
+        <Dialog open={true} onOpenChange={(isOpen) => !isOpen && onDone()}>
+            <DialogContent className="max-w-sm">
+                 <DialogHeader className="text-center items-center">
+                    <CheckCircle className="w-16 h-16 text-green-500 mb-2" />
+                    <DialogTitle className="text-2xl">Payment Successful</DialogTitle>
+                    <DialogDescription>Your payment to {data.biller.name} was successful.</DialogDescription>
+                </DialogHeader>
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Amount Paid</span>
+                        <span className="font-bold text-lg">₦{data.amount.toLocaleString()}</span>
+                    </div>
+                    <Separator/>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Paid To</span>
+                        <div className="flex items-center gap-2 font-semibold">
+                            <BillerIcon className="w-4 h-4" />
+                            <span>{data.biller.name}</span>
+                        </div>
+                    </div>
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">For Account</span>
+                        <span className="font-semibold">{data.accountId}</span>
+                    </div>
+                    {data.verifiedName && (
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Account Name</span>
+                            <span className="font-semibold">{data.verifiedName}</span>
+                        </div>
+                    )}
+                     {data.bouquet && (
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Package</span>
+                            <span className="font-semibold">{data.bouquet.name}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Date</span>
+                        <span className="font-semibold">{new Date().toLocaleString()}</span>
+                    </div>
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Reference</span>
+                        <span className="font-semibold font-mono text-xs">OVO-BILL-{Date.now()}</span>
+                    </div>
+                </div>
+                 <DialogFooter className="flex-col gap-2 pt-4 sm:flex-col sm:space-x-0">
+                    <Button className="w-full" onClick={handleShare}>
+                        <Share2 className="mr-2 h-4 w-4" /> Share Receipt
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={onDone}>
+                        Done
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function BillerList() {
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null);
   const [amount, setAmount] = useState('');
@@ -102,6 +177,7 @@ export function BillerList() {
   const [selectedBouquetId, setSelectedBouquetId] = useState<string>('');
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
@@ -118,6 +194,7 @@ export function BillerList() {
     setSelectedBouquetId('');
     setPaymentData(null);
     setIsPinModalOpen(false);
+    setReceiptData(null);
   }
   
   const handleVerifySmartcard = async () => {
@@ -185,14 +262,19 @@ export function BillerList() {
         category: 'transaction',
     });
     
-    toast({
-        title: "Payment Successful!",
-        description: paymentData.description,
+    const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
+    
+    setReceiptData({
+        biller: selectedBiller!,
+        amount: paymentData.amount,
+        accountId: accountId,
+        verifiedName: verifiedName,
+        bouquet,
     });
 
     setIsSubmitting(false);
     setIsPinModalOpen(false);
-    resetDialogState();
+    setSelectedBiller(null); // Close payment dialog
   }
 
   const filteredBillers = allBillers.filter(biller => 
@@ -227,9 +309,9 @@ export function BillerList() {
                 <Alert>
                     <Tv className="h-4 w-4" />
                     <AlertTitle>Testing Info</AlertTitle>
-                    <AlertDescription>
+                    <UICardDescription>
                         Use smartcard numbers like 1234567890 (DStv), 1122334455 (GOtv), or 5566778899 (StarTimes) for successful verification.
-                    </AlertDescription>
+                    </UICardDescription>
                 </Alert>
                 <div className="space-y-2">
                     <Label htmlFor="account-id">{selectedBiller.fieldLabel}</Label>
@@ -352,9 +434,9 @@ export function BillerList() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Pay {selectedBiller?.name}</DialogTitle>
-            <DialogDescription>
+            <UICardDescription>
               Enter the details below to complete your payment.
-            </DialogDescription>
+            </UICardDescription>
           </DialogHeader>
           {renderDialogContent()}
           <DialogFooter>
@@ -373,6 +455,7 @@ export function BillerList() {
         onConfirm={handleConfirmPayment}
         isProcessing={isSubmitting}
       />
+      {receiptData && <PaymentReceipt data={receiptData} onDone={resetDialogState} />}
     </>
   );
 }
