@@ -120,6 +120,7 @@ export function ExternalTransferForm() {
   
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
@@ -215,6 +216,7 @@ export function ExternalTransferForm() {
   const handleFinalSubmit = async () => {
     if (!submittedData || !recipientName) return;
 
+    setApiError(null);
     setIsProcessing(true);
     try {
       const token = localStorage.getItem('ovo-auth-token');
@@ -260,29 +262,19 @@ export function ExternalTransferForm() {
       setStep('receipt');
       
     } catch (error: any) {
-      let title = 'Transfer Failed';
       let description = 'An unknown error occurred.';
 
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        title = 'Network Error';
         description = 'Please check your internet connection and try again.';
       } else if (error.response?.status === 401) {
-          title = 'Authentication Error';
           description = 'Your session has expired. Please log in again.';
           logout();
       } else if (error.message) {
           description = error.message;
-          if (description.toLowerCase().includes('insufficient funds')) {
-            title = 'Insufficient Funds';
-          }
       }
       
-      toast({
-        variant: 'destructive',
-        title: title,
-        description: description,
-      });
-      setIsPinModalOpen(false);
+      setApiError(description);
+
     } finally {
       setIsProcessing(false);
     }
@@ -325,7 +317,14 @@ export function ExternalTransferForm() {
             <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>Confirm Transfer</Button>
           </CardFooter>
         </Card>
-        <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleFinalSubmit} isProcessing={isProcessing} />
+        <PinModal
+            open={isPinModalOpen}
+            onOpenChange={setIsPinModalOpen}
+            onConfirm={handleFinalSubmit}
+            isProcessing={isProcessing}
+            error={apiError}
+            onClearError={() => setApiError(null)}
+        />
       </>
     );
   }
