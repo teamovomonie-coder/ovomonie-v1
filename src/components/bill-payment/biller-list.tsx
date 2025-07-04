@@ -178,6 +178,7 @@ export function BillerList() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [dialogView, setDialogView] = useState<'form' | 'summary'>('form');
 
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
@@ -195,6 +196,7 @@ export function BillerList() {
     setPaymentData(null);
     setIsPinModalOpen(false);
     setReceiptData(null);
+    setDialogView('form');
   }
   
   const handleVerifySmartcard = async () => {
@@ -215,6 +217,21 @@ export function BillerList() {
     }
     setIsVerifying(false);
   };
+
+  const handleProceedToSummary = () => {
+    if (selectedBiller?.category === 'Cable TV') {
+        if (!verifiedName || !selectedBouquetId) {
+            toast({ title: "Incomplete", description: "Please verify your account and select a package.", variant: "destructive" });
+            return;
+        }
+    } else {
+        if (!accountId || !amount || parseFloat(amount) <= 0) {
+            toast({ title: "Incomplete", description: "Please enter a valid account ID and amount.", variant: "destructive" });
+            return;
+        }
+    }
+    setDialogView('summary');
+  }
 
   const handlePayment = () => {
     let paymentAmount = 0;
@@ -252,7 +269,6 @@ export function BillerList() {
     setIsSubmitting(true);
     await new Promise(res => setTimeout(res, 1500));
 
-    // Update balance and create notification
     const newBalance = (balance || 0) - (paymentData.amount * 100);
     updateBalance(newBalance);
 
@@ -297,7 +313,7 @@ export function BillerList() {
     </Card>
   );
 
-  const renderDialogContent = () => {
+  const renderDialogFormContent = () => {
     if (!selectedBiller) return null;
 
     if (selectedBiller.category === 'Cable TV') {
@@ -355,7 +371,6 @@ export function BillerList() {
         );
     }
 
-    // Default for other categories
     return (
         <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -369,13 +384,56 @@ export function BillerList() {
         </div>
     );
   };
+  
+  const renderDialogSummaryContent = () => {
+    if (!selectedBiller) return null;
+    let paymentAmount = 0;
+    let selectedBouquet: Bouquet | undefined;
 
-  const isPaymentDisabled = () => {
-    if (isSubmitting) return true;
+    if (selectedBiller.category === 'Cable TV') {
+        selectedBouquet = bouquets[selectedBiller.id]?.find(b => b.id === selectedBouquetId);
+        if (selectedBouquet) paymentAmount = selectedBouquet.price;
+    } else {
+        paymentAmount = parseFloat(amount);
+    }
+
+    return (
+        <div className="space-y-4 py-4">
+            <div className="p-4 bg-muted rounded-lg space-y-3">
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Paying To</span>
+                    <span className="font-semibold">{selectedBiller.name}</span>
+                </div>
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{selectedBiller.fieldLabel}</span>
+                    <span className="font-semibold">{accountId}</span>
+                </div>
+                 {verifiedName && (
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Account Name</span>
+                        <span className="font-semibold">{verifiedName}</span>
+                    </div>
+                )}
+                 {selectedBouquet && (
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Package</span>
+                        <span className="font-semibold">{selectedBouquet.name}</span>
+                    </div>
+                )}
+            </div>
+             <div className="flex justify-between items-center font-bold text-2xl">
+                <span>Total</span>
+                <span>₦{paymentAmount.toLocaleString()}</span>
+            </div>
+        </div>
+    );
+  };
+
+  const isProceedDisabled = () => {
     if (selectedBiller?.category === 'Cable TV') {
         return !verifiedName || !selectedBouquetId;
     }
-    return !accountId || !amount;
+    return !accountId || !amount || parseFloat(amount) <= 0;
   }
 
   return (
@@ -433,19 +491,28 @@ export function BillerList() {
       <Dialog open={!!selectedBiller} onOpenChange={(isOpen) => { if (!isOpen) resetDialogState() }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Pay {selectedBiller?.name}</DialogTitle>
+            <DialogTitle>{dialogView === 'form' ? `Pay ${selectedBiller?.name}` : 'Confirm Payment'}</DialogTitle>
             <UICardDescription>
-              Enter the details below to complete your payment.
+              {dialogView === 'form' ? 'Enter the details below to complete your payment.' : 'Please review the details before confirming.'}
             </UICardDescription>
           </DialogHeader>
-          {renderDialogContent()}
+            {dialogView === 'form' ? renderDialogFormContent() : renderDialogSummaryContent()}
           <DialogFooter>
-            <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handlePayment} disabled={isPaymentDisabled() || isSubmitting}>
-                Confirm Payment
-            </Button>
+            {dialogView === 'form' ? (
+                <>
+                    <Button variant="outline" onClick={resetDialogState}>Cancel</Button>
+                    <Button onClick={handleProceedToSummary} disabled={isProceedDisabled()}>
+                        Proceed
+                    </Button>
+                </>
+            ) : (
+                 <>
+                    <Button variant="outline" onClick={() => setDialogView('form')}>Back</Button>
+                    <Button onClick={handlePayment}>
+                        Confirm & Pay
+                    </Button>
+                </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
