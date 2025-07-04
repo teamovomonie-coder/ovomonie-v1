@@ -33,6 +33,9 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Share2, Smartphone, Wifi, Wallet } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
+import { PinModal } from '@/components/auth/pin-modal';
 
 // --- Mock Data & Logos ---
 
@@ -99,70 +102,101 @@ type ReceiptData = {
 // --- Sub-components ---
 
 function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<z.infer<typeof airtimeSchema> | null>(null);
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof airtimeSchema>>({
     resolver: zodResolver(airtimeSchema),
     defaultValues: { phoneNumber: '', network: '', amount: 0 }
   });
+  
+  const onSubmit = (values: z.infer<typeof airtimeSchema>) => {
+    if (balance === null || (values.amount * 100) > balance) {
+      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this purchase.' });
+      return;
+    }
+    setPurchaseData(values);
+    setIsPinModalOpen(true);
+  };
 
-  async function onSubmit(values: z.infer<typeof airtimeSchema>) {
-    setIsLoading(true);
+  const handleConfirmPurchase = async () => {
+    if (!purchaseData || balance === null) return;
+    setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-    setIsLoading(false);
-    toast({
-      title: "Purchase Successful!",
-      description: `₦${values.amount} airtime sent to ${values.phoneNumber}.`,
+    
+    // Update balance
+    const newBalance = balance - (purchaseData.amount * 100);
+    updateBalance(newBalance);
+
+    // Create notification
+    addNotification({
+      title: 'Airtime Purchase Successful',
+      description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
+      category: 'transaction',
     });
-    onPurchase({ ...values, type: 'Airtime' });
+
+    onPurchase({ ...purchaseData, type: 'Airtime' });
+    setIsProcessing(false);
+    setIsPinModalOpen(false);
     form.reset();
-  }
+  };
+
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField control={form.control} name="network" render={({ field }) => (
-          <FormItem><FormLabel>Network</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger><SelectValue placeholder="Select a network" /></SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {networks.map(net => (
-                  <SelectItem key={net.id} value={net.id}>
-                    <div className="flex items-center gap-2">
-                        <net.Logo /> {net.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select><FormMessage />
-          </FormItem>
-        )}/>
-        <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-          <FormItem><FormLabel>Phone Number</FormLabel>
-            <FormControl><Input placeholder="08012345678" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )}/>
-        <FormField control={form.control} name="amount" render={({ field }) => (
-          <FormItem><FormLabel>Amount (₦)</FormLabel>
-            <FormControl><Input type="number" placeholder="e.g., 500" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )}/>
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Buy Airtime
-        </Button>
-      </form>
-    </Form>
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField control={form.control} name="network" render={({ field }) => (
+            <FormItem><FormLabel>Network</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Select a network" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {networks.map(net => (
+                    <SelectItem key={net.id} value={net.id}>
+                      <div className="flex items-center gap-2">
+                          <net.Logo /> {net.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select><FormMessage />
+            </FormItem>
+          )}/>
+          <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+            <FormItem><FormLabel>Phone Number</FormLabel>
+              <FormControl><Input placeholder="08012345678" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}/>
+          <FormField control={form.control} name="amount" render={({ field }) => (
+            <FormItem><FormLabel>Amount (₦)</FormLabel>
+              <FormControl><Input type="number" placeholder="e.g., 500" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}/>
+          <Button type="submit" className="w-full" disabled={isProcessing}>
+            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Buy Airtime
+          </Button>
+        </form>
+      </Form>
+      <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleConfirmPurchase} isProcessing={isProcessing} />
+    </>
   );
 }
 
 function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<{values: z.infer<typeof dataSchema>, plan: typeof dataPlans.mtn[0]} | null>(null);
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof dataSchema>>({
@@ -175,20 +209,39 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
   const selectedPlanId = form.watch('planId');
   const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
 
-  async function onSubmit(values: z.infer<typeof dataSchema>) {
+  const onSubmit = (values: z.infer<typeof dataSchema>) => {
     if (!selectedPlan) return;
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    toast({
-      title: "Purchase Successful!",
-      description: `${selectedPlan.name} sent to ${values.phoneNumber}.`,
-    });
-    onPurchase({ ...values, type: 'Data', amount: selectedPlan.price, planName: selectedPlan.name });
-    form.reset();
+    if (balance === null || selectedPlan.price * 100 > balance) {
+       toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this purchase.' });
+      return;
+    }
+    setPurchaseData({ values, plan: selectedPlan });
+    setIsPinModalOpen(true);
   }
 
+  const handleConfirmPurchase = async () => {
+    if (!purchaseData || balance === null) return;
+    
+    setIsProcessing(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const newBalance = balance - (purchaseData.plan.price * 100);
+    updateBalance(newBalance);
+
+    addNotification({
+      title: 'Data Purchase Successful',
+      description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
+      category: 'transaction',
+    });
+
+    onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
+    setIsProcessing(false);
+    setIsPinModalOpen(false);
+    form.reset();
+  };
+
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField control={form.control} name="network" render={({ field }) => (
@@ -215,12 +268,14 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
                 Total: ₦{selectedPlan.price.toLocaleString()}
             </div>
         )}
-        <Button type="submit" className="w-full" disabled={isLoading || !selectedPlan}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" className="w-full" disabled={isProcessing || !selectedPlan}>
+          {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Buy Data
         </Button>
       </form>
     </Form>
+    <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleConfirmPurchase} isProcessing={isProcessing} />
+    </>
   );
 }
 
@@ -321,3 +376,5 @@ export function AirtimeForm() {
         </>
     );
 }
+
+    
