@@ -8,60 +8,60 @@ body {
 
 @layer base {
   :root {
-    --background: 220 50% 98%;
-    --foreground: 224 71% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-    --primary: 215 100% 15%;
-    --primary-foreground: 210 20% 98%;
-    --primary-light-bg: 220 48% 88%;
-    --secondary: 220 15% 96%;
-    --secondary-foreground: 224 71% 4%;
-    --muted: 220 15% 96%;
-    --muted-foreground: 220 9% 45%;
-    --accent: 220 15% 94%;
-    --accent-foreground: 224 71% 4%;
+    --background: 180 75% 95%; /* Light desaturated teal */
+    --foreground: 180 25% 25%;
+    --card: 180 50% 98%;
+    --card-foreground: 180 25% 25%;
+    --popover: 180 50% 98%;
+    --popover-foreground: 180 25% 25%;
+    --primary: 180 100% 25%; /* Saturated teal */
+    --primary-foreground: 180 25% 98%;
+    --primary-light-bg: 180 80% 90%;
+    --secondary: 180 50% 90%;
+    --secondary-foreground: 180 25% 25%;
+    --muted: 180 50% 94%;
+    --muted-foreground: 180 15% 45%;
+    --accent: 180.3 100% 41%; /* Blue-green accent */
+    --accent-foreground: 180 25% 25%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
-    --chart-1: 215 100% 15%;
-    --chart-2: 217 91% 60%;
-    --chart-3: 217 91% 70%;
-    --chart-4: 217 91% 80%;
-    --chart-5: 217 91% 90%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 180 30% 88%;
+    --input: 180 30% 92%;
+    --ring: 180 100% 35%;
+    --chart-1: 180 100% 25%;
+    --chart-2: 180 80% 45%;
+    --chart-3: 180 60% 65%;
+    --chart-4: 180 40% 75%;
+    --chart-5: 180 30% 85%;
     --radius: 0.5rem;
   }
  
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 20% 98%;
-    --card: 224 71% 4%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 224 71% 4%;
-    --primary-light-bg: 215 28% 17%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 215 28% 17%;
-    --accent-foreground: 210 20% 98%;
+    --background: 180 25% 10%;
+    --foreground: 180 15% 95%;
+    --card: 180 25% 12%;
+    --card-foreground: 180 15% 95%;
+    --popover: 180 25% 10%;
+    --popover-foreground: 180 15% 95%;
+    --primary: 180 90% 60%;
+    --primary-foreground: 180 100% 10%;
+    --primary-light-bg: 180 40% 20%;
+    --secondary: 180 30% 25%;
+    --secondary-foreground: 180 15% 95%;
+    --muted: 180 30% 25%;
+    --muted-foreground: 180 10% 65%;
+    --accent: 180.3 90% 55%;
+    --accent-foreground: 180 15% 95%;
     --destructive: 0 63% 31%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 217.2 91.2% 59.8%;
-    --chart-1: 217.2 91.2% 59.8%;
-    --chart-2: 210 20% 98%;
-    --chart-3: 215 20% 65%;
-    --chart-4: 224 71% 4%;
-    --chart-5: 210 40% 80%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 180 30% 25%;
+    --input: 180 30% 25%;
+    --ring: 180 90% 60%;
+    --chart-1: 180 90% 60%;
+    --chart-2: 180 70% 50%;
+    --chart-3: 180 50% 40%;
+    --chart-4: 180 30% 30%;
+    --chart-5: 180 20% 20%;
   }
 }
 
@@ -76,7 +76,7 @@ body {
 
 @layer utilities {
   .animated-gradient-bg {
-    background: linear-gradient(-45deg, hsl(215, 60%, 96%), hsl(220, 60%, 97%), hsl(210, 60%, 98%), hsl(220, 60%, 97%));
+    background: linear-gradient(-45deg, hsl(180 75% 95%), hsl(180 70% 96%), hsl(180 75% 97%), hsl(180 70% 96%));
     background-size: 400% 400%;
     animation: wave 15s ease infinite;
   }
