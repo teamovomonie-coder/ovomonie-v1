@@ -28,6 +28,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+
 
 const formSchema = z.object({
   bankCode: z.string().optional(),
@@ -65,6 +68,11 @@ function BankTransferWithdrawal() {
   const debounceRef = useRef<NodeJS.Timeout>();
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState("");
+
+  const { toast } = useToast();
+  const { balance, updateBalance } = useAuth();
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema.pick({
@@ -144,7 +152,27 @@ function BankTransferWithdrawal() {
     setStep('summary');
   }
 
-  const handleConfirmWithdrawal = () => setStep('receipt');
+    const handleConfirmWithdrawal = () => {
+        if (!submittedData || balance === null || (submittedData.amount * 100) > balance) {
+            toast({ variant: "destructive", title: "Insufficient Funds" });
+            return;
+        }
+        setIsPinModalOpen(true);
+    };
+
+    const handleFinalSubmit = async () => {
+      if (!submittedData || balance === null) return;
+      setIsProcessing(true);
+      await new Promise(res => setTimeout(res, 1500));
+      const newBalance = balance - (submittedData.amount * 100);
+      updateBalance(newBalance);
+      setIsProcessing(false);
+      setIsPinModalOpen(false);
+      setStep('receipt');
+      toast({ title: 'Withdrawal Successful!' });
+    };
+
+
   const resetForm = () => {
     setStep('form');
     setSubmittedData(null);
@@ -161,25 +189,33 @@ function BankTransferWithdrawal() {
   if (step === 'summary' && submittedData && recipientName) {
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Withdrawal Summary</CardTitle>
-          <CardDescription>Please review the details before confirming.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center"><span className="text-muted-foreground">Recipient</span><span className="font-semibold">{recipientName}</span></div>
-          <div className="flex justify-between items-center"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{bankName}</span></div>
-          <div className="flex justify-between items-center"><span className="text-muted-foreground">Account Number</span><span className="font-semibold">{submittedData.accountNumber}</span></div>
-          <div className="flex justify-between items-center"><span className="text-muted-foreground">Amount</span><span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span></div>
-          {submittedData.narration && (<div className="flex justify-between items-center"><span className="text-muted-foreground">Narration</span><span className="font-semibold">{submittedData.narration}</span></div>)}
-          {isMemoTransfer && submittedData.photo && (<div className="space-y-2"><span className="text-muted-foreground">Attached Photo</span><div className="relative w-full h-32 rounded-lg overflow-hidden"><Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" /></div></div>)}
-          {isMemoTransfer && submittedData.message && (<div className="space-y-2"><span className="text-muted-foreground">Message</span><blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote></div>)}
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button variant="outline" className="w-full" onClick={() => setStep('form')}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-          <Button className="w-full" onClick={handleConfirmWithdrawal}>Confirm Withdrawal</Button>
-        </CardFooter>
-      </Card>
+      <>
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Withdrawal Summary</CardTitle>
+            <CardDescription>Please review the details before confirming.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Recipient</span><span className="font-semibold">{recipientName}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{bankName}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Account Number</span><span className="font-semibold">{submittedData.accountNumber}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Amount</span><span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span></div>
+            {submittedData.narration && (<div className="flex justify-between items-center"><span className="text-muted-foreground">Narration</span><span className="font-semibold">{submittedData.narration}</span></div>)}
+            {isMemoTransfer && submittedData.photo && (<div className="space-y-2"><span className="text-muted-foreground">Attached Photo</span><div className="relative w-full h-32 rounded-lg overflow-hidden"><Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" /></div></div>)}
+            {isMemoTransfer && submittedData.message && (<div className="space-y-2"><span className="text-muted-foreground">Message</span><blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote></div>)}
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+            <Button className="w-full" onClick={handleConfirmWithdrawal} disabled={isProcessing}>Confirm Withdrawal</Button>
+          </CardFooter>
+        </Card>
+        <PinModal
+          open={isPinModalOpen}
+          onOpenChange={setIsPinModalOpen}
+          onConfirm={handleFinalSubmit}
+          isProcessing={isProcessing}
+        />
+      </>
     );
   }
 
@@ -235,6 +271,9 @@ function AtmCardlessWithdrawal() {
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
     const { toast } = useToast();
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [pendingAmount, setPendingAmount] = useState<number | null>(null);
 
     const form = useForm<z.infer<typeof amountSchema>>({
         resolver: zodResolver(amountSchema),
@@ -257,118 +296,131 @@ function AtmCardlessWithdrawal() {
         return () => clearInterval(timer);
     }, [generatedCode, toast]);
 
-    const handleGenerateCode = (data: z.infer<typeof amountSchema>) => {
-        if (data.amount > 0) {
+    const onSubmit = (data: z.infer<typeof amountSchema>) => {
+        setPendingAmount(data.amount);
+        setIsPinModalOpen(true);
+    };
+
+    const handleGenerateCode = async () => {
+        if (pendingAmount && pendingAmount > 0) {
+            setIsProcessing(true);
+            await new Promise(res => setTimeout(res, 1000));
             const code = Array(3).fill(0).map(() => Math.floor(Math.random() * 900 + 100).toString()).join('-');
             setGeneratedCode(code);
             setTimeLeft(300); // 5 minutes
             toast({ title: 'Code Generated!', description: 'Your cardless withdrawal code is ready.'});
+            setIsProcessing(false);
+            setIsPinModalOpen(false);
+            form.reset();
         }
     };
 
+
     if (generatedCode) {
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
         return (
             <div className="text-center space-y-4">
                 <p>Use the code below at a supported ATM:</p>
                 <div className="bg-muted p-4 rounded-lg">
                     <p className="text-3xl font-bold tracking-widest">{generatedCode}</p>
                 </div>
-                <p className="font-semibold text-destructive">Expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</p>
+                <p className="font-semibold text-destructive">Expires in: {Math.floor(timeLeft / 60)}:{timeLeft % 60 < 10 ? `0${timeLeft % 60}` : timeLeft % 60}</p>
                 <Button onClick={() => { setGeneratedCode(null); form.reset(); }}>Done</Button>
             </div>
         );
     }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleGenerateCode)} className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="amount" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Amount (₦)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="e.g., 10000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
-                            </FormControl>
+                            <FormControl><Input type="number" placeholder="e.g., 10000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
                             <FormMessage />
                         </FormItem>
-                    )}
-                />
-                <Button type="submit" className="w-full">Generate Code</Button>
-            </form>
-        </Form>
+                    )} />
+                    <Button type="submit" className="w-full">Generate Code</Button>
+                </form>
+            </Form>
+            <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleGenerateCode} isProcessing={isProcessing} />
+        </>
     );
 }
 
 function PosAgentWithdrawal() {
     const { toast } = useToast();
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [pendingData, setPendingData] = useState<z.infer<typeof posAgentSchema> | null>(null);
+
     const form = useForm<z.infer<typeof posAgentSchema>>({
         resolver: zodResolver(posAgentSchema),
-        defaultValues: {
-            agentId: '',
-            amount: 0,
-        }
+        defaultValues: { agentId: '', amount: 0 }
     });
 
     function onSubmit(data: z.infer<typeof posAgentSchema>) {
+        setPendingData(data);
+        setIsPinModalOpen(true);
+    }
+
+    async function handleFinalSubmit() {
+        if (!pendingData) return;
+        setIsProcessing(true);
+        await new Promise(res => setTimeout(res, 1500));
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
         toast({
             title: "Withdrawal Requested",
-            description: `Withdrawal of ₦${data.amount} from agent ${data.agentId} has been requested.`,
+            description: `Withdrawal of ₦${pendingData.amount} from agent ${pendingData.agentId} has been requested.`,
             variant: "default",
         });
         form.reset();
+        setPendingData(null);
     }
     
     return (
-         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="agentId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Agent ID</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter agent ID" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Amount (₦)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <Button type="submit" className="w-full">Request Withdrawal</Button>
-            </form>
-        </Form>
+         <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="agentId" render={({ field }) => (
+                        <FormItem><FormLabel>Agent ID</FormLabel><FormControl><Input placeholder="Enter agent ID" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="amount" render={({ field }) => (
+                        <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <Button type="submit" className="w-full">Request Withdrawal</Button>
+                </form>
+            </Form>
+            <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleFinalSubmit} isProcessing={isProcessing} />
+        </>
     )
 }
 
 function UssdWithdrawal() {
     const [ussdString, setUssdString] = useState<string | null>(null);
     const { toast } = useToast();
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [pendingAmount, setPendingAmount] = useState<number | null>(null);
 
     const form = useForm<z.infer<typeof amountSchema>>({
         resolver: zodResolver(amountSchema),
         defaultValues: { amount: 0 }
     });
 
-    const handleGenerate = (data: z.infer<typeof amountSchema>) => {
-        if (data.amount > 0) {
-            setUssdString(`*894*${data.amount}*12345#`); // Mock code
+    const onSubmit = (data: z.infer<typeof amountSchema>) => {
+        setPendingAmount(data.amount);
+        setIsPinModalOpen(true);
+    }
+
+    const handleGenerateCode = async () => {
+        if (pendingAmount && pendingAmount > 0) {
+            setIsProcessing(true);
+            await new Promise(res => setTimeout(res, 1000));
+            setUssdString(`*894*${pendingAmount}*12345#`); // Mock code
+            setIsProcessing(false);
+            setIsPinModalOpen(false);
         }
     }
 
@@ -383,52 +435,50 @@ function UssdWithdrawal() {
         return (
             <div className="text-center space-y-4">
                 <p>Dial the code below on your mobile phone:</p>
-                <div className="bg-muted p-4 rounded-lg">
-                    <p className="text-2xl font-bold tracking-widest">{ussdString}</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button onClick={() => { setUssdString(null); form.reset(); }} variant="outline" className="w-full">Back</Button>
-                    <Button onClick={copyToClipboard} className="w-full">Copy Code</Button>
-                </div>
+                <div className="bg-muted p-4 rounded-lg"><p className="text-2xl font-bold tracking-widest">{ussdString}</p></div>
+                <div className="flex gap-2"><Button onClick={() => { setUssdString(null); form.reset(); }} variant="outline" className="w-full">Back</Button><Button onClick={copyToClipboard} className="w-full">Copy Code</Button></div>
             </div>
         );
     }
     
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleGenerate)} className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Amount (₦)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="e.g., 2000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <Button type="submit" className="w-full">Generate USSD Code</Button>
-            </form>
-        </Form>
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="amount" render={({ field }) => (
+                        <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 2000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <Button type="submit" className="w-full">Generate USSD Code</Button>
+                </form>
+            </Form>
+            <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleGenerateCode} isProcessing={isProcessing} />
+        </>
     );
 }
 
 function QrCodeWithdrawal() {
-     const [amount, setAmount] = useState(0);
      const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
-
+     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+     const [isProcessing, setIsProcessing] = useState(false);
+     const [pendingAmount, setPendingAmount] = useState<number>(0);
+    
      const form = useForm<z.infer<typeof amountSchema>>({
         resolver: zodResolver(amountSchema),
         defaultValues: { amount: 0 }
      });
 
-     const handleGenerate = (data: z.infer<typeof amountSchema>) => {
-        if(data.amount > 0) {
-            setAmount(data.amount);
+     const onSubmit = (data: z.infer<typeof amountSchema>) => {
+        setPendingAmount(data.amount);
+        setIsPinModalOpen(true);
+     }
+
+     const handleGenerateCode = async () => {
+        if(pendingAmount > 0) {
+            setIsProcessing(true);
+            await new Promise(res => setTimeout(res, 1000));
             setQrCodeUrl(`https://placehold.co/256x256.png`);
+            setIsProcessing(false);
+            setIsPinModalOpen(false);
         }
      }
 
@@ -436,34 +486,25 @@ function QrCodeWithdrawal() {
          return (
             <div className="text-center space-y-4">
                 <p>Have the agent or ATM scan this QR code.</p>
-                <div className="bg-white p-4 inline-block rounded-lg">
-                    <Image src={qrCodeUrl} alt="Withdrawal QR Code" width={256} height={256} data-ai-hint="qr code" />
-                </div>
-                <p className="font-bold text-xl">Amount: ₦{amount.toLocaleString()}</p>
+                <div className="bg-white p-4 inline-block rounded-lg"><Image src={qrCodeUrl} alt="Withdrawal QR Code" width={256} height={256} data-ai-hint="qr code" /></div>
+                <p className="font-bold text-xl">Amount: ₦{pendingAmount.toLocaleString()}</p>
                 <Button onClick={() => { setQrCodeUrl(null); form.reset(); }} className="w-full">Done</Button>
             </div>
          );
      }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleGenerate)} className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Amount (₦)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="e.g., 15000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <Button type="submit" className="w-full">Generate QR Code</Button>
-            </form>
-        </Form>
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="amount" render={({ field }) => (
+                        <FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 15000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <Button type="submit" className="w-full">Generate QR Code</Button>
+                </form>
+            </Form>
+            <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleGenerateCode} isProcessing={isProcessing} />
+        </>
     );
 }
 
