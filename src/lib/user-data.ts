@@ -23,15 +23,34 @@ interface UserAccount {
 
 
 export const mockGetAccountByNumber = async (accountNumber: string): Promise<UserAccount | undefined> => {
-    const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-        return undefined;
+    // On the server, query Firestore directly.
+    if (typeof window === 'undefined') {
+        const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            return undefined;
+        }
+        
+        const userDoc = querySnapshot.docs[0];
+        return { id: userDoc.id, ...userDoc.data() } as UserAccount;
+    } 
+    // On the client, fetch from the API route to avoid direct DB connection issues.
+    else {
+        try {
+            const response = await fetch(`/api/user/${accountNumber}`);
+            if (!response.ok) {
+                if (response.status === 404) return undefined;
+                console.error('Failed to fetch user account data, status:', response.status);
+                return undefined;
+            }
+            const data = await response.json();
+            return data as UserAccount;
+        } catch (error) {
+            console.error("Error fetching account data from API:", error);
+            return undefined;
+        }
     }
-    
-    const userDoc = querySnapshot.docs[0];
-    return { id: userDoc.id, ...userDoc.data() } as UserAccount;
 };
 
 export const performTransfer = async (
