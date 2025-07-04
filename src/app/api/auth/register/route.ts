@@ -29,9 +29,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'An account with this phone number already exists.' }, { status: 409 });
         }
 
+        // Generate account number from the last 10 digits of the phone number
+        const accountNumber = phone.slice(-10);
+
         // Create new user document
         const newUser = {
             ...body,
+            accountNumber,
             // In a real app, the PIN should be securely hashed before saving.
             // For simplicity, we are storing it in plaintext. THIS IS NOT SECURE FOR PRODUCTION.
             balance: 125034500, // Initial balance in kobo (e.g., ₦1,250,345.00)

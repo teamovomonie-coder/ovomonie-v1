@@ -24,10 +24,10 @@ const fullRegisterSchema = z.object({
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
   nin: z.string().length(11, "NIN must be 11 digits."),
   address: z.string().min(10, "Please provide your residential address."),
-  loginPin: z.string().length(6, "Your login PIN must be 6 digits."),
-  confirmLoginPin: z.string().length(6, "Confirm your login PIN."),
-  transactionPin: z.string().length(4, "Your transaction PIN must be 4 digits."),
-  confirmTransactionPin: z.string().length(4, "Confirm your transaction PIN."),
+  loginPin: z.string().regex(/^\d{6}$/, "Login PIN must be 6 digits."),
+  confirmLoginPin: z.string().regex(/^\d{6}$/, "Confirmation PIN must be 6 digits."),
+  transactionPin: z.string().regex(/^\d{4}$/, "Transaction PIN must be 4 digits."),
+  confirmTransactionPin: z.string().regex(/^\d{4}$/, "Confirmation PIN must be 4 digits."),
 }).refine(data => data.loginPin === data.confirmLoginPin, {
     message: "Login PINs do not match.",
     path: ['confirmLoginPin'],
@@ -84,7 +84,7 @@ export default function RegisterPage() {
         }
         
         const rawPhoneNumber = form.getValues('phone');
-        const generatedAccountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10).split('').reverse().join('') : '';
+        const generatedAccountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10) : '';
         setAccountNumber(generatedAccountNumber);
         
         toast({
