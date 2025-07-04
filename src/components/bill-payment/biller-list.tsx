@@ -14,6 +14,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/context/auth-context';
+import { PinModal } from '@/components/auth/pin-modal';
 
 interface Biller {
   id: string;
@@ -83,6 +85,11 @@ const categories = [
     { name: 'Water', icon: Droplet },
 ] as const;
 
+interface PaymentData {
+    amount: number;
+    description: string;
+}
+
 export function BillerList() {
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null);
   const [amount, setAmount] = useState('');
@@ -92,7 +99,12 @@ export function BillerList() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verifiedName, setVerifiedName] = useState<string | null>(null);
   const [selectedBouquetId, setSelectedBouquetId] = useState<string>('');
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+
   const { toast } = useToast();
+  const { balance } = useAuth();
+
 
   const resetDialogState = () => {
     setSelectedBiller(null);
@@ -102,6 +114,8 @@ export function BillerList() {
     setIsSubmitting(false);
     setVerifiedName(null);
     setSelectedBouquetId('');
+    setPaymentData(null);
+    setIsPinModalOpen(false);
   }
   
   const handleVerifySmartcard = async () => {
@@ -124,35 +138,52 @@ export function BillerList() {
   };
 
   const handlePayment = () => {
-    setIsSubmitting(true);
+    let paymentAmount = 0;
     let description = '';
 
     if (selectedBiller?.category === 'Cable TV') {
         const bouquet = bouquets[selectedBiller.id]?.find(b => b.id === selectedBouquetId);
         if (!bouquet) {
             toast({ title: "Error", description: "Please select a bouquet.", variant: "destructive" });
-            setIsSubmitting(false);
             return;
         }
-        description = `Your payment of ₦${bouquet.price} for ${selectedBiller.name} (${bouquet.name}) was successful.`;
+        paymentAmount = bouquet.price;
+        description = `Payment for ${selectedBiller.name} (${bouquet.name}).`;
     } else {
          if (!amount || !accountId) {
             toast({ title: "Error", description: "Please fill in all fields.", variant: "destructive" });
-            setIsSubmitting(false);
             return;
         }
-        description = `Your payment of ₦${amount} for ${selectedBiller?.name} has been processed.`;
+        paymentAmount = parseFloat(amount);
+        description = `Payment for ${selectedBiller?.name}.`;
     }
 
-    setTimeout(() => {
-        toast({
-            title: "Payment Successful!",
-            description: description,
-        });
-        resetDialogState();
-    }, 1500);
+    if (balance === null || (paymentAmount * 100) > balance) {
+        toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this payment.' });
+        return;
+    }
+
+    setPaymentData({ amount: paymentAmount, description });
+    setIsPinModalOpen(true);
   };
   
+  const handleConfirmPayment = async () => {
+    if (!paymentData) return;
+    
+    setIsSubmitting(true);
+    await new Promise(res => setTimeout(res, 1500));
+
+    // TODO: Implement balance update and notifications
+    toast({
+        title: "Payment Successful!",
+        description: paymentData.description,
+    });
+
+    setIsSubmitting(false);
+    setIsPinModalOpen(false);
+    resetDialogState();
+  }
+
   const filteredBillers = allBillers.filter(biller => 
     biller.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -319,14 +350,18 @@ export function BillerList() {
             <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handlePayment} disabled={isPaymentDisabled()}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handlePayment} disabled={isPaymentDisabled() || isSubmitting}>
                 Confirm Payment
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PinModal 
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmPayment}
+        isProcessing={isSubmitting}
+      />
     </>
   );
 }
-
