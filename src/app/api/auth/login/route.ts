@@ -24,7 +24,8 @@ export async function POST(request: Request) {
 
         // In a real production app, the PIN should be hashed and compared using a library like bcrypt.
         // Storing PINs in plaintext is not secure.
-        if (userData.loginPin === pin) {
+        // Added String() to make the comparison more robust against type mismatches.
+        if (String(userData.loginPin) === String(pin)) {
             // This is a mock token. In production, use JWTs (JSON Web Tokens).
             const token = `fake-token-${userDoc.id}-${Date.now()}`;
             return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName });
