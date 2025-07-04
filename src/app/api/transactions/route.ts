@@ -21,6 +21,10 @@ export async function GET() {
         return NextResponse.json(transactions);
     } catch (error) {
         console.error("Error fetching financial transactions: ", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+        let errorMessage = 'An internal server error occurred.';
+         if (error instanceof Error && error.message.includes('The query requires an index')) {
+            errorMessage = "The database is missing a required index for fetching financial transactions. Please check the server logs for a link to create it in the Firebase Console.";
+        }
+        return NextResponse.json({ message: errorMessage }, { status: 500 });
     }
 }
