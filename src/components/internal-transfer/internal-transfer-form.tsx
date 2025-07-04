@@ -70,7 +70,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             <p className="text-sm text-muted-foreground">Ovomonie</p>
           </div>
           {data.message && (
-            <blockquote className="mt-4 border-l-4 border-blue-200 pl-4 italic text-center text-muted-foreground">
+            <blockquote className="mt-4 border-l-4 border-primary/20 pl-4 italic text-center text-muted-foreground">
               "{data.message}"
             </blockquote>
           )}
@@ -135,22 +135,27 @@ export function InternalTransferForm() {
     if (watchedAccountNumber?.length === 10) {
         setIsVerifying(true);
         debounceRef.current = setTimeout(async () => {
-            await new Promise(resolve => setTimeout(resolve, 1500)); 
-
-            const mockOvomonieAccounts: {[key: string]: string} = {
-                '8012345678': 'PAAGO DAVID',
-                '0987654321': 'JANE SMITH',
-                '1122334455': 'FEMI ADEBOLA',
-            };
-
-            if (mockOvomonieAccounts[watchedAccountNumber]) {
-                setRecipientName(mockOvomonieAccounts[watchedAccountNumber]);
-                clearErrors('accountNumber');
-            } else {
-                setRecipientName(null);
-                setError('accountNumber', { type: 'manual', message: 'Ovomonie account not found. Please check the number.' });
+            try {
+              const res = await fetch(`/api/user/${watchedAccountNumber}`);
+              if (res.status === 404) {
+                 setError('accountNumber', { type: 'manual', message: 'Ovomonie account not found.' });
+                 setRecipientName(null);
+                 return;
+              }
+              if (!res.ok) {
+                 setError('accountNumber', { type: 'manual', message: 'Could not verify account. Please try again.' });
+                 setRecipientName(null);
+                 return;
+              }
+              const userData = await res.json();
+              setRecipientName(userData.fullName);
+              clearErrors('accountNumber');
+            } catch (err) {
+               setError('accountNumber', { type: 'manual', message: 'Could not connect to verify account.' });
+               setRecipientName(null);
+            } finally {
+               setIsVerifying(false);
             }
-            setIsVerifying(false);
         }, 500);
     } else {
         setIsVerifying(false);
@@ -236,7 +241,7 @@ export function InternalTransferForm() {
         category: 'transaction',
       });
 
-      updateBalance(result.data.newSenderBalance);
+      updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
       setStep('receipt');
       
@@ -359,7 +364,6 @@ export function InternalTransferForm() {
             <AlertDescription>
               <p className="mb-2">Use one of these Ovomonie account numbers for successful verification:</p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li>8012345678</li>
                 <li>0987654321</li>
                 <li>1122334455</li>
               </ul>
