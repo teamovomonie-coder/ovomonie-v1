@@ -105,13 +105,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     )}
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="relative">
+                    <Link href="/notifications" className="relative">
                         <Bell className="h-6 w-6" />
                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                         </span>
-                    </div>
+                    </Link>
                     <Link href="/profile">
                          <Avatar className="h-9 w-9 border-2 border-primary-foreground/50">
                             <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
