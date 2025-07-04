@@ -22,7 +22,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription as FormDesc,
   FormField,
   FormItem,
   FormLabel,
@@ -34,8 +33,12 @@ import { useToast } from "@/hooks/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import type { LucideIcon } from "lucide-react"
+import { useAuth } from "@/context/auth-context"
+import { Skeleton } from "@/components/ui/skeleton"
+import { format } from "date-fns"
+
 
 const chartData = [
   { month: "Jan", returns: 1860 },
@@ -93,12 +96,15 @@ const investmentProducts: InvestmentProduct[] = [
     },
 ];
 
-const initialUserInvestments = [
-    { id: 'inv-1', plan: 'Ovo-Fix', principal: 100000, returns: 5000, status: 'Active', maturity: '2024-12-31' },
-    { id: 'inv-2', plan: 'My New Car (Ovo-Goals)', principal: 250000, returns: 12000, status: 'Active', maturity: '2025-06-30' },
-    { id: 'inv-3', plan: 'Ovo-Grow (Rice Farm)', principal: 50000, returns: 7500, status: 'Active', maturity: '2025-03-20' },
-    { id: 'inv-4', plan: 'Ovo-Flex', principal: 75000, returns: 1500, status: 'Flexible', maturity: 'N/A' },
-];
+interface Investment {
+    id: string;
+    plan: string;
+    principal: number;
+    returns: number;
+    status: 'Active' | 'Flexible' | 'Matured';
+    maturityDate: string; // ISO string
+    startDate: string; // ISO string
+}
 
 const investmentSchema = z.object({
   productId: z.string().min(1, { message: "Please select an investment product." }),
@@ -108,11 +114,10 @@ const investmentSchema = z.object({
 
 type InvestmentFormData = z.infer<typeof investmentSchema>;
 
-function InvestNowDialog({ children, onInvest, defaultProductTitle }: { children: React.ReactNode; onInvest: (data: InvestmentFormData) => void; defaultProductTitle?: string }) {
+function InvestNowDialog({ children, onInvest, defaultProductTitle }: { children: React.ReactNode; onInvest: (data: InvestmentFormData) => Promise<void>; defaultProductTitle?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { toast } = useToast();
-
+    
     const form = useForm<InvestmentFormData>({
         resolver: zodResolver(investmentSchema),
         defaultValues: {
@@ -140,14 +145,9 @@ function InvestNowDialog({ children, onInvest, defaultProductTitle }: { children
 
     const onSubmit = async (data: InvestmentFormData) => {
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-        onInvest(data);
+        await onInvest(data);
         setIsLoading(false);
         setIsOpen(false);
-        toast({
-            title: "🎉 Investment Successful!",
-            description: `You have successfully invested ₦${data.amount.toLocaleString()} in ${data.productId}.`,
-        });
         form.reset();
     };
 
@@ -237,30 +237,77 @@ function InvestNowDialog({ children, onInvest, defaultProductTitle }: { children
 
 
 export function WealthDashboard() {
-  const [userInvestments, setUserInvestments] = useState(initialUserInvestments);
+  const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const { updateBalance } = useAuth();
+
+  const fetchInvestments = useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch('/api/wealth/investments');
+        if (!response.ok) throw new Error('Failed to fetch investments');
+        const data = await response.json();
+        setUserInvestments(data);
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Could not load investments',
+            description: error instanceof Error ? error.message : 'Please try again later.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchInvestments();
+  }, [fetchInvestments]);
   
-  const handleCreateInvestment = (data: InvestmentFormData) => {
+  const handleCreateInvestment = async (data: InvestmentFormData) => {
     const product = investmentProducts.find(p => p.title === data.productId);
     if (!product) return;
 
     const rateMatch = product.rate.match(/(\d+(\.\d+)?)/);
     const annualRate = rateMatch ? parseFloat(rateMatch[0]) / 100 : 0.1;
-    const calculatedReturns = (data.amount * annualRate / 365) * parseInt(data.duration);
-    const maturityDate = new Date();
-    maturityDate.setDate(maturityDate.getDate() + parseInt(data.duration));
+    const estimatedReturn = (data.amount * annualRate / 365) * parseInt(data.duration);
+    
+    try {
+        const response = await fetch('/api/wealth/investments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...data, estimatedReturn }),
+        });
+        
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Failed to create investment.');
 
-    const newInvestment = {
-        id: `inv-${Date.now()}`,
-        plan: data.productId,
-        principal: data.amount,
-        returns: calculatedReturns,
-        status: 'Active',
-        maturity: maturityDate.toISOString().split('T')[0],
-    };
+        updateBalance(result.newBalance);
+        await fetchInvestments(); // Refetch to get the new investment
+        
+        toast({
+            title: "🎉 Investment Successful!",
+            description: `You have successfully invested ₦${data.amount.toLocaleString()} in ${data.productId}.`,
+        });
 
-    setUserInvestments(prev => [...prev, newInvestment]);
+    } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: 'Investment Failed',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+    }
   };
   
+  const { totalInvestment, totalReturns } = useMemo(() => {
+    return userInvestments.reduce((acc, inv) => {
+      acc.totalInvestment += inv.principal;
+      acc.totalReturns += inv.returns;
+      return acc;
+    }, { totalInvestment: 0, totalReturns: 0 });
+  }, [userInvestments]);
+
+
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -285,8 +332,7 @@ export function WealthDashboard() {
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₦{userInvestments.reduce((acc, inv) => acc + inv.principal, 0).toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">₦{(totalInvestment / 100).toLocaleString()}</div>}
                         </CardContent>
                     </Card>
                     <Card>
@@ -295,8 +341,7 @@ export function WealthDashboard() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-primary">+₦{userInvestments.reduce((acc, inv) => acc + inv.returns, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                            <p className="text-xs text-muted-foreground">Across {userInvestments.filter(i => i.status === 'Active').length} active plans</p>
+                            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-primary">+₦{(totalReturns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
                         </CardContent>
                     </Card>
                      <Card>
@@ -305,7 +350,7 @@ export function WealthDashboard() {
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₦105,000</div>
+                             {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">₦105,000</div> }
                             <p className="text-xs text-muted-foreground">On Dec 31, 2024</p>
                         </CardContent>
                     </Card>
@@ -345,31 +390,39 @@ export function WealthDashboard() {
                             <CardDescription>Your active investment plans.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Plan</TableHead>
-                                        <TableHead className="text-right">Returns</TableHead>
-                                        <TableHead className="text-center">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {userInvestments.map((investment) => (
-                                        <TableRow key={investment.id}>
-                                            <TableCell>
-                                                <div className="font-medium">{investment.plan}</div>
-                                                <div className="text-xs text-muted-foreground">Matures: {investment.maturity}</div>
-                                            </TableCell>
-                                            <TableCell className="text-right font-semibold text-primary">
-                                                +₦{investment.returns.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge>{investment.status}</Badge>
-                                            </TableCell>
+                            {isLoading ? (
+                                <div className="space-y-4">
+                                    <Skeleton className="h-10 w-full" />
+                                    <Skeleton className="h-10 w-full" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Plan</TableHead>
+                                            <TableHead className="text-right">Returns</TableHead>
+                                            <TableHead className="text-center">Status</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {userInvestments.map((investment) => (
+                                            <TableRow key={investment.id}>
+                                                <TableCell>
+                                                    <div className="font-medium">{investment.plan}</div>
+                                                    <div className="text-xs text-muted-foreground">Matures: {format(new Date(investment.maturityDate), 'dd MMM yyyy')}</div>
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold text-primary">
+                                                    +₦{(investment.returns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge>{investment.status}</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
