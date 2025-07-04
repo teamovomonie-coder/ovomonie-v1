@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,26 +19,29 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { add, format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type View = 'dashboard' | 'apply' | 'offer' | 'success';
 
+interface Repayment {
+    dueDate: string; // ISO string
+    amount: number;
+    status: 'Paid' | 'Due';
+}
+
 interface ActiveLoan {
     id: string;
-    type: string;
+    loanType: string;
     purpose: string;
     principal: number;
     balance: number;
     duration: number; // in months
     interestRate: number; // monthly rate
-    startDate: Date;
+    startDate: string; // ISO string
     repayments: Repayment[];
-}
-
-interface Repayment {
-    dueDate: Date;
-    amount: number;
-    status: 'Paid' | 'Due';
 }
 
 const loanApplicationSchema = z.object({
@@ -92,21 +95,18 @@ const repaymentSchema = z.object({
 
 function RepaymentDialog({ open, onOpenChange, loan, onRepay }: { open: boolean, onOpenChange: (open: boolean) => void, loan: ActiveLoan, onRepay: (amount: number) => void }) {
     const nextPayment = loan.repayments.find(r => r.status === 'Due');
-    const { toast } = useToast();
     
     const form = useForm<z.infer<typeof repaymentSchema>>({
-        resolver: zodResolver(repaymentSchema.refine(data => data.amount <= loan.balance, {
-            message: `Amount cannot exceed the loan balance of ₦${loan.balance.toLocaleString()}`,
+        resolver: zodResolver(repaymentSchema.refine(data => data.amount <= (loan.balance / 100), {
+            message: `Amount cannot exceed the loan balance of ₦${(loan.balance / 100).toLocaleString()}`,
             path: ['amount'],
         })),
-        defaultValues: { amount: nextPayment?.amount || 0 }
+        defaultValues: { amount: nextPayment ? nextPayment.amount / 100 : 0 }
     });
 
     const onSubmit = (data: z.infer<typeof repaymentSchema>) => {
         onRepay(data.amount);
-        toast({ title: 'Repayment Successful', description: `₦${data.amount.toLocaleString()} has been deducted from your wallet.` });
         onOpenChange(false);
-        form.reset();
     };
     
     return (
@@ -114,7 +114,7 @@ function RepaymentDialog({ open, onOpenChange, loan, onRepay }: { open: boolean,
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Make a Repayment</DialogTitle>
-                    <DialogDescription>Your outstanding balance is ₦{loan.balance.toLocaleString()}.</DialogDescription>
+                    <DialogDescription>Your outstanding balance is ₦{(loan.balance / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}.</DialogDescription>
                 </DialogHeader>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -134,7 +134,7 @@ function RepaymentDialog({ open, onOpenChange, loan, onRepay }: { open: boolean,
                         <div className="text-xs text-muted-foreground">You can pay any amount up to your outstanding balance.</div>
                         <DialogFooter>
                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <Button type="submit">Pay Now</Button>
+                            <Button type="submit">Continue</Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -147,9 +147,14 @@ export function LoanDashboard() {
   const [view, setView] = useState<View>('dashboard');
   const [applicationData, setApplicationData] = useState<LoanApplicationData | null>(null);
   const [activeLoan, setActiveLoan] = useState<ActiveLoan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
+  const [repaymentAmount, setRepaymentAmount] = useState<number | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const { toast } = useToast();
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
 
   const form = useForm<LoanApplicationData>({
     resolver: zodResolver(loanApplicationSchema),
@@ -157,6 +162,24 @@ export function LoanDashboard() {
   });
   const watchedAmount = form.watch('amount');
   const watchedDuration = form.watch('duration');
+
+  const fetchActiveLoan = useCallback(async () => {
+      setIsLoading(true);
+      try {
+          const response = await fetch('/api/loans');
+          if (!response.ok) throw new Error('Failed to fetch loan status.');
+          const data = await response.json();
+          setActiveLoan(data);
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not load your loan information.'});
+      } finally {
+          setIsLoading(false);
+      }
+  }, [toast]);
+
+  useEffect(() => {
+      fetchActiveLoan();
+  }, [fetchActiveLoan]);
 
   const { totalRepayable, monthlyPayment } = useMemo(() => {
     if (!applicationData) return { totalRepayable: 0, monthlyPayment: 0 };
@@ -175,72 +198,73 @@ export function LoanDashboard() {
     }, 1500);
   };
   
-  const handleAcceptOffer = () => {
+  const handleAcceptOffer = async () => {
       if (!applicationData) return;
       setIsProcessing(true);
-      setTimeout(() => {
-          const startDate = new Date();
-          const { totalRepayable, monthlyPayment } = (() => {
-            const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
-            const totalRepayable = applicationData.amount + interest;
-            const monthlyPayment = totalRepayable / applicationData.duration;
-            return { totalRepayable, monthlyPayment };
-          })();
-
-          const newLoan: ActiveLoan = {
-            id: `loan-${Date.now()}`,
-            type: loanTypes.find(t => t.id === applicationData.loanType)?.label || 'Loan',
-            purpose: applicationData.purpose,
-            principal: applicationData.amount,
-            balance: totalRepayable,
-            duration: applicationData.duration,
-            interestRate: LOAN_INTEREST_RATE,
-            startDate: startDate,
-            repayments: Array.from({ length: applicationData.duration }, (_, i) => ({
-                dueDate: add(startDate, { months: i + 1 }),
-                amount: monthlyPayment,
-                status: 'Due'
-            }))
-          };
-
-          setActiveLoan(newLoan);
-          setView('success');
+      try {
+        const response = await fetch('/api/loans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(applicationData),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Loan disbursement failed.');
+        
+        updateBalance(result.newBalance);
+        addNotification({
+            title: 'Loan Disbursed!',
+            description: `A loan of ₦${applicationData.amount.toLocaleString()} has been credited to your wallet.`,
+            category: 'transaction'
+        });
+        
+        await fetchActiveLoan();
+        setView('success');
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not disburse loan.'})
+      } finally {
           setIsProcessing(false);
-          toast({ title: 'Loan Approved!', description: `₦${applicationData.amount.toLocaleString()} has been credited to your wallet.`});
-      }, 1500)
+      }
   }
 
-  const handleRepayment = (amountPaid: number) => {
-    if (!activeLoan) return;
-
-    setActiveLoan(prevLoan => {
-        if (!prevLoan) return null;
-        const newBalance = prevLoan.balance - amountPaid;
-        let amountLeftToAssign = amountPaid;
-
-        const newRepayments = prevLoan.repayments.map(repayment => {
-            if (repayment.status === 'Due' && amountLeftToAssign > 0) {
-                const paymentForThisInstallment = Math.min(amountLeftToAssign, repayment.amount);
-                const remainingInInstallment = repayment.amount - paymentForThisInstallment;
-                amountLeftToAssign -= paymentForThisInstallment;
-                
-                return { ...repayment, amount: remainingInInstallment, status: remainingInInstallment <= 0 ? 'Paid' : 'Due' };
-            }
-            return repayment;
-        });
-
-        if (newBalance <= 0) {
-            toast({ title: 'Loan Fully Repaid!', description: 'Congratulations on completing your loan repayment.' });
-            return null; // Loan is cleared
-        }
-
-        return {
-            ...prevLoan,
-            balance: newBalance,
-            repayments: newRepayments,
-        };
-    });
+  const handleRepaymentRequest = (amount: number) => {
+      if (balance === null || (amount * 100) > balance) {
+          toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this repayment.' });
+          return;
+      }
+      setRepaymentAmount(amount);
+      setIsPinModalOpen(true);
   };
+
+  const handleConfirmRepayment = async () => {
+      if (!repaymentAmount || !activeLoan) return;
+
+      setIsProcessing(true);
+      try {
+        const response = await fetch('/api/loans/repay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loanId: activeLoan.id, amount: repaymentAmount }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Repayment failed.');
+        
+        updateBalance(result.newUserBalance);
+        addNotification({
+            title: 'Repayment Successful',
+            description: `You paid ₦${repaymentAmount.toLocaleString()} towards your loan.`,
+            category: 'transaction'
+        });
+        toast({ title: 'Repayment Successful' });
+        await fetchActiveLoan();
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not process repayment.'})
+      } finally {
+          setIsProcessing(false);
+          setIsPinModalOpen(false);
+          setRepaymentAmount(null);
+          setIsRepayDialogOpen(false);
+      }
+  }
 
   const reset = () => {
     setView('dashboard');
@@ -380,32 +404,38 @@ export function LoanDashboard() {
 
   // Dashboard view
   return (
+    <>
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
        <div className="flex items-center justify-between space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">Loans</h2>
             <Button onClick={() => setView('apply')}>Apply for a Loan</Button>
         </div>
 
-        {activeLoan ? (
+        {isLoading ? (
+            <Card>
+                <CardHeader><Skeleton className="h-6 w-1/4" /></CardHeader>
+                <CardContent><Skeleton className="h-48 w-full" /></CardContent>
+            </Card>
+        ) : activeLoan ? (
             <>
             <Card>
                 <CardHeader>
                     <CardTitle>My Active Loan</CardTitle>
-                    <CardDescription>{activeLoan.type} for {activeLoan.purpose}</CardDescription>
+                    <CardDescription>{activeLoan.loanType} for {activeLoan.purpose}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <div className="p-4 bg-muted rounded-lg">
                             <p className="text-sm text-muted-foreground">Loan Balance</p>
-                            <p className="text-2xl font-bold">₦{activeLoan.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-2xl font-bold">₦{(activeLoan.balance / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </div>
                          <div className="p-4 bg-muted rounded-lg">
                             <p className="text-sm text-muted-foreground">Next Payment</p>
-                            <p className="text-2xl font-bold">₦{activeLoan.repayments.find(r => r.status === 'Due')?.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</p>
+                            <p className="text-2xl font-bold">₦{activeLoan.repayments.find(r => r.status === 'Due') ? (activeLoan.repayments.find(r => r.status === 'Due')!.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'}</p>
                         </div>
                          <div className="p-4 bg-muted rounded-lg">
                             <p className="text-sm text-muted-foreground">Due Date</p>
-                            <p className="text-2xl font-bold">{activeLoan.repayments.find(r => r.status === 'Due') ? format(activeLoan.repayments.find(r => r.status === 'Due')!.dueDate, 'MMM dd, yyyy') : 'N/A'}</p>
+                            <p className="text-2xl font-bold">{activeLoan.repayments.find(r => r.status === 'Due') ? format(new Date(activeLoan.repayments.find(r => r.status === 'Due')!.dueDate), 'MMM dd, yyyy') : 'N/A'}</p>
                         </div>
                          <div className="p-4 bg-muted rounded-lg">
                             <p className="text-sm text-muted-foreground">Interest Rate</p>
@@ -441,8 +471,8 @@ export function LoanDashboard() {
                         <TableBody>
                             {activeLoan.repayments.map((item, index) => (
                                  <TableRow key={index}>
-                                    <TableCell>{format(item.dueDate, 'MMM dd, yyyy')}</TableCell>
-                                    <TableCell>₦{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell>{format(new Date(item.dueDate), 'MMM dd, yyyy')}</TableCell>
+                                    <TableCell>₦{(item.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell><span className={cn('px-2 py-1 text-xs rounded-full', item.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800')}>{item.status}</span></TableCell>
                                 </TableRow>
                             ))}
@@ -450,7 +480,7 @@ export function LoanDashboard() {
                     </Table>
                 </CardContent>
             </Card>
-            {isRepayDialogOpen && <RepaymentDialog open={isRepayDialogOpen} onOpenChange={setIsRepayDialogOpen} loan={activeLoan} onRepay={handleRepayment} />}
+            <RepaymentDialog open={isRepayDialogOpen} onOpenChange={setIsRepayDialogOpen} loan={activeLoan} onRepay={handleRepaymentRequest} />
             </>
         ) : (
             <Card className="text-center py-12">
@@ -462,7 +492,13 @@ export function LoanDashboard() {
             </Card>
         )}
     </div>
+    <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmRepayment}
+        isProcessing={isProcessing}
+        title="Confirm Loan Repayment"
+    />
+    </>
   );
 }
-
-    
