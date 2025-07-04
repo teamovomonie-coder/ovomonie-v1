@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -13,6 +14,9 @@ import { useToast } from '@/hooks/use-toast';
 import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 type View = 'main' | 'generate' | 'display_qr' | 'scan' | 'confirm_payment' | 'receipt';
 
@@ -228,18 +232,7 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
   )
 }
 
-function ConfirmPaymentScreen({ setView, transactionData, reset }: { setView: (view: View) => void, transactionData: any, reset: () => void }) {
-    const [isConfirming, setIsConfirming] = useState(false);
-    
-    const handleConfirm = () => {
-        setIsConfirming(true);
-        // Simulate API call
-        setTimeout(() => {
-            setView('receipt');
-            setIsConfirming(false);
-        }, 1500);
-    }
-
+function ConfirmPaymentScreen({ onConfirm, isProcessing, reset, transactionData }: { onConfirm: () => void, isProcessing: boolean, reset: () => void, transactionData: any }) {
     return (
         <Card className="w-full max-w-md mx-auto">
             <CardHeader className="text-center">
@@ -259,18 +252,11 @@ function ConfirmPaymentScreen({ setView, transactionData, reset }: { setView: (v
                     <span className="text-muted-foreground">For:</span>
                     <span className="font-semibold">{transactionData.memo}</span>
                 </div>}
-                 <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Confirm with PIN</AlertTitle>
-                    <AlertDescription>
-                        In a real app, you would be prompted to enter your PIN or use biometrics to authorize this payment.
-                    </AlertDescription>
-                </Alert>
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={reset} disabled={isConfirming}>Cancel</Button>
-                <Button onClick={handleConfirm} disabled={isConfirming}>
-                    {isConfirming ? <Loader2 className="animate-spin" /> : 'Pay Now'}
+                <Button variant="outline" onClick={reset} disabled={isProcessing}>Cancel</Button>
+                <Button onClick={onConfirm} disabled={isProcessing}>
+                    {isProcessing ? <Loader2 className="animate-spin" /> : 'Pay Now'}
                 </Button>
             </CardFooter>
         </Card>
@@ -316,11 +302,52 @@ function ReceiptScreen({ transactionData, reset }: { transactionData: any, reset
 export function ContactlessUI() {
   const [view, setView] = useState<View>('main');
   const [transactionData, setTransactionData] = useState<any>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
+  const { toast } = useToast();
 
   const reset = () => {
     setView('main');
     setTransactionData(null);
   }
+
+  const handlePaymentRequest = () => {
+    if (!transactionData || balance === null || transactionData.amount * 100 > balance) {
+      toast({
+        variant: 'destructive',
+        title: 'Insufficient Funds',
+        description: 'Your balance is not enough for this payment.',
+      });
+      return;
+    }
+    setIsPinModalOpen(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!transactionData || balance === null) return;
+    setIsProcessing(true);
+
+    await new Promise(res => setTimeout(res, 1500)); // Simulate API call
+    
+    // Update balance
+    const newBalance = balance - transactionData.amount * 100;
+    updateBalance(newBalance);
+
+    // Add notification
+    addNotification({
+        title: 'Contactless Payment Successful',
+        description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`,
+        category: 'transaction',
+    });
+
+    setIsProcessing(false);
+    setIsPinModalOpen(false);
+    setView('receipt');
+    toast({ title: 'Payment Successful!' });
+  };
 
   const renderContent = () => {
     switch (view) {
@@ -331,7 +358,7 @@ export function ContactlessUI() {
       case 'scan':
         return <ScanScreen setView={setView} setTransactionData={setTransactionData} />;
       case 'confirm_payment':
-        return <ConfirmPaymentScreen setView={setView} transactionData={transactionData} reset={reset} />;
+        return <ConfirmPaymentScreen onConfirm={handlePaymentRequest} isProcessing={isProcessing} reset={reset} transactionData={transactionData} />;
       case 'receipt':
         return <ReceiptScreen transactionData={transactionData} reset={reset} />;
       case 'main':
@@ -340,5 +367,16 @@ export function ContactlessUI() {
     }
   };
 
-  return <div className="w-full h-full flex items-center justify-center">{renderContent()}</div>;
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      {renderContent()}
+      <PinModal 
+        open={isPinModalOpen} 
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmPayment}
+        isProcessing={isProcessing}
+        title="Authorize Contactless Payment"
+      />
+    </div>
+  );
 }
