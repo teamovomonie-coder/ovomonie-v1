@@ -8,60 +8,60 @@ body {
 
 @layer base {
   :root {
-    --background: 180 75% 95%; /* Light desaturated teal */
-    --foreground: 180 25% 25%;
-    --card: 180 50% 98%;
-    --card-foreground: 180 25% 25%;
-    --popover: 180 50% 98%;
-    --popover-foreground: 180 25% 25%;
-    --primary: 180 100% 25%; /* Saturated teal */
-    --primary-foreground: 180 25% 98%;
-    --primary-light-bg: 180 80% 90%;
-    --secondary: 180 50% 90%;
-    --secondary-foreground: 180 25% 25%;
-    --muted: 180 50% 94%;
-    --muted-foreground: 180 15% 45%;
-    --accent: 180.3 100% 41%; /* Blue-green accent */
-    --accent-foreground: 180 25% 25%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 180 30% 88%;
-    --input: 180 30% 92%;
-    --ring: 180 100% 35%;
-    --chart-1: 180 100% 25%;
-    --chart-2: 180 80% 45%;
-    --chart-3: 180 60% 65%;
-    --chart-4: 180 40% 75%;
-    --chart-5: 180 30% 85%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --primary-light-bg: 221.2 83.2% 95%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 150 70% 40%;
+    --chart-3: 30 90% 50%;
+    --chart-4: 280 80% 60%;
+    --chart-5: 50 85% 55%;
   }
  
   .dark {
-    --background: 180 25% 10%;
-    --foreground: 180 15% 95%;
-    --card: 180 25% 12%;
-    --card-foreground: 180 15% 95%;
-    --popover: 180 25% 10%;
-    --popover-foreground: 180 15% 95%;
-    --primary: 180 90% 60%;
-    --primary-foreground: 180 100% 10%;
-    --primary-light-bg: 180 40% 20%;
-    --secondary: 180 30% 25%;
-    --secondary-foreground: 180 15% 95%;
-    --muted: 180 30% 25%;
-    --muted-foreground: 180 10% 65%;
-    --accent: 180.3 90% 55%;
-    --accent-foreground: 180 15% 95%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 180 30% 25%;
-    --input: 180 30% 25%;
-    --ring: 180 90% 60%;
-    --chart-1: 180 90% 60%;
-    --chart-2: 180 70% 50%;
-    --chart-3: 180 50% 40%;
-    --chart-4: 180 30% 30%;
-    --chart-5: 180 20% 20%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-light-bg: 222.2 84% 10%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --chart-1: 210 40% 98%;
+    --chart-2: 150 70% 60%;
+    --chart-3: 30 90% 70%;
+    --chart-4: 280 80% 80%;
+    --chart-5: 50 85% 75%;
   }
 }
 
@@ -76,7 +76,13 @@ body {
 
 @layer utilities {
   .animated-gradient-bg {
-    background: linear-gradient(-45deg, hsl(180 75% 95%), hsl(180 70% 96%), hsl(180 75% 97%), hsl(180 70% 96%));
+    background: linear-gradient(-45deg, hsl(210 40% 96.1%), hsl(210 40% 98%), hsl(210 40% 96.1%), hsl(210 40% 98%));
+    background-size: 400% 400%;
+    animation: wave 15s ease infinite;
+  }
+
+  .dark .animated-gradient-bg {
+    background: linear-gradient(-45deg, hsl(217.2 32.6% 17.5%), hsl(222.2 84% 4.9%), hsl(217.2 32.6% 17.5%), hsl(222.2 84% 4.9%));
     background-size: 400% 400%;
     animation: wave 15s ease infinite;
   }
