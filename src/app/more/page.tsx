@@ -98,12 +98,11 @@ const serviceData: ServiceCategory[] = [
     ],
   },
   {
-    title: "Account & App Settings",
+    title: "Settings",
     services: [
       { label: "Profile / KYC", icon: User, href: "/profile" },
       { label: "Security", icon: Shield, href: "/security" },
       { label: "Statements", icon: FileText, href: "/statements" },
-      { label: "Custom Account No.", icon: Hash, href: "/custom-account-number" },
       { label: "Settings", icon: Settings, href: "/security" },
       { label: "Support", icon: MessageCircle, href: "/support" },
       { label: "Logout", icon: LogOut, href: "#" },
