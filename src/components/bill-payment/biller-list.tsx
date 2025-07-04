@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 import { PinModal } from '@/components/auth/pin-modal';
 
 interface Biller {
@@ -103,7 +104,8 @@ export function BillerList() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
 
   const { toast } = useToast();
-  const { balance } = useAuth();
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
 
 
   const resetDialogState = () => {
@@ -173,7 +175,16 @@ export function BillerList() {
     setIsSubmitting(true);
     await new Promise(res => setTimeout(res, 1500));
 
-    // TODO: Implement balance update and notifications
+    // Update balance and create notification
+    const newBalance = (balance || 0) - (paymentData.amount * 100);
+    updateBalance(newBalance);
+
+    addNotification({
+        title: 'Bill Payment Successful',
+        description: paymentData.description,
+        category: 'transaction',
+    });
+    
     toast({
         title: "Payment Successful!",
         description: paymentData.description,
