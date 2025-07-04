@@ -1,8 +1,11 @@
+
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allows read and write access to all files by anyone.
-    // This is NOT secure and should only be used for development.
+    // WARNING: These rules are insecure and are for development purposes only.
+    // They allow anyone to read and write to your entire storage bucket.
+    // You MUST secure these rules before deploying to production.
     match /{allPaths=**} {
       allow read, write: if true;
     }
