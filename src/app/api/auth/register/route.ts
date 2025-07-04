@@ -49,6 +49,13 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error("Registration Error:", error);
-        return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+        let errorMessage = 'An internal server error occurred.';
+        // Check if the error message is about a missing Firestore index
+        if (error instanceof Error && error.message.includes('The query requires an index')) {
+            errorMessage = "The database is missing a required index for user registration. Please check the server logs for a link to create it in the Firebase Console.";
+        } else if (error instanceof Error) {
+            errorMessage = `An internal server error occurred: ${error.message}`;
+        }
+        return NextResponse.json({ message: errorMessage }, { status: 500 });
     }
 }
