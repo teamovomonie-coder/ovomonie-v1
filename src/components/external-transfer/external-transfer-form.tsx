@@ -121,7 +121,7 @@ export function ExternalTransferForm() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
@@ -213,25 +213,81 @@ export function ExternalTransferForm() {
   }
 
   const handleFinalSubmit = async () => {
-    if (!submittedData || balance === null) return;
-    setIsProcessing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    // In a real app, the API would return the new balance.
-    const newBalance = balance - (submittedData.amount * 100);
-    updateBalance(newBalance);
+    if (!submittedData || !recipientName) return;
 
-    addNotification({
-        title: "External Transfer Successful",
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
+      const response = await fetch('/api/transfers/external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipientName: recipientName,
+          bankCode: submittedData.bankCode,
+          accountNumber: submittedData.accountNumber,
+          amount: submittedData.amount,
+          narration: submittedData.narration,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        const error: any = new Error(result.message || 'An error occurred during the transfer.');
+        error.response = response; 
+        throw error;
+      }
+
+      toast({
+        title: 'Transfer Successful!',
+        description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.`,
+      });
+
+      addNotification({
+        title: 'External Transfer Successful',
         description: `You sent ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
         category: 'transaction',
-    });
+      });
 
-    setIsProcessing(false);
-    setIsPinModalOpen(false);
-    setStep('receipt');
-    toast({ title: "Transfer Successful!" });
-  }
+      updateBalance(result.data.newBalanceInKobo);
+      setIsPinModalOpen(false);
+      setStep('receipt');
+      
+    } catch (error: any) {
+      let title = 'Transfer Failed';
+      let description = 'An unknown error occurred.';
+
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        title = 'Network Error';
+        description = 'Please check your internet connection and try again.';
+      } else if (error.response?.status === 401) {
+          title = 'Authentication Error';
+          description = 'Your session has expired. Please log in again.';
+          logout();
+      } else if (error.message) {
+          description = error.message;
+          if (description.toLowerCase().includes('insufficient funds')) {
+            title = 'Insufficient Funds';
+          }
+      }
+      
+      toast({
+        variant: 'destructive',
+        title: title,
+        description: description,
+      });
+      setIsPinModalOpen(false);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   const resetForm = () => {
     setStep('form');
