@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -13,6 +14,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
 
 // --- Bank Transfer Tab ---
 function BankTransfer() {
@@ -82,64 +85,94 @@ const cardSchema = z.object({
   cvv: z.string().regex(/^\d{3,4}$/, 'Enter a valid CVV.'),
 });
 
+type CardFormData = z.infer<typeof cardSchema>;
+
 function FundWithCard() {
     const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const form = useForm<z.infer<typeof cardSchema>>({
+    const { balance, updateBalance } = useAuth();
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [fundingData, setFundingData] = useState<CardFormData | null>(null);
+
+    const form = useForm<CardFormData>({
         resolver: zodResolver(cardSchema),
         defaultValues: { amount: 0, cardNumber: '', expiry: '', cvv: '' }
     });
     
-    async function onSubmit(data: z.infer<typeof cardSchema>) {
-        setIsLoading(true);
-        await new Promise(res => setTimeout(res, 2000));
-        setIsLoading(false);
+    function onSubmit(data: CardFormData) {
+        setFundingData(data);
+        setIsPinModalOpen(true);
+    }
+
+    async function handleConfirmFunding() {
+        if (!fundingData || balance === null) return;
+        setIsProcessing(true);
+        await new Promise(res => setTimeout(res, 1500)); // Simulate API call
+
+        const newBalance = balance + (fundingData.amount * 100);
+        updateBalance(newBalance);
+        
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+
         toast({
             title: 'Funding Successful',
-            description: `₦${data.amount.toLocaleString()} has been added to your wallet.`
+            description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`
         });
+        
         form.reset();
+        setFundingData(null);
     }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                 <FormField control={form.control} name="amount" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Amount (₦)</FormLabel>
-                        <FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                 )} />
-                 <FormField control={form.control} name="cardNumber" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Card Number</FormLabel>
-                        <FormControl><Input placeholder="0000 0000 0000 0000" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                 )} />
-                 <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="expiry" render={({ field }) => (
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                     <FormField control={form.control} name="amount" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Expiry Date</FormLabel>
-                            <FormControl><Input placeholder="MM/YY" {...field} /></FormControl>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
                             <FormMessage />
                         </FormItem>
-                    )} />
-                    <FormField control={form.control} name="cvv" render={({ field }) => (
+                     )} />
+                     <FormField control={form.control} name="cardNumber" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>CVV</FormLabel>
-                            <FormControl><Input placeholder="123" {...field} /></FormControl>
+                            <FormLabel>Card Number</FormLabel>
+                            <FormControl><Input placeholder="0000 0000 0000 0000" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
-                    )} />
-                 </div>
-                 <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Fund Wallet
-                 </Button>
-            </form>
-        </Form>
+                     )} />
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="expiry" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Expiry Date</FormLabel>
+                                <FormControl><Input placeholder="MM/YY" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="cvv" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>CVV</FormLabel>
+                                <FormControl><Input placeholder="123" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                     </div>
+                     <Button type="submit" className="w-full" disabled={isProcessing}>
+                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Fund Wallet
+                     </Button>
+                </form>
+            </Form>
+            <PinModal
+                open={isPinModalOpen}
+                onOpenChange={setIsPinModalOpen}
+                onConfirm={handleConfirmFunding}
+                isProcessing={isProcessing}
+                title="Authorize Card Deposit"
+                description="Please enter your 4-digit PIN to authorize this deposit."
+            />
+        </>
     );
 }
 
