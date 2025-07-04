@@ -36,21 +36,31 @@ interface TransactionData {
 
 function MainScreen({ setView }: { setView: (view: View) => void }) {
   return (
-    <Card className="w-full max-w-md mx-auto shadow-none border-none">
-      <CardHeader className="text-center">
-        <CardTitle>Contactless Payment</CardTitle>
-        <CardDescription>Pay or get paid securely without contact.</CardDescription>
+    <Card className="w-full max-w-md mx-auto shadow-none border-none text-center">
+      <CardHeader>
+        <CardTitle>Tap to Pay</CardTitle>
+        <CardDescription>Hold your phone near a contactless terminal to pay.</CardDescription>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Button onClick={() => setView('scan')} className="h-28 flex-col gap-2 text-lg">
-          <QrCode className="w-8 h-8" />
-          Scan to Pay
+      <CardContent className="flex flex-col items-center justify-center gap-8 py-10">
+        <div className="relative flex items-center justify-center w-48 h-48">
+          <div className="absolute h-48 w-48 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-primary/10"></div>
+          <div className="absolute h-32 w-32 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-primary/20" style={{ animationDelay: '0.5s' }}></div>
+          <div className="relative flex items-center justify-center w-24 h-24 bg-primary text-primary-foreground rounded-full">
+            <Nfc className="w-12 h-12" />
+          </div>
+        </div>
+        <p className="text-muted-foreground">Your Ovomonie wallet is ready.</p>
+      </CardContent>
+      <CardFooter className="grid grid-cols-2 gap-4">
+        <Button variant="outline" onClick={() => setView('scan')} className="h-16 flex-col gap-1">
+          <QrCode className="w-6 h-6" />
+          Scan QR
         </Button>
-        <Button onClick={() => setView('generate')} className="h-28 flex-col gap-2 text-lg">
-          <Wallet className="w-8 h-8" />
+        <Button variant="outline" onClick={() => setView('generate')} className="h-16 flex-col gap-1">
+          <Wallet className="w-6 h-6" />
           Receive Money
         </Button>
-      </CardContent>
+      </CardFooter>
     </Card>
   );
 }
