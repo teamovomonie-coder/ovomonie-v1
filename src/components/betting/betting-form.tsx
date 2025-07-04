@@ -27,6 +27,9 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Loader2, Share2, Wallet, CheckCircle, Target, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 // --- Mock Data & Logos ---
 
@@ -130,6 +133,11 @@ export function BettingForm() {
   const [receiptData, setReceiptData] = useState<FormData | null>(null);
   const { toast } = useToast();
 
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [fundingData, setFundingData] = useState<FormData | null>(null);
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { platform: '', accountId: '', amount: 0 },
@@ -140,16 +148,13 @@ export function BettingForm() {
   const accountId = watch('accountId');
 
   const handleVerify = async () => {
-    // Reset previous verification
     setVerifiedName(null);
-
-    // Trigger validation for platform and accountId fields
     const platformValid = await trigger('platform');
     const accountIdValid = await trigger('accountId');
     if (!platformValid || !accountIdValid) return;
 
     setIsVerifying(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const currentPlatform = getValues('platform');
     const currentAccountId = getValues('accountId');
@@ -168,11 +173,10 @@ export function BettingForm() {
         variant: "destructive",
       });
     }
-
     setIsVerifying(false);
   };
 
-  async function onSubmit(values: FormData) {
+  const onSubmit = (values: FormData) => {
     if (!verifiedName) {
       toast({
         title: "Verification Required",
@@ -182,17 +186,39 @@ export function BettingForm() {
       return;
     }
 
+    if (balance === null || (values.amount * 100) > balance) {
+        toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this purchase.' });
+        return;
+    }
+
+    setFundingData(values);
+    setIsPinModalOpen(true);
+  };
+  
+  const handleConfirmFunding = async () => {
+    if (!fundingData || balance === null) return;
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
+    
+    const newBalance = balance - (fundingData.amount * 100);
+    updateBalance(newBalance);
 
-    setReceiptData(values);
+    addNotification({
+      title: 'Betting Account Funded',
+      description: `You funded your ${bettingPlatforms.find(p => p.id === fundingData.platform)?.name} account with ₦${fundingData.amount.toLocaleString()}.`,
+      category: 'transaction',
+    });
+    
+    setReceiptData(fundingData);
+    setIsSubmitting(false);
+    setIsPinModalOpen(false);
     form.reset();
-  }
-  
+  };
+
   const resetForm = () => {
     setVerifiedName(null);
     setReceiptData(null);
+    setFundingData(null);
   }
 
   if (receiptData && verifiedName) {
@@ -200,111 +226,121 @@ export function BettingForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>For Testing</AlertTitle>
-          <AlertDescription>
-            <p className="mb-2">Use one of these Platform/ID pairs for successful verification:</p>
-            <ul className="list-disc pl-5 space-y-1 text-xs">
-              <li><b>Bet9ja:</b> 1234567</li>
-              <li><b>SportyBet:</b> sbyuser500</li>
-              <li><b>BetKing:</b> kingpin007</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>For Testing</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">Use one of these Platform/ID pairs for successful verification:</p>
+              <ul className="list-disc pl-5 space-y-1 text-xs">
+                <li><b>Bet9ja:</b> 1234567</li>
+                <li><b>SportyBet:</b> sbyuser500</li>
+                <li><b>BetKing:</b> kingpin007</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
 
-        <FormField
-          control={form.control}
-          name="platform"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Betting Platform</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  setVerifiedName(null); // Reset verification on platform change
-                }}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger><SelectValue placeholder="Select a platform" /></SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {bettingPlatforms.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <div className="flex items-center gap-2">
-                        <p.Logo /> {p.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="accountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Account ID / Username</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter your betting account ID"
-                  {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    setVerifiedName(null); // Reset verification on ID change
+          <FormField
+            control={form.control}
+            name="platform"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Betting Platform</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setVerifiedName(null);
                   }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Select a platform" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {bettingPlatforms.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex items-center gap-2">
+                          <p.Logo /> {p.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="accountId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Account ID / Username</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter your betting account ID"
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setVerifiedName(null);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {verifiedName && (
+            <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-green-700">
+              <CheckCircle className="h-5 w-5" />
+              <p className="font-semibold">{verifiedName}</p>
+            </div>
           )}
-        />
-        
-        {verifiedName && (
-          <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-green-700">
-            <CheckCircle className="h-5 w-5" />
-            <p className="font-semibold">{verifiedName}</p>
-          </div>
-        )}
 
-        <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleVerify}
-            disabled={isVerifying || !platform || !accountId}
-        >
-            {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Verify Account
-        </Button>
+          <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleVerify}
+              disabled={isVerifying || !platform || !accountId}
+          >
+              {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Verify Account
+          </Button>
 
 
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount to Fund (₦)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="e.g., 1000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Amount to Fund (₦)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="e.g., 1000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <Button type="submit" className="w-full" disabled={isSubmitting || !verifiedName}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Fund Account
-        </Button>
-      </form>
-    </Form>
+          <Button type="submit" className="w-full" disabled={isSubmitting || !verifiedName}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Fund Account
+          </Button>
+        </form>
+      </Form>
+      <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmFunding}
+        isProcessing={isSubmitting}
+        title="Confirm Betting Payment"
+        description="Enter your 4-digit PIN to authorize this payment."
+      />
+    </>
   );
 }
