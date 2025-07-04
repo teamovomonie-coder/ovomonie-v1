@@ -3,6 +3,16 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 
+// Helper function to generate a unique referral code
+const generateReferralCode = (length: number = 6): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -31,11 +41,13 @@ export async function POST(request: Request) {
 
         // Generate account number from the last 10 digits of the phone number
         const accountNumber = phone.slice(-10);
+        const referralCode = generateReferralCode();
 
         // Create new user document
         const newUser = {
             ...body,
             accountNumber,
+            referralCode,
             // In a real app, the PIN should be securely hashed before saving.
             // For simplicity, we are storing it in plaintext. THIS IS NOT SECURE FOR PRODUCTION.
             balance: 125034500, // Initial balance in kobo (e.g., ₦1,250,345.00)

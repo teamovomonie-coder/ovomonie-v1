@@ -1,3 +1,4 @@
+
 // This file now interacts directly with Firestore for user account data.
 import { db } from '@/lib/firebase';
 import { 
@@ -17,6 +18,7 @@ interface UserAccount {
     accountNumber: string;
     fullName: string;
     balance: number; // in kobo
+    referralCode?: string;
 }
 
 
