@@ -216,14 +216,12 @@ export function InternalTransferForm() {
         }),
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        const result = await response.json();
         const error: any = new Error(result.message || 'An error occurred during the transfer.');
         error.response = response; 
         throw error;
       }
-
-      const result = await response.json();
 
       toast({
         title: 'Transfer Successful!',
@@ -246,7 +244,6 @@ export function InternalTransferForm() {
           logout();
       } else if (error.message) {
           description = error.message;
-          // Set a more specific title based on the error message
           if (description.toLowerCase().includes('insufficient funds')) {
             title = 'Insufficient Funds';
           } else if (description.toLowerCase().includes('security review')) {
