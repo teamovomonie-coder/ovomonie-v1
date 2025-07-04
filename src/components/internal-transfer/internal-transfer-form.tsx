@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -111,6 +112,7 @@ export function InternalTransferForm() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
+  const { addNotification } = useNotifications();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -227,6 +229,13 @@ export function InternalTransferForm() {
         title: 'Transfer Successful!',
         description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.`,
       });
+
+      addNotification({
+        title: 'Transfer Successful',
+        description: `You sent ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
+        category: 'transaction',
+      });
+
       updateBalance(result.data.newSenderBalance);
       setIsPinModalOpen(false);
       setStep('receipt');

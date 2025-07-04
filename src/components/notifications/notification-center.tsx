@@ -1,24 +1,24 @@
+
 "use client";
 
-import { useState } from 'react';
-import { mockNotifications, Notification } from '@/lib/notification-data';
+import { useNotifications } from '@/context/notification-context';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bell, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Notification } from '@/lib/notification-data';
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   const handleMarkAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    markAllAsRead();
   };
   
   const handleMarkOneRead = (id: string) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    markAsRead(id);
   };
 
   const renderNotificationList = (list: Notification[]) => {
