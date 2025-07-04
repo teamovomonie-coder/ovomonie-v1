@@ -29,6 +29,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -121,6 +122,7 @@ export function ExternalTransferForm() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
   
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState("");
@@ -218,6 +220,13 @@ export function ExternalTransferForm() {
     // In a real app, the API would return the new balance.
     const newBalance = balance - (submittedData.amount * 100);
     updateBalance(newBalance);
+
+    addNotification({
+        title: "External Transfer Successful",
+        description: `You sent ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
+        category: 'transaction',
+    });
+
     setIsProcessing(false);
     setIsPinModalOpen(false);
     setStep('receipt');
@@ -465,5 +474,3 @@ export function ExternalTransferForm() {
     </Form>
   );
 }
-
-    
