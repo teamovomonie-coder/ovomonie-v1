@@ -12,10 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2 } from 'lucide-react';
+import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
+import { Card, CardContent } from '@/components/ui/card';
 
 // --- Bank Transfer Tab ---
 function BankTransfer() {
@@ -77,6 +78,44 @@ function BankTransfer() {
   );
 }
 
+// --- Funding Receipt Component ---
+function FundingReceipt({ amount, onDone }: { amount: number; onDone: () => void }) {
+    const { toast } = useToast();
+    const handleShare = () => {
+        toast({
+            title: "Shared!",
+            description: "Your memorable receipt has been shared.",
+        });
+    }
+
+    return (
+        <div className="flex flex-col items-center text-center p-4 transition-all duration-500 ease-in-out">
+            <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+            <h2 className="text-2xl font-bold">Funding Successful</h2>
+            <p className="text-muted-foreground mb-6">
+                Your wallet has been credited successfully.
+            </p>
+            <Card className="w-full bg-muted">
+                <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Amount Added</p>
+                    <p className="text-3xl font-bold">
+                        ₦{amount.toLocaleString()}
+                    </p>
+                     <p className="text-xs text-muted-foreground mt-2">Ref: FND-{Date.now()}</p>
+                </CardContent>
+            </Card>
+            <div className="mt-6 w-full space-y-2">
+                 <Button onClick={onDone} className="w-full">
+                    Done
+                </Button>
+                 <Button variant="outline" className="w-full" onClick={handleShare}>
+                    <Share2 className="mr-2 h-4 w-4" /> Share Receipt
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 // --- Fund with Card Tab ---
 const cardSchema = z.object({
   amount: z.coerce.number().min(100, 'Minimum amount is ₦100.'),
@@ -93,6 +132,7 @@ function FundWithCard() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [fundingData, setFundingData] = useState<CardFormData | null>(null);
+    const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
 
     const form = useForm<CardFormData>({
         resolver: zodResolver(cardSchema),
@@ -120,8 +160,17 @@ function FundWithCard() {
             description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`
         });
         
+        setReceiptData({ amount: fundingData.amount });
+    }
+    
+    const handleDone = () => {
+        setReceiptData(null);
         form.reset();
         setFundingData(null);
+    }
+
+    if (receiptData) {
+        return <FundingReceipt amount={receiptData.amount} onDone={handleDone} />;
     }
 
     return (
