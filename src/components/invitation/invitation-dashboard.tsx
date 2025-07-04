@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Users, Award, Gift, Share2, Contact, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 interface ReferralStats {
   invites: number;
@@ -20,6 +21,8 @@ export function InvitationDashboard() {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     const fetchReferralData = async () => {
@@ -43,6 +46,30 @@ export function InvitationDashboard() {
     };
     fetchReferralData();
   }, [toast]);
+
+  const handleReceiveReward = () => {
+      if (balance === null || !stats) return;
+      const rewardAmount = 500;
+      const newBalance = balance + (rewardAmount * 100);
+      updateBalance(newBalance);
+
+      addNotification({
+          title: "Referral Reward Earned!",
+          description: `You've received ₦${rewardAmount} for a successful referral.`,
+          category: 'transaction',
+      });
+
+      setStats(prevStats => ({
+          ...(prevStats!),
+          signups: prevStats!.signups + 1,
+          earnings: prevStats!.earnings + rewardAmount,
+      }));
+
+      toast({
+          title: "Reward Credited!",
+          description: `₦${rewardAmount} has been added to your wallet.`,
+      });
+  };
 
   const referralLink = `https://ovomonie.ng/signup?ref=${referralCode || ''}`;
 
@@ -190,10 +217,11 @@ export function InvitationDashboard() {
           </div>
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex-col gap-4">
         <p className="text-xs text-muted-foreground text-center w-full">
           Rewards are credited to your wallet after your friend completes their first transaction of ₦1,000 or more. Terms & Conditions apply.
         </p>
+        <Button variant="outline" size="sm" onClick={handleReceiveReward} disabled={isLoading}>Simulate Receiving a ₦500 Reward</Button>
       </CardFooter>
     </Card>
   );
