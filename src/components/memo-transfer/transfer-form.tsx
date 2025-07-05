@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +26,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
+
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -38,10 +41,6 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-const topBankCodes = ["058", "044", "057", "011", "033"];
-const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
-const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
 function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipientName: string; onReset: () => void }) {
   const { toast } = useToast();
@@ -106,14 +105,25 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
   );
 }
 
+const topBankCodes = ["058", "044", "057", "011", "033"];
+const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
+const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
+
 export function TransferForm() {
   const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
-  const [isMemoTransfer, setIsMemoTransfer] = useState(true);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+  
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { balance, updateBalance, logout } = useAuth();
+  const { addNotification } = useNotifications();
+  
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState("");
 
@@ -135,15 +145,12 @@ export function TransferForm() {
       clearErrors('accountNumber');
     }
 
-    if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     
     if (watchedAccountNumber?.length === 10 && watchedBankCode) {
         setIsVerifying(true);
         debounceRef.current = setTimeout(async () => {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
-
             const mockAccounts: {[key: string]: {[key: string]: string}} = {
                 '058': { '0123456789': 'JANE DOE', '1234567890': 'MARY ANNE' },
                 '044': { '0987654321': 'JOHN SMITH', '9876543210': 'ADAMU CIROMA' },
@@ -157,7 +164,7 @@ export function TransferForm() {
                 clearErrors('accountNumber');
             } else {
                 setRecipientName(null);
-                setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
+                setError('accountNumber', { type: 'manual', message: 'Account not found. Please check details.' });
             }
             setIsVerifying(false);
         }, 500);
@@ -165,11 +172,7 @@ export function TransferForm() {
         setIsVerifying(false);
     }
     
-    return () => {
-        if (debounceRef.current) {
-            clearTimeout(debounceRef.current);
-        }
-    }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }
   }, [watchedAccountNumber, watchedBankCode, clearErrors, setError]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,16 +189,66 @@ export function TransferForm() {
 
   function onSubmit(data: FormData) {
     if (!recipientName) {
-      setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
+      setError('accountNumber', { type: 'manual', message: 'Please wait for account verification.' });
       return;
+    }
+    if (balance === null || (data.amount * 100) > balance) {
+        toast({ variant: "destructive", title: "Insufficient Funds" });
+        return;
     }
     const dataWithPhoto = { ...data, photo: photoPreview };
     setSubmittedData(dataWithPhoto);
     setStep('summary');
   }
 
-  const handleConfirmTransfer = () => {
-    setStep('receipt');
+  const handleFinalSubmit = async () => {
+    if (!submittedData || !recipientName) return;
+
+    setApiError(null);
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await fetch('/api/transfers/external', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          recipientName: recipientName,
+          bankCode: submittedData.bankCode,
+          accountNumber: submittedData.accountNumber,
+          amount: submittedData.amount,
+          narration: submittedData.narration,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        const error: any = new Error(result.message || 'An error occurred.');
+        error.response = response; 
+        throw error;
+      }
+
+      toast({ title: 'Transfer Successful!', description: `₦${submittedData.amount.toLocaleString()} sent to ${recipientName}.` });
+      addNotification({ title: 'External Transfer Successful', description: `You sent ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`, category: 'transaction' });
+      updateBalance(result.data.newBalanceInKobo);
+      setIsPinModalOpen(false);
+      setStep('receipt');
+      
+    } catch (error: any) {
+      let description = 'An unknown error occurred.';
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        description = 'Please check your internet connection.';
+      } else if (error.response?.status === 401) {
+          description = 'Your session has expired. Please log in again.';
+          logout();
+      } else if (error.message) {
+          description = error.message;
+      }
+      setApiError(description);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetForm = () => {
@@ -203,7 +256,6 @@ export function TransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
-    setIsMemoTransfer(true);
     form.reset();
   };
 
@@ -214,58 +266,35 @@ export function TransferForm() {
   if (step === 'summary' && submittedData && recipientName) {
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Transfer Summary</CardTitle>
-          <CardDescription>Please review the details before confirming.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Recipient</span>
-            <span className="font-semibold">{recipientName}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Bank</span>
-            <span className="font-semibold">{bankName}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Account Number</span>
-            <span className="font-semibold">{submittedData.accountNumber}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Amount</span>
-            <span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span>
-          </div>
-          {submittedData.narration && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Narration</span>
-              <span className="font-semibold">{submittedData.narration}</span>
-            </div>
-          )}
-          {isMemoTransfer && submittedData.photo && (
-            <div className="space-y-2">
-              <span className="text-muted-foreground">Attached Photo</span>
-              <div className="relative w-full h-32 rounded-lg overflow-hidden">
-                <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
-              </div>
-            </div>
-          )}
-          {isMemoTransfer && submittedData.message && (
-            <div className="space-y-2">
-              <span className="text-muted-foreground">Message</span>
-              <blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button variant="outline" className="w-full" onClick={() => setStep('form')}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <Button className="w-full" onClick={handleConfirmTransfer}>
-            Confirm Transfer
-          </Button>
-        </CardFooter>
-      </Card>
+      <>
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Transfer Summary</CardTitle>
+            <CardDescription>Please review the details before confirming.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Recipient</span><span className="font-semibold">{recipientName}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{bankName}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Account Number</span><span className="font-semibold">{submittedData.accountNumber}</span></div>
+            <div className="flex justify-between items-center"><span className="text-muted-foreground">Amount</span><span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span></div>
+            {submittedData.narration && (<div className="flex justify-between items-center"><span className="text-muted-foreground">Narration</span><span className="font-semibold">{submittedData.narration}</span></div>)}
+            {submittedData.photo && (<div className="space-y-2"><span className="text-muted-foreground">Attached Photo</span><div className="relative w-full h-32 rounded-lg overflow-hidden"><Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" /></div></div>)}
+            {submittedData.message && (<div className="space-y-2"><span className="text-muted-foreground">Message</span><blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote></div>)}
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>Confirm Transfer</Button>
+          </CardFooter>
+        </Card>
+        <PinModal
+            open={isPinModalOpen}
+            onOpenChange={setIsPinModalOpen}
+            onConfirm={handleFinalSubmit}
+            isProcessing={isProcessing}
+            error={apiError}
+            onClearError={() => setApiError(null)}
+        />
+      </>
     );
   }
 
@@ -278,12 +307,12 @@ export function TransferForm() {
             <AlertDescription>
               <p className="mb-2">Use one of these bank/account pairs for successful verification:</p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li><b>GTB (058):</b> 0123456789, 1234567890</li>
-                <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
+                <li><b>GTB (058):</b> 0123456789</li>
+                <li><b>Access Bank (044):</b> 0987654321</li>
               </ul>
             </AlertDescription>
           </Alert>
-
+          
         <FormField
           control={form.control}
           name="bankCode"
@@ -305,7 +334,7 @@ export function TransferForm() {
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <Command>
-                      <CommandInput 
+                      <CommandInput
                         placeholder="Search for a bank..."
                         value={bankSearchQuery}
                         onValueChange={setBankSearchQuery}
@@ -430,7 +459,7 @@ export function TransferForm() {
               <FormItem>
                 <FormLabel>Custom Message (Optional)</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="e.g., Enjoy the gift!" {...field} />
+                  <Textarea placeholder="e.g., Happy Birthday! Enjoy." {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
