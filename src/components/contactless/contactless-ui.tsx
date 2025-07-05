@@ -32,6 +32,7 @@ interface TransactionData {
   peer: string;
   memo?: string;
   ref: string;
+  accountNumber: string;
 }
 
 function MainScreen({ setView }: { setView: (view: View) => void }) {
@@ -190,12 +191,12 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
   }, [toast]);
 
   const handleSimulateScan = () => {
-    // In a real app, a QR library would decode the QR code.
-    // We simulate decoding a payload.
+    // In a real app, a QR library would decode a payload. We simulate it.
     setTransactionData({
       peer: 'The Coffee Shop',
       amount: 4500,
       memo: 'Morning Latte',
+      accountNumber: '8765432109', // Mock merchant account number
       ref: `OVO-TXN-${Date.now()}`
     });
     setView('confirm_payment');
@@ -314,14 +315,16 @@ export function ContactlessUI() {
   const [transactionData, setTransactionData] = useState<any>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
 
   const reset = () => {
     setView('main');
     setTransactionData(null);
+    setApiError(null);
   }
 
   const handlePaymentRequest = () => {
@@ -339,25 +342,65 @@ export function ContactlessUI() {
   const handleConfirmPayment = async () => {
     if (!transactionData || balance === null) return;
     setIsProcessing(true);
+    setApiError(null);
 
-    await new Promise(res => setTimeout(res, 1500)); // Simulate API call
-    
-    // Update balance
-    const newBalance = balance - transactionData.amount * 100;
-    updateBalance(newBalance);
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) {
+            throw new Error('Authentication token not found. Please log in again.');
+        }
 
-    // Add notification
-    addNotification({
-        title: 'Contactless Payment Successful',
-        description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`,
-        category: 'transaction',
-    });
+        const response = await fetch('/api/transfers/internal', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                recipientAccountNumber: transactionData.accountNumber,
+                amount: transactionData.amount,
+                narration: transactionData.memo,
+            }),
+        });
 
-    setIsProcessing(false);
-    setIsPinModalOpen(false);
-    setView('receipt');
-    toast({ title: 'Payment Successful!' });
+        const result = await response.json();
+
+        if (!response.ok) {
+            const error: any = new Error(result.message || 'An error occurred during payment.');
+            error.response = response; 
+            throw error;
+        }
+        
+        updateBalance(result.data.newSenderBalance);
+
+        addNotification({
+            title: 'Contactless Payment Successful',
+            description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`,
+            category: 'transaction',
+        });
+        
+        setTransactionData((prev: any) => ({...prev, ref: result.data.reference}));
+
+        toast({ title: 'Payment Successful!' });
+        setView('receipt');
+
+    } catch (error: any) {
+        let description = 'An unknown error occurred.';
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            description = 'Please check your internet connection and try again.';
+        } else if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+    } finally {
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    }
   };
+
 
   const renderContent = () => {
     switch (view) {
@@ -385,6 +428,8 @@ export function ContactlessUI() {
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmPayment}
         isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
         title="Authorize Contactless Payment"
       />
     </div>
