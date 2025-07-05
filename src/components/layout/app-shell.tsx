@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { Loader2, LayoutDashboard, Briefcase, LayoutGrid, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
+import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
     { href: "/inventory", label: "Inventory", icon: Package },
     { href: "/custom-card", label: "Card", icon: CreditCard },
     { href: "/agent-life", label: "Agent", icon: Briefcase },
-    { href: "/more", label: "More", icon: LayoutGrid },
+    { href: "/profile", label: "Me", icon: User },
 ];
 
 const rootPaths = navItems.map(item => item.href);
@@ -53,7 +53,7 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
                 <TooltipTrigger asChild>
                     <Link href={href} className={cn(
                         "flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors",
-                        isActive ? 'text-white font-semibold' : 'text-gray-400 hover:text-white'
+                        isActive ? 'text-primary font-semibold' : 'text-muted-foreground hover:text-primary'
                     )}>
                         <Icon className="h-6 w-6" />
                         <span>{label}</span>
@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </main>
 
             {/* Fixed Footer */}
-            <footer className="fixed bottom-0 left-0 right-0 bg-primary text-primary-foreground z-50 rounded-t-xl shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.1)]">
+            <footer className="fixed bottom-0 left-0 right-0 bg-background z-50 border-t">
                 <nav className="flex items-center h-16 max-w-2xl mx-auto">
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
                 </nav>
