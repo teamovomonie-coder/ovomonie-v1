@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash, LayoutList } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash, LayoutList, Gamepad2 } from "lucide-react";
 import CustomLink from "@/components/layout/custom-link";
 import type { LucideIcon } from 'lucide-react';
 import { LogoutDialog } from "@/components/auth/logout-dialog";
@@ -43,6 +43,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Utility Payments", icon: Zap, href: "/bill-payment" },
       { label: "Bill Payments", icon: FileText, href: "/bill-payment" },
       { label: "Betting Payments", icon: Target, href: "/betting" },
+      { label: "Gaming", icon: Gamepad2, href: "#" },
     ],
   },
   {

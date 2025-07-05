@@ -105,6 +105,14 @@ const promoCards: PromoCardProps[] = [
     backgroundClass: "bg-gradient-to-br from-teal-400 to-cyan-600",
     ctaText: "Book",
   },
+  {
+    href: "/community",
+    title: "Join the Community",
+    description: "Connect, share, and grow with others.",
+    Icon: Users,
+    backgroundClass: "bg-gradient-to-br from-purple-500 to-indigo-600",
+    ctaText: "Join Now",
+  },
 ];
 
 const PromoCard = ({ card }: { card: PromoCardProps }) => {
