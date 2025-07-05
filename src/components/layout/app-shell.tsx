@@ -38,12 +38,12 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
     const pathname = usePathname();
     let isActive = false;
     
-    const isRootTab = navItems.some(item => item.href === href);
-    if (isRootTab) {
-        isActive = pathname.startsWith(href);
-    }
+    // This logic ensures that the tab is active for its root path and any sub-paths,
+    // except for the dashboard which is only active for its exact path.
     if (href === '/dashboard') {
         isActive = pathname === '/dashboard';
+    } else {
+        isActive = pathname.startsWith(href);
     }
 
 
@@ -86,46 +86,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         );
     }
     
-    const showBackButton = !rootPaths.includes(pathname);
+    const showGreetingHeader = pathname === '/dashboard';
+    const showBackButtonHeader = !rootPaths.includes(pathname);
+    const showHeader = showGreetingHeader || showBackButtonHeader;
+    
     const firstName = user?.fullName.split(' ')[0] || '';
     
     return (
         <div className="flex flex-col min-h-screen bg-background">
             {/* Fixed Header */}
-            <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
-                <div className="flex items-center gap-2">
-                     {showBackButton ? (
-                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => router.back()}>
-                            <ArrowLeft className="h-6 w-6" />
-                        </Button>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <Link href="/profile">
-                                <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                    <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
-                                    <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            </Link>
-                            <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-4">
-                    <Link href="/support" className="relative">
-                        <MessageCircle className="h-6 w-6" />
-                    </Link>
-                    <Link href="/notifications" className="relative">
-                        <Bell className="h-6 w-6" />
-                         <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                    </Link>
-                </div>
-            </header>
+            {showHeader && (
+                <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
+                    <div className="flex items-center gap-2">
+                        {showBackButtonHeader ? (
+                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => router.back()}>
+                                <ArrowLeft className="h-6 w-6" />
+                            </Button>
+                        ) : ( // This block is now only for the greeting header on the dashboard
+                            <div className="flex items-center gap-2">
+                                <Link href="/profile">
+                                    <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                        <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                        <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </Link>
+                                <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Link href="/support" className="relative">
+                            <MessageCircle className="h-6 w-6" />
+                        </Link>
+                        <Link href="/notifications" className="relative">
+                            <Bell className="h-6 w-6" />
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                        </Link>
+                    </div>
+                </header>
+            )}
 
-            {/* Main Content */}
-            <main className="flex-1 pt-16 pb-20">
+            {/* Main Content: pt-16 if header is shown, pt-4 otherwise */}
+            <main className={cn("flex-1 pb-20", showHeader ? "pt-16" : "pt-4")}>
                 {children}
             </main>
 
