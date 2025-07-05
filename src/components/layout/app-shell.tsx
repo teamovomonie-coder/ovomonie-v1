@@ -32,8 +32,6 @@ const navItems: NavItem[] = [
     { href: "/profile", label: "Me", icon: User },
 ];
 
-const rootPaths = navItems.map(item => item.href);
-
 const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
     const pathname = usePathname();
     let isActive = false;
@@ -86,9 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         );
     }
     
-    const showGreetingHeader = pathname === '/dashboard';
-    const showBackButtonHeader = !rootPaths.includes(pathname);
-    const showHeader = showGreetingHeader || showBackButtonHeader;
+    const showHeader = pathname === '/dashboard';
     
     const firstName = user?.fullName.split(' ')[0] || '';
     
@@ -98,21 +94,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {showHeader && (
                 <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
                     <div className="flex items-center gap-2">
-                        {showBackButtonHeader ? (
-                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => router.back()}>
-                                <ArrowLeft className="h-6 w-6" />
-                            </Button>
-                        ) : ( // This block is now only for the greeting header on the dashboard
-                            <div className="flex items-center gap-2">
-                                <Link href="/profile">
-                                    <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                        <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
-                                        <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                </Link>
-                                <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
-                            </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                            <Link href="/profile">
+                                <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                    <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                    <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            </Link>
+                            <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link href="/support" className="relative">
