@@ -26,7 +26,7 @@ const TargetIcon = ({ className }: { className?: string }) => (
      <svg viewBox="0 0 100 100" className={className}>
         <g className="drop-shadow-glow-blue animate-float">
             <circle cx="50" cy="50" r="45" fill="hsl(var(--primary-foreground))" />
-            <circle cx="50" cy="50" r="30" fill="hsl(var(--primary))" />
+            <circle cx="50" cy="50" r="30" fill="#001F54" />
             <circle cx="50" cy="50" r="15" fill="hsl(var(--primary-foreground))" />
         </g>
     </svg>
@@ -78,7 +78,7 @@ export function AgentLifeCard() {
         .sparkle.three { width: 5px; height: 5px; top: 40%; left: 90%; animation-delay: 1s; }
       `}</style>
       <Link href="/agent-life" className="block my-4">
-        <Card className="relative w-full h-36 overflow-hidden bg-primary text-white shadow-lg rounded-2xl group">
+        <Card className="relative w-full h-36 overflow-hidden bg-[#001F54] text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
             <div className="absolute inset-0 opacity-65">
                 <TargetIcon className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }} />
@@ -87,15 +87,15 @@ export function AgentLifeCard() {
             </div>
 
           <CardContent className="relative z-10 flex items-center h-full p-4">
+             <div className="absolute top-4 right-4 text-right text-sm text-white font-semibold space-y-0.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                <p>2% Agent Loans</p>
+                <p>Zero Transaction Fees</p>
+            </div>
              <div className="flex flex-col justify-between h-full flex-1">
                 <div>
                     <p className="text-xl font-black tracking-tighter text-yellow-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                         AGENTLIFE
                     </p>
-                    <div className="text-xs text-white mt-1 space-y-0.5">
-                        <p>• 2% Agent Loans</p>
-                        <p>• Zero Transaction Fees</p>
-                    </div>
                 </div>
                 <h3 className="text-lg font-bold text-white whitespace-nowrap">
                     Merchant Services
