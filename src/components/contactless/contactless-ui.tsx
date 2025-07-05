@@ -11,14 +11,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet } from 'lucide-react';
+import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet, RadioTower } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { AnimatePresence, motion } from 'framer-motion';
 
-type View = 'main' | 'generate' | 'display_qr' | 'scan' | 'confirm_payment' | 'receipt';
+declare global {
+  interface Window {
+    NDEFReader: any;
+  }
+}
+
+type View = 'main' | 'generate' | 'display_qr' | 'scan_qr' | 'confirm_payment' | 'receipt';
 
 const GenerateSchema = z.object({
   amount: z.coerce.number().min(1, 'Amount must be at least ₦1.'),
@@ -35,7 +42,7 @@ interface TransactionData {
   accountNumber: string;
 }
 
-function MainScreen({ setView }: { setView: (view: View) => void }) {
+function MainScreen({ setView, onNfcPay, isNfcSupported, nfcStatus }: { setView: (view: View) => void; onNfcPay: () => void; isNfcSupported: boolean; nfcStatus: string; }) {
   return (
     <Card className="w-full max-w-md mx-auto shadow-none border-none text-center">
       <CardHeader>
@@ -43,17 +50,34 @@ function MainScreen({ setView }: { setView: (view: View) => void }) {
         <CardDescription>Hold your phone near a contactless terminal to pay.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center justify-center gap-8 py-10">
-        <div className="relative flex items-center justify-center w-48 h-48">
-          <div className="absolute h-48 w-48 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-primary/10"></div>
+        <button
+          className="relative flex items-center justify-center w-48 h-48 rounded-full disabled:opacity-50 group"
+          onClick={onNfcPay}
+          disabled={!isNfcSupported || nfcStatus !== 'idle'}
+          aria-label="Tap to Pay"
+        >
+          <div className="absolute h-48 w-48 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-primary/10 group-disabled:animate-none"></div>
           <div className="absolute h-32 w-32 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full bg-primary/20" style={{ animationDelay: '0.5s' }}></div>
-          <div className="relative flex items-center justify-center w-24 h-24 bg-primary text-primary-foreground rounded-full">
+          <div className="relative flex items-center justify-center w-24 h-24 bg-primary text-primary-foreground rounded-full transition-transform group-hover:scale-110">
             <Nfc className="w-12 h-12" />
           </div>
-        </div>
-        <p className="text-muted-foreground">Your Ovomonie wallet is ready.</p>
+        </button>
+        <AnimatePresence mode="wait">
+        <motion.p 
+            key={nfcStatus}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-muted-foreground font-semibold h-5"
+        >
+            {nfcStatus === 'scanning' ? "Ready to Scan. Hold near terminal..." :
+             nfcStatus === 'error' ? "NFC Not Supported or Enabled" :
+             "Your Ovomonie wallet is ready."}
+        </motion.p>
+        </AnimatePresence>
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-4">
-        <Button variant="outline" onClick={() => setView('scan')} className="h-16 flex-col gap-1">
+        <Button variant="outline" onClick={() => setView('scan_qr')} className="h-16 flex-col gap-1">
           <QrCode className="w-6 h-6" />
           Scan QR
         </Button>
@@ -67,6 +91,7 @@ function MainScreen({ setView }: { setView: (view: View) => void }) {
 }
 
 function GenerateScreen({ setView, setTransactionData }: { setView: (view: View) => void, setTransactionData: (data: any) => void }) {
+  const { user } = useAuth();
   const form = useForm<GenerateFormData>({
     resolver: zodResolver(GenerateSchema),
     defaultValues: { amount: 0, memo: '' }
@@ -74,13 +99,12 @@ function GenerateScreen({ setView, setTransactionData }: { setView: (view: View)
 
   function onSubmit(data: GenerateFormData) {
     const payload = {
-      ...data,
-      merchant_id: 'OM12345',
-      currency: 'NGN',
-      txn_ref: `OVO-TXN-${Date.now()}`,
-      expires_in: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+      accountNumber: user?.accountNumber,
+      amount: data.amount,
+      memo: data.memo,
+      peer: user?.fullName,
+      ref: `OVO-RCV-${Date.now()}`
     };
-    // In a real app, this payload would be encrypted
     setTransactionData(payload);
     setView('display_qr');
   }
@@ -111,7 +135,7 @@ function GenerateScreen({ setView, setTransactionData }: { setView: (view: View)
                 <FormMessage />
               </FormItem>
             )} />
-            <Button type="submit" className="w-full">Generate QR Code</Button>
+            <Button type="submit" className="w-full">Generate Code</Button>
           </form>
         </Form>
       </CardContent>
@@ -119,8 +143,9 @@ function GenerateScreen({ setView, setTransactionData }: { setView: (view: View)
   )
 }
 
-function DisplayQrScreen({ setView, transactionData }: { setView: (view: View) => void, transactionData: any }) {
+function DisplayQrScreen({ setView, transactionData, isNfcSupported }: { setView: (view: View) => void, transactionData: any, isNfcSupported: boolean }) {
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [nfcWriteStatus, setNfcWriteStatus] = useState<'idle' | 'writing' | 'success' | 'error'>('idle');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -133,11 +158,32 @@ function DisplayQrScreen({ setView, transactionData }: { setView: (view: View) =
     return () => clearTimeout(timerId);
   }, [timeLeft, setView, toast]);
 
+  const handleNfcWrite = async () => {
+    if (!isNfcSupported) {
+        toast({ variant: 'destructive', title: 'NFC Not Supported' });
+        return;
+    }
+    try {
+        setNfcWriteStatus('writing');
+        const ndef = new window.NDEFReader();
+        await ndef.write({
+            records: [{ recordType: "text", data: JSON.stringify(transactionData) }]
+        });
+        setNfcWriteStatus('success');
+        toast({ title: 'Success!', description: 'Payment details written to device.' });
+    } catch (error) {
+        setNfcWriteStatus('error');
+        console.error("NFC write error:", error);
+        toast({ variant: 'destructive', title: 'NFC Write Failed', description: 'Could not write to the device. Please try again.' });
+    } finally {
+        setTimeout(() => setNfcWriteStatus('idle'), 2000);
+    }
+  }
+
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   
-  // Simulate encrypted payload in QR text
-  const qrText = encodeURIComponent(JSON.stringify({ ref: transactionData.txn_ref }));
+  const qrText = encodeURIComponent(JSON.stringify({ ref: transactionData.ref }));
 
   return (
     <Card className="w-full max-w-md mx-auto text-center">
@@ -159,14 +205,22 @@ function DisplayQrScreen({ setView, transactionData }: { setView: (view: View) =
             <span>Code expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button onClick={() => setView('main')} className="w-full">Done</Button>
+      <CardFooter className="flex-col gap-2">
+         {isNfcSupported && (
+             <Button onClick={handleNfcWrite} className="w-full" disabled={nfcWriteStatus !== 'idle'}>
+                {nfcWriteStatus === 'writing' && <><Loader2 className="animate-spin mr-2"/>Hold near device...</>}
+                {nfcWriteStatus === 'success' && <><CheckCircle className="mr-2"/>Written!</>}
+                {nfcWriteStatus === 'error' && <><XCircle className="mr-2"/>Failed</>}
+                {nfcWriteStatus === 'idle' && <><RadioTower className="mr-2"/>Write to NFC</>}
+             </Button>
+         )}
+        <Button onClick={() => setView('main')} className="w-full" variant="outline">Done</Button>
       </CardFooter>
     </Card>
   )
 }
 
-function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => void, setTransactionData: (data: any) => void }) {
+function ScanQrScreen({ setView, setTransactionData }: { setView: (view: View) => void, setTransactionData: (data: any) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
@@ -174,12 +228,12 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         setHasCameraPermission(true);
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (error) {
         setHasCameraPermission(false);
-        toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Please enable camera permissions in browser settings.' });
+        toast({ variant: 'destructive', title: 'Camera Access Denied' });
       }
     };
     getCameraPermission();
@@ -191,12 +245,11 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
   }, [toast]);
 
   const handleSimulateScan = () => {
-    // In a real app, a QR library would decode a payload. We simulate it.
     setTransactionData({
       peer: 'The Coffee Shop',
       amount: 4500,
       memo: 'Morning Latte',
-      accountNumber: '8765432109', // Mock merchant account number
+      accountNumber: '8765432109',
       ref: `OVO-TXN-${Date.now()}`
     });
     setView('confirm_payment');
@@ -214,18 +267,12 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
       <CardContent>
         <div className="relative w-full aspect-square mx-auto bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
             <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-            <div className="absolute inset-0 flex items-center justify-center">
-                <div className="absolute top-4 left-4 border-t-4 border-l-4 border-primary w-12 h-12 rounded-tl-lg"></div>
-                <div className="absolute top-4 right-4 border-t-4 border-r-4 border-primary w-12 h-12 rounded-tr-lg"></div>
-                <div className="absolute bottom-4 left-4 border-b-4 border-l-4 border-primary w-12 h-12 rounded-bl-lg"></div>
-                <div className="absolute bottom-4 right-4 border-b-4 border-r-4 border-primary w-12 h-12 rounded-br-lg"></div>
-                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-[scan_2s_ease-in-out_infinite]" />
-            </div>
+            <div className="absolute inset-0 border-8 border-black/50" />
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 animate-[scan_2s_ease-in-out_infinite]" />
             {hasCameraPermission === false && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white z-20 p-4">
                     <VideoOff className="w-16 h-16 mb-4" />
                     <h3 className="text-xl font-bold">Camera Access Required</h3>
-                    <p className="text-sm mt-2">Please allow camera access to scan QR codes.</p>
                 </div>
             )}
         </div>
@@ -234,10 +281,7 @@ function ScanScreen({ setView, setTransactionData }: { setView: (view: View) => 
           <Button onClick={handleSimulateScan} className="w-full" disabled={hasCameraPermission === false}>Simulate Scan</Button>
       </CardFooter>
        <style jsx>{`
-            @keyframes scan {
-                0%, 100% { transform: translateY(-120px); }
-                50% { transform: translateY(120px); }
-            }
+            @keyframes scan { 0%, 100% { transform: translateY(-120px); } 50% { transform: translateY(120px); } }
         `}</style>
     </Card>
   )
@@ -309,17 +353,27 @@ function ReceiptScreen({ transactionData, reset }: { transactionData: any, reset
     )
 }
 
-
 export function ContactlessUI() {
   const [view, setView] = useState<View>('main');
   const [transactionData, setTransactionData] = useState<any>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-
+  const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'error'>('idle');
+  const [isNfcSupported, setIsNfcSupported] = useState(false);
+  
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if ('NDEFReader' in window) {
+      setIsNfcSupported(true);
+    } else {
+      setIsNfcSupported(false);
+      setNfcStatus('error');
+    }
+  }, []);
 
   const reset = () => {
     setView('main');
@@ -327,13 +381,40 @@ export function ContactlessUI() {
     setApiError(null);
   }
 
+  const handleNfcPay = async () => {
+    if (!isNfcSupported) {
+      toast({ variant: 'destructive', title: 'NFC not supported on this device.' });
+      return;
+    }
+
+    try {
+      setNfcStatus('scanning');
+      const ndef = new window.NDEFReader();
+      await ndef.scan();
+
+      ndef.addEventListener("reading", ({ message }: { message: any }) => {
+        const decoder = new TextDecoder();
+        const decodedRecord = decoder.decode(message.records[0].data);
+        const data = JSON.parse(decodedRecord);
+        
+        // Add a peer name for display if missing
+        if (!data.peer) data.peer = "Contactless Merchant";
+
+        setTransactionData(data);
+        setView('confirm_payment');
+        setNfcStatus('idle');
+      });
+
+    } catch (error) {
+      console.error(`NFC Error: ${error}`);
+      setNfcStatus('error');
+      toast({ variant: 'destructive', title: 'NFC Scan Failed', description: 'Could not start scanning. Please ensure NFC is enabled.' });
+    }
+  }
+
   const handlePaymentRequest = () => {
     if (!transactionData || balance === null || transactionData.amount * 100 > balance) {
-      toast({
-        variant: 'destructive',
-        title: 'Insufficient Funds',
-        description: 'Your balance is not enough for this payment.',
-      });
+      toast({ variant: 'destructive', title: 'Insufficient Funds' });
       return;
     }
     setIsPinModalOpen(true);
@@ -346,48 +427,31 @@ export function ContactlessUI() {
 
     try {
         const token = localStorage.getItem('ovo-auth-token');
-        if (!token) {
-            throw new Error('Authentication token not found. Please log in again.');
-        }
+        if (!token) throw new Error('Authentication token not found.');
 
         const response = await fetch('/api/transfers/internal', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                recipientAccountNumber: transactionData.accountNumber,
-                amount: transactionData.amount,
-                narration: transactionData.memo,
-            }),
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ recipientAccountNumber: transactionData.accountNumber, amount: transactionData.amount, narration: transactionData.memo }),
         });
 
         const result = await response.json();
-
         if (!response.ok) {
-            const error: any = new Error(result.message || 'An error occurred during payment.');
+            const error: any = new Error(result.message || 'Payment failed.');
             error.response = response; 
             throw error;
         }
         
         updateBalance(result.data.newSenderBalance);
-
-        addNotification({
-            title: 'Contactless Payment Successful',
-            description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`,
-            category: 'transaction',
-        });
-        
+        addNotification({ title: 'Contactless Payment Successful', description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`, category: 'transaction' });
         setTransactionData((prev: any) => ({...prev, ref: result.data.reference}));
-
         toast({ title: 'Payment Successful!' });
         setView('receipt');
 
     } catch (error: any) {
         let description = 'An unknown error occurred.';
         if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            description = 'Please check your internet connection and try again.';
+            description = 'Please check your internet connection.';
         } else if (error.response?.status === 401) {
             description = 'Your session has expired. Please log in again.';
             logout();
@@ -407,22 +471,33 @@ export function ContactlessUI() {
       case 'generate':
         return <GenerateScreen setView={setView} setTransactionData={setTransactionData} />;
       case 'display_qr':
-        return <DisplayQrScreen setView={setView} transactionData={transactionData} />;
-      case 'scan':
-        return <ScanScreen setView={setView} setTransactionData={setTransactionData} />;
+        return <DisplayQrScreen setView={setView} transactionData={transactionData} isNfcSupported={isNfcSupported} />;
+      case 'scan_qr':
+        return <ScanQrScreen setView={setView} setTransactionData={setTransactionData} />;
       case 'confirm_payment':
         return <ConfirmPaymentScreen onConfirm={handlePaymentRequest} isProcessing={isProcessing} reset={reset} transactionData={transactionData} />;
       case 'receipt':
         return <ReceiptScreen transactionData={transactionData} reset={reset} />;
       case 'main':
       default:
-        return <MainScreen setView={setView} />;
+        return <MainScreen setView={setView} onNfcPay={handleNfcPay} isNfcSupported={isNfcSupported} nfcStatus={nfcStatus} />;
     }
   };
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {renderContent()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={view}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+          className="w-full"
+        >
+          {renderContent()}
+        </motion.div>
+      </AnimatePresence>
       <PinModal 
         open={isPinModalOpen} 
         onOpenChange={setIsPinModalOpen}
