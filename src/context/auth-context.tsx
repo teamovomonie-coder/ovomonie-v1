@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
     localStorage.removeItem('ovo-user-phone');
+    localStorage.removeItem('ovo-user-accountNumber');
     setIsAuthenticated(false);
     setUser(null);
     setBalance(null);
@@ -36,14 +37,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserData = useCallback(async () => {
     try {
-      const phone = localStorage.getItem('ovo-user-phone');
-      if (!phone) {
+      const accountNumber = localStorage.getItem('ovo-user-accountNumber');
+      if (!accountNumber) {
         if (localStorage.getItem('ovo-auth-token')) {
             logout();
         }
         return;
       }
-      const account = await mockGetAccountByNumber(phone);
+      const account = await mockGetAccountByNumber(accountNumber);
       if (account) {
         setUser({ fullName: account.fullName, accountNumber: account.accountNumber });
         setBalance(account.balance);
@@ -82,11 +83,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error(errorData.message || 'Login failed.');
       }
       
-      const { token, fullName } = await response.json();
+      const { token, fullName, accountNumber } = await response.json();
       localStorage.setItem('ovo-auth-token', token);
       localStorage.setItem('ovo-user-phone', phone);
+      localStorage.setItem('ovo-user-accountNumber', accountNumber);
       setIsAuthenticated(true);
-      setUser({ fullName, accountNumber: phone.slice(-10) }); // Set user immediately on login
+      setUser({ fullName, accountNumber }); // Set user immediately on login
       await fetchUserData();
   }, [fetchUserData]);
 

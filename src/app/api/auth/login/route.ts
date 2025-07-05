@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         if (String(userData.loginPin) === String(pin).trim()) {
             // This is a mock token. In production, use JWTs (JSON Web Tokens).
             const token = `fake-token-${userDoc.id}-${Date.now()}`;
-            return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName });
+            return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName, accountNumber: userData.accountNumber });
         } else {
             return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
         }
