@@ -18,10 +18,13 @@ import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Progress } from "@/components/ui/progress";
 
+const MOCK_OTP = "123456";
+
 const fullRegisterSchema = z.object({
   fullName: z.string().min(3, "Full name is required."),
   email: z.string().email("Please enter a valid email address."),
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
+  otp: z.string().length(6, "OTP must be 6 digits."),
   nin: z.string().length(11, "NIN must be 11 digits."),
   address: z.string().min(10, "Please provide your residential address."),
   loginPin: z.string().regex(/^\d{6}$/, "Login PIN must be 6 digits."),
@@ -39,9 +42,10 @@ const fullRegisterSchema = z.object({
 type FullFormData = z.infer<typeof fullRegisterSchema>;
 
 const steps: { id: number, name: string, fields: FieldPath<FullFormData>[] }[] = [
-    { id: 1, name: "Personal & Account Info", fields: ["fullName", "email", "phone", "nin", "address"] },
-    { id: 2, name: "Login PIN", fields: ["loginPin", "confirmLoginPin"] },
-    { id: 3, name: "Transaction PIN", fields: ["transactionPin", "confirmTransactionPin"] },
+    { id: 1, name: "Create Account", fields: ["fullName", "email", "phone"] },
+    { id: 2, name: "Verify Email", fields: ["otp"] },
+    { id: 3, name: "Complete Profile", fields: ["nin", "address"] },
+    { id: 4, name: "Secure Your Account", fields: ["loginPin", "confirmLoginPin", "transactionPin", "confirmTransactionPin"] },
 ];
 
 export default function RegisterPage() {
@@ -54,7 +58,8 @@ export default function RegisterPage() {
   const form = useForm<FullFormData>({
     resolver: zodResolver(fullRegisterSchema),
     defaultValues: {
-        fullName: "", email: "", phone: "", nin: "", address: "",
+        fullName: "", email: "", phone: "", otp: "",
+        nin: "", address: "",
         loginPin: "", confirmLoginPin: "", transactionPin: "", confirmTransactionPin: ""
     }
   });
@@ -64,7 +69,35 @@ export default function RegisterPage() {
     const output = await form.trigger(fields, { shouldFocus: true });
     if (!output) return;
     
-    if (currentStep < steps.length) {
+    // Logic for step 0 (sending OTP)
+    if (currentStep === 0) {
+        setIsLoading(true);
+        // Simulate API call to check email/phone and send OTP
+        await new Promise(res => setTimeout(res, 1000));
+        setIsLoading(false);
+        toast({
+            title: "Verification Code Sent!",
+            description: `A 6-digit code has been sent to ${form.getValues('email')}. (Hint: Use ${MOCK_OTP})`,
+        });
+        setCurrentStep(prev => prev + 1);
+        return;
+    }
+
+    // Logic for step 1 (verifying OTP)
+    if (currentStep === 1) {
+        if (form.getValues('otp') !== MOCK_OTP) {
+            form.setError('otp', { type: 'manual', message: 'Invalid verification code.' });
+            return;
+        }
+        toast({
+            title: "Email Verified!",
+            description: "You can now complete your registration.",
+        });
+        setCurrentStep(prev => prev + 1);
+        return;
+    }
+
+    if (currentStep < steps.length -1) {
         setCurrentStep(prev => prev + 1);
     }
   };
@@ -125,7 +158,7 @@ export default function RegisterPage() {
             <form onSubmit={form.handleSubmit(processRegistration)}>
                 <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border-white/20 rounded-2xl">
                 <CardHeader>
-                    {currentStep < steps.length + 1 && (
+                    {currentStep <= steps.length && (
                         <>
                         <div className="mx-auto"><OvoLogo /></div>
                         {currentStep < steps.length ? (
@@ -154,137 +187,36 @@ export default function RegisterPage() {
                     >
                         {currentStep === 0 && (
                             <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="fullName"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Full Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="John Doe" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Email Address</FormLabel>
-                                            <FormControl>
-                                                <Input type="email" placeholder="you@example.com" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="phone"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Phone Number</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="08012345678" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="nin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>National Identification Number (NIN)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="11-digit NIN" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="address"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Residential Address</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Your home address" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
+                                <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <Button type="button" className="w-full" onClick={handleNext} disabled={isLoading}> {isLoading && <Loader2 className="animate-spin mr-2" />} Continue</Button>
                             </div>
                         )}
                         {currentStep === 1 && (
-                             <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="loginPin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Create 6-Digit Login PIN</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="••••••" maxLength={6} {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="confirmLoginPin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Confirm Login PIN</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="••••••" maxLength={6} {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="otp" render={({ field }) => ( <FormItem><FormLabel>Verification Code</FormLabel><FormControl><Input placeholder="6-digit code from your email" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <Button type="button" className="w-full" onClick={handleNext}>Verify Email</Button>
+                                <p className="text-center text-sm text-muted-foreground">Didn't receive a code? <button type="button" className="underline">Resend</button></p>
                             </div>
                         )}
                         {currentStep === 2 && (
                             <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="transactionPin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Create 4-Digit Transaction PIN</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="••••" maxLength={4} {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="confirmTransactionPin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Confirm Transaction PIN</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="••••" maxLength={4} {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
+                                <FormField control={form.control} name="nin" render={({ field }) => ( <FormItem><FormLabel>National Identification Number (NIN)</FormLabel><FormControl><Input placeholder="11-digit NIN" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Residential Address</FormLabel><FormControl><Input placeholder="Your home address" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
                             </div>
                         )}
                         {currentStep === 3 && (
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="loginPin" render={({ field }) => ( <FormItem><FormLabel>Create 6-Digit Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="confirmLoginPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="transactionPin" render={({ field }) => ( <FormItem><FormLabel>Create 4-Digit Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={form.control} name="confirmTransactionPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
+                            </div>
+                        )}
+                        {currentStep === 4 && (
                              <div className="text-center p-4 flex flex-col items-center">
                                 <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
                                 <h2 className="text-2xl font-bold mb-2">Welcome to OVOMONIE!</h2>
