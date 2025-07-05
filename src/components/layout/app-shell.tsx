@@ -5,7 +5,6 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { OvoLogo } from './logo';
 import { Loader2, LayoutDashboard, Briefcase, LayoutGrid, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -69,7 +68,7 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -88,20 +87,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
     
     const showBackButton = !rootPaths.includes(pathname);
+    const firstName = user?.fullName.split(' ')[0] || '';
     
     return (
         <div className="flex flex-col min-h-screen bg-background">
             {/* Fixed Header */}
-            <header className="fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-between px-4 z-50 shadow-md">
+            <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
                 <div className="flex items-center gap-2">
                      {showBackButton ? (
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/20" onClick={() => router.back()}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => router.back()}>
                             <ArrowLeft className="h-6 w-6" />
                         </Button>
                     ) : (
-                        <Link href="/dashboard">
-                            <OvoLogo width={36} height={36} />
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <Link href="/profile">
+                                <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                    <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                    <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            </Link>
+                            <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
+                        </div>
                     )}
                 </div>
                 <div className="flex items-center gap-4">
@@ -114,12 +120,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                         </span>
-                    </Link>
-                    <Link href="/profile">
-                         <Avatar className="h-9 w-9 border-2 border-primary-foreground/50">
-                            <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
-                            <AvatarFallback>P</AvatarFallback>
-                        </Avatar>
                     </Link>
                 </div>
             </header>
