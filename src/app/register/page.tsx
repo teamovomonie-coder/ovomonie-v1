@@ -84,8 +84,11 @@ export default function RegisterPage() {
         }
         
         const rawPhoneNumber = form.getValues('phone');
-        const generatedAccountNumber = rawPhoneNumber.length === 11 ? rawPhoneNumber.slice(-10) : '';
-        setAccountNumber(generatedAccountNumber);
+        if (rawPhoneNumber.length >= 10) {
+            const lastTenDigits = rawPhoneNumber.slice(-10);
+            const generatedAccountNumber = lastTenDigits.split('').reverse().join('');
+            setAccountNumber(generatedAccountNumber);
+        }
         
         toast({
             title: 'Registration Successful!',

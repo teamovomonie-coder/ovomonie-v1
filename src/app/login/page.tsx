@@ -104,8 +104,11 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
+           <div className="mt-4 text-center text-sm text-muted-foreground">
+            <Link href="/forgot-pin" className="underline">
+                Forgot PIN?
+            </Link>
+            <span className="mx-2">|</span>
             <Link href="/register" className="underline">
               Register
             </Link>

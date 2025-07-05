@@ -39,8 +39,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'An account with this phone number already exists.' }, { status: 409 });
         }
 
-        // Generate account number from the last 10 digits of the phone number
-        const accountNumber = phone.slice(-10);
+        // Generate account number by reversing the last 10 digits of the phone number
+        const lastTenDigits = phone.slice(-10);
+        const accountNumber = lastTenDigits.split('').reverse().join('');
         const referralCode = generateReferralCode();
 
         // Create new user document
