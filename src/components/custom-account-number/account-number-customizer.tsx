@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -133,7 +134,7 @@ function SuccessScreen({ accountNumber, onDone }: { accountNumber: string, onDon
                 <p className="text-3xl font-bold tracking-widest flex items-center justify-center gap-2"><Hash className="h-6 w-6"/>{accountNumber}</p>
             </div>
             <Button onClick={onDone} asChild>
-                <Link href="/">Back to Dashboard</Link>
+                <CustomLink href="/dashboard">Back to Dashboard</CustomLink>
             </Button>
         </div>
     );

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OvoLogo } from '@/components/layout/logo';
 import { Button } from '@/components/ui/button';
@@ -68,10 +68,10 @@ export default function WelcomePage() {
                         <p className="text-primary-foreground/80 mb-12">Your partner in financial wellness. Register today to start enjoying modern banking solutions.</p>
                         <div className="space-y-4">
                              <Button asChild size="lg" className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90">
-                                <Link href="/register">Register Now</Link>
+                                <CustomLink href="/register">Register Now</CustomLink>
                             </Button>
                              <Button asChild variant="link" className="text-primary-foreground">
-                                <Link href="/login">Already have an account? Log In</Link>
+                                <CustomLink href="/login">Already have an account? Log In</CustomLink>
                             </Button>
                         </div>
                     </motion.div>

@@ -1,6 +1,7 @@
+
 "use client";
 
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
 
@@ -77,7 +78,7 @@ export function AgentLifeCard() {
         .sparkle.two { width: 6px; height: 6px; top: 80%; left: 30%; animation-delay: 0.5s; }
         .sparkle.three { width: 5px; height: 5px; top: 40%; left: 90%; animation-delay: 1s; }
       `}</style>
-      <Link href="/agent-life" className="block my-4">
+      <CustomLink href="/agent-life" className="block my-4">
         <Card className="relative w-full h-36 overflow-hidden bg-[#001F54] text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
             <div className="absolute inset-0 opacity-65">
@@ -105,7 +106,7 @@ export function AgentLifeCard() {
             </div>
           </CardContent>
         </Card>
-      </Link>
+      </CustomLink>
     </>
   );
 }

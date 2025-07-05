@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { useForm, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -235,9 +235,9 @@ export default function RegisterPage() {
                      {currentStep < 4 && (
                         <div className="mt-4 text-center text-sm">
                         Already have an account?{" "}
-                        <Link href="/login" className="underline text-primary font-semibold">
+                        <CustomLink href="/login" className="underline text-primary font-semibold">
                             Log In
-                        </Link>
+                        </CustomLink>
                         </div>
                     )}
                 </CardContent>

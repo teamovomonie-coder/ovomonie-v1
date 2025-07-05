@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { Award, Gift, Gem, Shield, Crown, TrendingUp, DollarSign, Percent, Zap, Ticket } from 'lucide-react';
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
@@ -172,7 +173,7 @@ export function RewardsHub() {
                 </CardContent>
                  <CardFooter>
                     <Button asChild className="w-full">
-                        <Link href="/invitation">Go to Invitation Hub</Link>
+                        <CustomLink href="/invitation">Go to Invitation Hub</CustomLink>
                     </Button>
                  </CardFooter>
             </Card>

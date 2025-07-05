@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import CustomLink from "@/components/layout/custom-link";
 import Autoplay from "embla-carousel-autoplay";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,18 +85,18 @@ const PromoCard = ({ card }: { card: PromoCardProps }) => {
               <p className={`text-xs ${descColorClass} max-w-[70%]`}>{card.description}</p>
           </div>
       </CardContent>
-       <Link href={card.href} className="absolute bottom-3 right-3 z-20" aria-label={card.title}>
+       <CustomLink href={card.href} className="absolute bottom-3 right-3 z-20" aria-label={card.title}>
         <Button size="sm" variant={buttonVariant} className="rounded-full shadow-md">
           {card.ctaText}
         </Button>
-      </Link>
+      </CustomLink>
     </Card>
   );
 };
 
 export function PromotionalCarousel() {
   const plugin = React.useRef(
-    Autoplay({ delay: 6000, stopOnInteraction: false, stopOnMouseEnter: false })
+    Autoplay({ delay: 6000, stopOnInteraction: false })
   );
 
   return (

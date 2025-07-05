@@ -4,6 +4,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
+import { PageLoader } from '@/components/layout/page-loader';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'OVOMONIE',
@@ -23,6 +25,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
+        <Suspense fallback={null}>
+          <PageLoader />
+        </Suspense>
         <AuthProvider>
           <NotificationProvider>
             {children}

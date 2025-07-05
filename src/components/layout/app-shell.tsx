@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
@@ -49,13 +49,13 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Link href={href} className={cn(
+                    <CustomLink href={href} className={cn(
                         "flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors",
                         isActive ? 'text-primary font-semibold' : 'text-muted-foreground hover:text-primary'
                     )}>
                         <Icon className="h-6 w-6" />
                         <span>{label}</span>
-                    </Link>
+                    </CustomLink>
                 </TooltipTrigger>
                  <TooltipContent className="md:hidden">
                     <p>{label}</p>
@@ -95,26 +95,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
-                            <Link href="/profile">
+                            <CustomLink href="/profile">
                                 <Avatar className="h-9 w-9 border-2 border-primary/50">
                                     <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
                                     <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                            </Link>
+                            </CustomLink>
                             <span className="font-semibold text-lg">Hi, {firstName.toUpperCase()}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link href="/support" className="relative">
+                        <CustomLink href="/support" className="relative">
                             <MessageCircle className="h-6 w-6" />
-                        </Link>
-                        <Link href="/notifications" className="relative">
+                        </CustomLink>
+                        <CustomLink href="/notifications" className="relative">
                             <Bell className="h-6 w-6" />
                             <span className="absolute -top-1 -right-1 flex h-3 w-3">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                             </span>
-                        </Link>
+                        </CustomLink>
                     </div>
                 </header>
             )}

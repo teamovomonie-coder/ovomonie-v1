@@ -1,7 +1,7 @@
 
 "use client";
 
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickAccess } from "@/components/dashboard/quick-access";
@@ -30,9 +30,9 @@ export function MainDashboard() {
             <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm text-primary-foreground/80">
                     <span>Available Balance</span>
-                    <Link href="/statements" className="text-xs font-semibold flex items-center gap-1">
+                    <CustomLink href="/statements" className="text-xs font-semibold flex items-center gap-1">
                         Transaction History <ArrowRight className="h-3 w-3" />
-                    </Link>
+                    </CustomLink>
                 </div>
                 <div className="flex justify-between items-end">
                     <div className="flex items-center gap-2">
@@ -49,7 +49,7 @@ export function MainDashboard() {
                             {isBalanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                     </div>
-                    <Link href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1 rounded-full">+ Add Money</Link>
+                    <CustomLink href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">+ Add Money</CustomLink>
                 </div>
             </CardContent>
           </Card>

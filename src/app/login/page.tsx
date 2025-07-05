@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import CustomLink from '@/components/layout/custom-link';
 
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -105,13 +105,13 @@ export default function LoginPage() {
             </form>
           </Form>
            <div className="mt-4 text-center text-sm text-muted-foreground">
-            <Link href="/forgot-pin" className="underline">
+            <CustomLink href="/forgot-pin" className="underline">
                 Forgot PIN?
-            </Link>
+            </CustomLink>
             <span className="mx-2">|</span>
-            <Link href="/register" className="underline">
+            <CustomLink href="/register" className="underline">
               Register
-            </Link>
+            </CustomLink>
           </div>
         </CardContent>
       </Card>
