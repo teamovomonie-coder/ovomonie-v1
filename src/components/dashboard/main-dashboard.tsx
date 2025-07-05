@@ -38,7 +38,7 @@ export function MainDashboard() {
                     </Link>
                 </div>
                 <div className="flex justify-between items-end">
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl font-bold">
                         {balance === null ? (
                         <Skeleton className="h-8 w-48 bg-primary-foreground/20" />
                         ) : isBalanceVisible ? (
