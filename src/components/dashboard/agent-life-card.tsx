@@ -81,24 +81,26 @@ export function AgentLifeCard() {
       <Link href="/agent-life" className="block my-4">
         <Card className="relative w-full h-36 overflow-hidden bg-primary-light-bg text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
-            <div className="absolute inset-0 opacity-80">
+            <div className="absolute inset-0 opacity-65">
                 <TargetIcon className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }} />
                 <StarIcon className="absolute h-12 w-12" style={{ bottom: '-1rem', left: '1rem', animationDelay: '0s' }} />
                 <StarIcon className="absolute h-16 w-16" style={{ top: '-1rem', right: '1rem', animationDelay: '1.5s' }} />
             </div>
 
-          <CardContent className="relative z-10 flex items-center justify-between h-full p-4">
-            <div className="flex-1">
-                <p className="text-xl font-black tracking-tighter text-yellow-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-                    AGENTLIFE
-                </p>
-                <h3 className="text-base font-bold text-white mt-1">
+          <CardContent className="relative z-10 flex items-center h-full p-4">
+             <div className="flex flex-col justify-between h-full flex-1">
+                <div>
+                    <p className="text-xl font-black tracking-tighter text-yellow-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                        AGENTLIFE
+                    </p>
+                    <div className="text-xs text-white mt-1 space-y-0.5">
+                        <p>• 2% Agent Loans</p>
+                        <p>• Zero Transaction Fees</p>
+                    </div>
+                </div>
+                <h3 className="text-lg font-bold text-white">
                     Merchant Services
                 </h3>
-                <div className="text-xs text-yellow-300/90 mt-2 space-y-0.5">
-                    <p>• 2% Agent Loans</p>
-                    <p>• Zero Transaction Fees</p>
-                </div>
             </div>
             <div className="flex items-center text-xs font-semibold transition-transform group-hover:translate-x-1 bg-black/30 p-2 rounded-lg backdrop-blur-sm">
               Access Dashboard <ArrowRight className="ml-2 h-4 w-4" />
