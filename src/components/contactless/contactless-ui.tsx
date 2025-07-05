@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet, RadioTower } from 'lucide-react';
+import { QrCode, Nfc, Camera, ArrowLeft, Download, Share2, CheckCircle, Loader2, Info, Timer, VideoOff, Wallet, RadioTower, XCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { PinModal } from '@/components/auth/pin-modal';
@@ -63,7 +63,7 @@ function MainScreen({ setView, onNfcPay, isNfcSupported, nfcStatus }: { setView:
           </div>
         </button>
         <AnimatePresence mode="wait">
-        <motion.p 
+        <motion.p
             key={nfcStatus}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -174,7 +174,13 @@ function DisplayQrScreen({ setView, transactionData, isNfcSupported }: { setView
     } catch (error) {
         setNfcWriteStatus('error');
         console.error("NFC write error:", error);
-        toast({ variant: 'destructive', title: 'NFC Write Failed', description: 'Could not write to the device. Please try again.' });
+        let description = 'Could not write to the device. Please try again.';
+        if (error instanceof DOMException && error.name === 'InvalidStateError') {
+            description = 'Web NFC is not available in this browsing environment (e.g., an iframe). Please try in a top-level window.';
+        } else if (error instanceof DOMException && error.name === 'NotSupportedError') {
+            description = 'NFC is not supported on this device or browser.';
+        }
+        toast({ variant: 'destructive', title: 'NFC Write Failed', description });
     } finally {
         setTimeout(() => setNfcWriteStatus('idle'), 2000);
     }
@@ -182,7 +188,7 @@ function DisplayQrScreen({ setView, transactionData, isNfcSupported }: { setView
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  
+
   const qrText = encodeURIComponent(JSON.stringify({ ref: transactionData.ref }));
 
   return (
@@ -361,7 +367,7 @@ export function ContactlessUI() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'error'>('idle');
   const [isNfcSupported, setIsNfcSupported] = useState(false);
-  
+
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
@@ -396,7 +402,7 @@ export function ContactlessUI() {
         const decoder = new TextDecoder();
         const decodedRecord = decoder.decode(message.records[0].data);
         const data = JSON.parse(decodedRecord);
-        
+
         // Add a peer name for display if missing
         if (!data.peer) data.peer = "Contactless Merchant";
 
@@ -408,7 +414,13 @@ export function ContactlessUI() {
     } catch (error) {
       console.error(`NFC Error: ${error}`);
       setNfcStatus('error');
-      toast({ variant: 'destructive', title: 'NFC Scan Failed', description: 'Could not start scanning. Please ensure NFC is enabled.' });
+      let description = 'Could not start scanning. Please ensure NFC is enabled on your device.';
+      if (error instanceof DOMException && error.name === 'InvalidStateError') {
+          description = 'Web NFC is not available in this browsing environment (e.g., an iframe). Please try in a top-level window.';
+      } else if (error instanceof DOMException && error.name === 'NotSupportedError') {
+          description = 'NFC is not supported on this device or browser.';
+      }
+      toast({ variant: 'destructive', title: 'NFC Scan Failed', description });
     }
   }
 
@@ -438,10 +450,10 @@ export function ContactlessUI() {
         const result = await response.json();
         if (!response.ok) {
             const error: any = new Error(result.message || 'Payment failed.');
-            error.response = response; 
+            error.response = response;
             throw error;
         }
-        
+
         updateBalance(result.data.newSenderBalance);
         addNotification({ title: 'Contactless Payment Successful', description: `You paid ₦${transactionData.amount.toLocaleString()} to ${transactionData.peer}.`, category: 'transaction' });
         setTransactionData((prev: any) => ({...prev, ref: result.data.reference}));
@@ -498,8 +510,8 @@ export function ContactlessUI() {
           {renderContent()}
         </motion.div>
       </AnimatePresence>
-      <PinModal 
-        open={isPinModalOpen} 
+      <PinModal
+        open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmPayment}
         isProcessing={isProcessing}
