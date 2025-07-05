@@ -25,10 +25,10 @@ const StarIcon = ({ className }: { className?: string }) => (
 
 const TargetIcon = ({ className }: { className?: string }) => (
      <svg viewBox="0 0 100 100" className={className}>
-        <g className="drop-shadow-glow-red animate-float">
-            <circle cx="50" cy="50" r="45" fill="white" />
-            <circle cx="50" cy="50" r="30" fill="red" />
-            <circle cx="50" cy="50" r="15" fill="white" />
+        <g className="drop-shadow-glow-blue animate-float">
+            <circle cx="50" cy="50" r="45" fill="hsl(var(--primary-foreground))" />
+            <circle cx="50" cy="50" r="30" fill="hsl(var(--primary))" />
+            <circle cx="50" cy="50" r="15" fill="hsl(var(--primary-foreground))" />
         </g>
     </svg>
 );
@@ -62,9 +62,9 @@ export function AgentLifeCard() {
              color: #FFD700;
         }
 
-        .drop-shadow-glow-red {
+        .drop-shadow-glow-blue {
             animation: glow 3s ease-in-out infinite;
-            color: #ef4444;
+            color: #a5b4fc;
         }
         .animate-float { animation: float 6s ease-in-out infinite; }
         
@@ -79,7 +79,7 @@ export function AgentLifeCard() {
         .sparkle.three { width: 5px; height: 5px; top: 40%; left: 90%; animation-delay: 1s; }
       `}</style>
       <Link href="/agent-life" className="block my-4">
-        <Card className="relative w-full h-24 overflow-hidden bg-slate-900 text-white shadow-lg rounded-2xl group">
+        <Card className="relative w-full h-36 overflow-hidden bg-primary-light-bg text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
             <div className="absolute inset-0 opacity-80">
                 <TargetIcon className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }} />
@@ -92,9 +92,13 @@ export function AgentLifeCard() {
                 <p className="text-xl font-black tracking-tighter text-yellow-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                     AGENTLIFE
                 </p>
-                <h3 className="text-sm font-semibold tracking-tight">
+                <h3 className="text-base font-bold text-white mt-1">
                     Merchant Services
                 </h3>
+                <div className="text-xs text-yellow-300/90 mt-2 space-y-0.5">
+                    <p>• 2% Agent Loans</p>
+                    <p>• Zero Transaction Fees</p>
+                </div>
             </div>
             <div className="flex items-center text-xs font-semibold transition-transform group-hover:translate-x-1 bg-black/30 p-2 rounded-lg backdrop-blur-sm">
               Access Dashboard <ArrowRight className="ml-2 h-4 w-4" />
