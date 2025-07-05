@@ -89,7 +89,6 @@ export function AgentLifeCard() {
           <CardContent className="relative z-10 flex items-center h-full p-4">
              <div className="absolute top-4 right-4 text-right text-sm text-white font-semibold space-y-0.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                 <p>2% Agent Loans</p>
-                <p>Zero Transaction Fees</p>
             </div>
              <div className="flex flex-col justify-between h-full flex-1">
                 <div>
