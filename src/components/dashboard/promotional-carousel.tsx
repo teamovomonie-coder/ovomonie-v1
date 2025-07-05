@@ -11,7 +11,7 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import { Users, Receipt, CreditCard, Building2, Nfc, Package } from "lucide-react";
+import { Users, Receipt, CreditCard, Building2, Nfc, Package, Sparkles, CandlestickChart, Utensils, Ticket } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -73,10 +73,42 @@ const promoCards: PromoCardProps[] = [
     backgroundClass: "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500",
     ctaText: "Try It",
   },
+  {
+    href: "/memo-transfer",
+    title: "Send with a Smile",
+    description: "Personalize your transfers.",
+    Icon: Sparkles,
+    backgroundClass: "bg-gradient-to-br from-pink-500 to-purple-600",
+    ctaText: "Send",
+  },
+  {
+    href: "/stock-trading",
+    title: "Trade NGX Stocks",
+    description: "Invest in top Nigerian stocks.",
+    Icon: CandlestickChart,
+    backgroundClass: "bg-gradient-to-br from-gray-800 to-gray-900",
+    ctaText: "Invest",
+  },
+  {
+    href: "/food-delivery",
+    title: "Order Food",
+    description: "Hot meals, delivered fast.",
+    Icon: Utensils,
+    backgroundClass: "bg-gradient-to-br from-orange-400 to-red-500",
+    ctaText: "Order",
+  },
+  {
+    href: "/events",
+    title: "Event Tickets",
+    description: "Book tickets to top events.",
+    Icon: Ticket,
+    backgroundClass: "bg-gradient-to-br from-teal-400 to-cyan-600",
+    ctaText: "Book",
+  },
 ];
 
 const PromoCard = ({ card }: { card: PromoCardProps }) => {
-  const isDarkBg = card.backgroundClass.includes('black') || card.backgroundClass.includes('gray') || card.backgroundClass.includes('slate') || card.backgroundClass.includes('green') || card.backgroundClass.includes('indigo') || card.backgroundClass.includes('purple') || card.backgroundClass.includes('blue');
+  const isDarkBg = card.backgroundClass.includes('black') || card.backgroundClass.includes('gray') || card.backgroundClass.includes('slate') || card.backgroundClass.includes('green') || card.backgroundClass.includes('indigo') || card.backgroundClass.includes('purple') || card.backgroundClass.includes('blue') || card.backgroundClass.includes('pink') || card.backgroundClass.includes('red') || card.backgroundClass.includes('teal');
   const textColorClass = isDarkBg ? "text-white" : "text-gray-800";
   const descColorClass = isDarkBg ? "text-gray-300" : "text-gray-600";
   const iconColorClass = isDarkBg ? "text-white/80" : "text-primary";
