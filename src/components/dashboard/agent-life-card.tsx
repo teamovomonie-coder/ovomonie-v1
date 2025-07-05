@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -79,7 +78,7 @@ export function AgentLifeCard() {
         .sparkle.three { width: 5px; height: 5px; top: 40%; left: 90%; animation-delay: 1s; }
       `}</style>
       <Link href="/agent-life" className="block my-4">
-        <Card className="relative w-full h-36 overflow-hidden bg-primary-light-bg text-white shadow-lg rounded-2xl group">
+        <Card className="relative w-full h-36 overflow-hidden bg-primary text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
             <div className="absolute inset-0 opacity-65">
                 <TargetIcon className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }} />
@@ -98,7 +97,7 @@ export function AgentLifeCard() {
                         <p>• Zero Transaction Fees</p>
                     </div>
                 </div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-lg font-bold text-white whitespace-nowrap">
                     Merchant Services
                 </h3>
             </div>
