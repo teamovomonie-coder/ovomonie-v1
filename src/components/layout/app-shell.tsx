@@ -16,7 +16,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Button } from '@/components/ui/button';
-import { OvoLogo } from '@/components/layout/logo';
 
 interface NavItem {
     href: string;
@@ -37,14 +36,11 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
     const pathname = usePathname();
     let isActive = false;
     
-    // This logic ensures that the tab is active for its root path and any sub-paths,
-    // except for the dashboard which is only active for its exact path.
     if (href === '/dashboard') {
         isActive = pathname === '/dashboard';
     } else {
         isActive = pathname.startsWith(href);
     }
-
 
     return (
         <TooltipProvider>
@@ -91,43 +87,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     
     return (
         <div className="flex flex-col min-h-screen bg-background">
-            {/* Fixed Header */}
             {showHeader && (
                 <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
-                     <OvoLogo width={36} height={36} />
+                     <div className="flex items-center gap-2">
+                        <span className="font-semibold text-lg hidden sm:inline">Hi, {firstName.toUpperCase()}</span>
+                        <CustomLink href="/profile">
+                            <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        </CustomLink>
+                    </div>
 
                     <div className="flex items-center gap-2 sm:gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg hidden sm:inline">Hi, {firstName.toUpperCase()}</span>
-                            <CustomLink href="/profile">
-                                <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                    <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
-                                    <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            </CustomLink>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-4">
-                            <CustomLink href="/support" className="relative">
-                                <MessageCircle className="h-6 w-6" />
-                            </CustomLink>
-                            <CustomLink href="/notifications" className="relative">
-                                <Bell className="h-6 w-6" />
-                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                </span>
-                            </CustomLink>
-                        </div>
+                        <CustomLink href="/support" className="relative">
+                            <MessageCircle className="h-6 w-6" />
+                        </CustomLink>
+                        <CustomLink href="/notifications" className="relative">
+                            <Bell className="h-6 w-6" />
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                        </CustomLink>
                     </div>
                 </header>
             )}
 
-            {/* Main Content: pt-16 if header is shown, pt-4 otherwise */}
             <main className={cn("flex-1 pb-20", showHeader ? "pt-16" : "pt-4")}>
                 {children}
             </main>
 
-            {/* Fixed Footer */}
             <footer className="fixed bottom-0 left-0 right-0 bg-background z-50 border-t">
                 <nav className="flex items-center h-16 max-w-2xl mx-auto">
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
