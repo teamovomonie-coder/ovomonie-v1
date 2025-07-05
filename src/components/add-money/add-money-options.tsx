@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
+import { useNotifications } from '@/context/notification-context';
 
 // --- Bank Transfer Tab ---
 function BankTransfer() {
@@ -129,6 +130,7 @@ type CardFormData = z.infer<typeof cardSchema>;
 function FundWithCard() {
     const { toast } = useToast();
     const { balance, updateBalance } = useAuth();
+    const { addNotification } = useNotifications();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [fundingData, setFundingData] = useState<CardFormData | null>(null);
@@ -140,27 +142,46 @@ function FundWithCard() {
     });
     
     function onSubmit(data: CardFormData) {
+        if (!balance || data.amount * 100 < 0) return;
         setFundingData(data);
         setIsPinModalOpen(true);
     }
 
     async function handleConfirmFunding() {
-        if (!fundingData || balance === null) return;
+        if (!fundingData) return;
+
         setIsProcessing(true);
-        await new Promise(res => setTimeout(res, 1500)); // Simulate API call
+        try {
+            const response = await fetch('/api/funding/card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: fundingData.amount }),
+            });
 
-        const newBalance = balance + (fundingData.amount * 100);
-        updateBalance(newBalance);
-        
-        setIsProcessing(false);
-        setIsPinModalOpen(false);
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || 'Card funding failed.');
+            }
 
-        toast({
-            title: 'Funding Successful',
-            description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`
-        });
-        
-        setReceiptData({ amount: fundingData.amount });
+            updateBalance(result.newBalanceInKobo);
+            addNotification({
+                title: 'Wallet Funded',
+                description: `You successfully added ₦${fundingData.amount.toLocaleString()} to your wallet.`,
+                category: 'transaction',
+            });
+
+            setReceiptData({ amount: fundingData.amount });
+
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Funding Error',
+                description: error instanceof Error ? error.message : 'An unknown error occurred.',
+            });
+        } finally {
+            setIsProcessing(false);
+            setIsPinModalOpen(false);
+        }
     }
     
     const handleDone = () => {
