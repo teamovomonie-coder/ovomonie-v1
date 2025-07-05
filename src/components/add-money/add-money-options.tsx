@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,20 +12,29 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle } from 'lucide-react';
+import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle, Timer } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/context/notification-context';
 
+// --- Mock Agent Data ---
+const mockAgents = {
+  'AG-1234': 'Grace Okon - Lekki Phase 1',
+  'AG-5678': 'Tunde Bello - Ikeja City Mall',
+  'AG-9012': 'Amina Yusuf - Abuja Central',
+};
+
+
 // --- Bank Transfer Tab ---
 function BankTransfer() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const accountDetails = {
     bankName: 'OVOMONIE',
-    accountName: 'PAAGO DAVID',
-    accountNumber: '8012345678',
+    accountName: user?.fullName.toUpperCase() || 'YOUR NAME',
+    accountNumber: user?.accountNumber || '...',
   };
 
   const textToCopy = `Bank: ${accountDetails.bankName}\nAccount Name: ${accountDetails.accountName}\nAccount Number: ${accountDetails.accountNumber}`;
@@ -247,16 +256,20 @@ function FundWithCard() {
 }
 
 // --- USSD Tab ---
-const ussdBanks = [
-    { name: 'Access Bank', code: '*901*000*Amount*8012345678#' },
-    { name: 'GTBank', code: '*737*50*Amount*1234#' },
-    { name: 'FirstBank', code: '*894*Amount*8012345678#' },
-    { name: 'UBA', code: '*919*4*Amount*8012345678#' },
-    { name: 'Zenith Bank', code: '*966*Amount*8012345678#' },
-];
 function FundWithUssd() {
+    const { user } = useAuth();
     const [amount, setAmount] = useState('');
     const { toast } = useToast();
+    
+    const accountNumber = user?.accountNumber || 'YOUR_ACCOUNT';
+
+    const ussdBanks = [
+        { name: 'Access Bank', code: `*901*000*Amount*${accountNumber}#` },
+        { name: 'GTBank', code: `*737*50*Amount*${accountNumber}#` },
+        { name: 'FirstBank', code: `*894*Amount*${accountNumber}#` },
+        { name: 'UBA', code: `*919*4*Amount*${accountNumber}#` },
+        { name: 'Zenith Bank', code: `*966*Amount*${accountNumber}#` },
+    ];
 
     const copyCode = (code: string) => {
         if (!amount || parseInt(amount) <= 0) {
@@ -296,20 +309,53 @@ function FundWithUssd() {
 const qrSchema = z.object({
     amount: z.coerce.number().optional()
 });
+
 function FundWithQr() {
-    const [qrData, setQrData] = useState<{url: string, amount: number | undefined} | null>(null);
+    const { user } = useAuth();
+    const [qrData, setQrData] = useState<{url: string; amount?: number; expiry: number } | null>(null);
+    const [timeLeft, setTimeLeft] = useState(0);
 
     const form = useForm<z.infer<typeof qrSchema>>({
         resolver: zodResolver(qrSchema),
         defaultValues: { amount: 0 }
     });
 
+    useEffect(() => {
+        if (!qrData || !qrData.expiry) return;
+
+        const timerId = setInterval(() => {
+            const now = Date.now();
+            const remaining = Math.round((qrData.expiry - now) / 1000);
+            if (remaining > 0) {
+                setTimeLeft(remaining);
+            } else {
+                setTimeLeft(0);
+                clearInterval(timerId);
+                setQrData(null);
+            }
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, [qrData]);
+
+
     const generateQr = (data: z.infer<typeof qrSchema>) => {
         const amount = data.amount && data.amount > 0 ? data.amount : undefined;
-        setQrData({ url: `https://placehold.co/256x256.png`, amount });
+        const payload = {
+            accountNumber: user?.accountNumber,
+            accountName: user?.fullName,
+            amount,
+        };
+        const qrText = encodeURIComponent(JSON.stringify(payload));
+        const url = `https://placehold.co/256x256.png?text=Scan%20Me`;
+        const expiry = amount ? Date.now() + 5 * 60 * 1000 : 0;
+        setQrData({ url, amount, expiry });
+        if (expiry) setTimeLeft(300);
     };
 
     if (qrData) {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
         return (
             <div className="text-center space-y-4">
                 <p>Let others scan this QR code to fund your wallet.</p>
@@ -317,7 +363,13 @@ function FundWithQr() {
                     <Image src={qrData.url} alt="Funding QR Code" width={256} height={256} data-ai-hint="qr code" />
                 </div>
                 {qrData.amount && <p className="text-2xl font-bold">Amount: ₦{qrData.amount.toLocaleString()}</p>}
-                <Button onClick={() => setQrData(null)} className="w-full">Generate New Code</Button>
+                {qrData.expiry > 0 && (
+                    <div className="flex items-center justify-center gap-2 font-mono text-destructive p-2 bg-destructive/10 rounded-md">
+                        <Timer className="w-5 h-5" />
+                        <span>Code expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
+                    </div>
+                )}
+                <Button onClick={() => { setQrData(null); form.reset(); }} className="w-full">Generate New Code</Button>
             </div>
         );
     }
@@ -344,47 +396,134 @@ const agentSchema = z.object({
 });
 
 function FundWithAgent() {
-    const [isLoading, setIsLoading] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verifiedAgent, setVerifiedAgent] = useState<string | null>(null);
+    const [fundingData, setFundingData] = useState<z.infer<typeof agentSchema> | null>(null);
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
+    const { balance, updateBalance } = useAuth();
+    const { addNotification } = useNotifications();
     const { toast } = useToast();
+
     const form = useForm<z.infer<typeof agentSchema>>({
         resolver: zodResolver(agentSchema),
         defaultValues: { agentId: '', amount: 0 }
     });
+    
+    const handleVerifyAgent = async () => {
+        const agentId = form.getValues('agentId');
+        if (!agentId) {
+            form.setError('agentId', { message: 'Please enter an agent ID.' });
+            return;
+        }
+        setIsVerifying(true);
+        setVerifiedAgent(null);
+        await new Promise(res => setTimeout(res, 1000));
+        
+        const agentName = mockAgents[agentId as keyof typeof mockAgents];
+        if (agentName) {
+            setVerifiedAgent(agentName);
+            toast({ title: 'Agent Verified', description: `Agent: ${agentName}` });
+        } else {
+            toast({ variant: 'destructive', title: 'Verification Failed', description: 'Could not find an agent with that ID.' });
+            form.setError('agentId', { message: 'Agent not found.' });
+        }
+        setIsVerifying(false);
+    }
 
-    async function onSubmit(data: z.infer<typeof agentSchema>) {
-        setIsLoading(true);
-        await new Promise(res => setTimeout(res, 2000));
-        setIsLoading(false);
-        toast({
-            title: 'Deposit Initiated',
-            description: `A request for ₦${data.amount.toLocaleString()} has been sent to agent ${data.agentId}. Please provide the cash to the agent.`
+    const onSubmit = (data: z.infer<typeof agentSchema>) => {
+        if (!verifiedAgent) {
+            toast({ variant: 'destructive', title: 'Verification Required', description: 'Please verify the agent before proceeding.' });
+            return;
+        }
+        if (!balance || data.amount * 100 < 0) return;
+        setFundingData(data);
+        setIsPinModalOpen(true);
+    };
+
+    const handleConfirmFunding = async () => {
+        if (!fundingData) return;
+        setIsProcessing(true);
+        // This would be an API call in a real app
+        await new Promise(res => setTimeout(res, 1500));
+        updateBalance((balance || 0) + (fundingData.amount * 100));
+        addNotification({
+            title: 'Agent Deposit Successful',
+            description: `You deposited ₦${fundingData.amount.toLocaleString()} via an agent.`,
+            category: 'transaction',
         });
+        setReceiptData({ amount: fundingData.amount });
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    };
+
+    const handleDone = () => {
+        setReceiptData(null);
+        setVerifiedAgent(null);
+        setFundingData(null);
         form.reset();
+    };
+
+    if (receiptData) {
+        return <FundingReceipt amount={receiptData.amount} onDone={handleDone} />;
     }
     
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField control={form.control} name="agentId" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Agent ID or Phone Number</FormLabel>
-                        <FormControl><Input placeholder="Enter the agent's ID" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                 )} />
-                <FormField control={form.control} name="amount" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Amount (₦)</FormLabel>
-                        <FormControl><Input type="number" placeholder="e.g., 10000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}/></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                 )} />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Request Deposit
-                </Button>
-            </form>
-        </Form>
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="agentId" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Agent ID</FormLabel>
+                            <div className="flex gap-2">
+                                <FormControl>
+                                    <Input
+                                        placeholder="Enter the agent's ID"
+                                        {...field}
+                                        onChange={(e) => {
+                                            field.onChange(e);
+                                            setVerifiedAgent(null);
+                                        }}
+                                        disabled={!!verifiedAgent}
+                                    />
+                                </FormControl>
+                                <Button type="button" onClick={handleVerifyAgent} disabled={isVerifying || !!verifiedAgent}>
+                                    {isVerifying && <Loader2 className="animate-spin" />}
+                                    {!isVerifying && 'Verify'}
+                                </Button>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                     )} />
+                    
+                    {verifiedAgent && (
+                        <div className="p-3 bg-green-50 text-green-700 rounded-md">
+                            <p className="font-semibold text-sm">Verified Agent:</p>
+                            <p>{verifiedAgent}</p>
+                        </div>
+                    )}
+
+                    <FormField control={form.control} name="amount" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount (₦)</FormLabel>
+                            <FormControl><Input type="number" placeholder="e.g., 10000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}/></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                     )} />
+                    <Button type="submit" className="w-full" disabled={isProcessing || !verifiedAgent}>
+                        Request Deposit
+                    </Button>
+                </form>
+            </Form>
+            <PinModal
+                open={isPinModalOpen}
+                onOpenChange={setIsPinModalOpen}
+                onConfirm={handleConfirmFunding}
+                isProcessing={isProcessing}
+                title="Authorize Agent Deposit"
+            />
+        </>
     );
 }
 
