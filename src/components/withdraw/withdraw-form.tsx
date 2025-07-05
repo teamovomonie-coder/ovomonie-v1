@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 
 const formSchema = z.object({
@@ -71,6 +72,7 @@ function BankTransferWithdrawal() {
 
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -161,11 +163,18 @@ function BankTransferWithdrawal() {
     };
 
     const handleFinalSubmit = async () => {
-      if (!submittedData || balance === null) return;
+      if (!submittedData || balance === null || !recipientName) return;
       setIsProcessing(true);
       await new Promise(res => setTimeout(res, 1500));
       const newBalance = balance - (submittedData.amount * 100);
       updateBalance(newBalance);
+
+      addNotification({
+        title: 'Withdrawal Successful',
+        description: `You withdrew ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
+        category: 'transaction',
+      });
+      
       setIsProcessing(false);
       setIsPinModalOpen(false);
       setStep('receipt');
