@@ -4,8 +4,8 @@
 import React, { useState, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash } from "lucide-react";
-import Link from "next/link";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash, LayoutList } from "lucide-react";
+import CustomLink from "@/components/layout/custom-link";
 import type { LucideIcon } from 'lucide-react';
 import { LogoutDialog } from "@/components/auth/logout-dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -78,6 +78,8 @@ const serviceData: ServiceCategory[] = [
       { label: "Food Delivery", icon: Utensils, href: "/food-delivery" },
       { label: "Online Shopping", icon: ShoppingCart, href: "/online-shopping" },
       { label: "Fashion Deals", icon: ShoppingBag, href: "/fashion-deals" },
+      { label: "Community", icon: Users, href: "#" },
+      { label: "Feed", icon: LayoutList, href: "#" },
     ],
   },
   {
@@ -164,9 +166,9 @@ const ServiceTile = ({ service }: { service: Service }) => {
   }
 
   return (
-    <Link href={service.href} className={tileClassName}>
+    <CustomLink href={service.href} className={tileClassName}>
       {tileContent}
-    </Link>
+    </CustomLink>
   );
 };
 
