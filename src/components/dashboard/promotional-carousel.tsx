@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import CustomLink from "@/components/layout/custom-link";
+import CustomLink from '@/components/layout/custom-link';
 import Autoplay from "embla-carousel-autoplay";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import { Users, Receipt, CreditCard, Building2, Nfc } from "lucide-react";
+import { Users, Receipt, CreditCard, Building2, Nfc, Package } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -42,9 +42,17 @@ const promoCards: PromoCardProps[] = [
     ctaText: "Create",
   },
   {
+    href: "/inventory",
+    title: "Smart Inventory",
+    description: "Manage your stock effortlessly.",
+    Icon: Package,
+    backgroundClass: "bg-gradient-to-br from-blue-500 to-indigo-600",
+    ctaText: "Manage",
+  },
+  {
     href: "/custom-card",
     title: "Your Card, Your Style",
-    description: "Design a card that reflects your brand.",
+    description: "Design a card that reflects you.",
     Icon: CreditCard,
     backgroundClass: "bg-gradient-to-br from-slate-500 via-slate-700 to-slate-900",
     ctaText: "Design",
@@ -68,7 +76,7 @@ const promoCards: PromoCardProps[] = [
 ];
 
 const PromoCard = ({ card }: { card: PromoCardProps }) => {
-  const isDarkBg = card.backgroundClass.includes('black') || card.backgroundClass.includes('gray') || card.backgroundClass.includes('slate') || card.backgroundClass.includes('green') || card.backgroundClass.includes('indigo') || card.backgroundClass.includes('purple');
+  const isDarkBg = card.backgroundClass.includes('black') || card.backgroundClass.includes('gray') || card.backgroundClass.includes('slate') || card.backgroundClass.includes('green') || card.backgroundClass.includes('indigo') || card.backgroundClass.includes('purple') || card.backgroundClass.includes('blue');
   const textColorClass = isDarkBg ? "text-white" : "text-gray-800";
   const descColorClass = isDarkBg ? "text-gray-300" : "text-gray-600";
   const iconColorClass = isDarkBg ? "text-white/80" : "text-primary";
@@ -96,7 +104,7 @@ const PromoCard = ({ card }: { card: PromoCardProps }) => {
 
 export function PromotionalCarousel() {
   const plugin = React.useRef(
-    Autoplay({ delay: 6000, stopOnInteraction: false })
+    Autoplay({ delay: 6000, stopOnInteraction: false, stopOnMouseEnter: false })
   );
 
   return (

@@ -38,7 +38,7 @@ export function MainDashboard() {
                     <div className="flex items-center gap-2">
                         <div className="text-2xl font-bold">
                             {balance === null ? (
-                            <Skeleton className="h-8 w-48 bg-primary-foreground/20" />
+                            <Skeleton className="h-8 w-40 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (
                             new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 100)
                             ) : (
@@ -49,7 +49,7 @@ export function MainDashboard() {
                             {isBalanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                     </div>
-                    <CustomLink href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">+ Add Money</CustomLink>
+                    <CustomLink href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">+ Add Money</CustomLink>
                 </div>
             </CardContent>
           </Card>
