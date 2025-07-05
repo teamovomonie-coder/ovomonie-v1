@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -91,8 +92,6 @@ export function PromotionalCarousel() {
     <Carousel
       plugins={[plugin.current]}
       className="w-full my-4"
-      onMouseEnter={plugin.current.stop}
-      onMouseLeave={plugin.current.reset}
       opts={{
         loop: true,
       }}
