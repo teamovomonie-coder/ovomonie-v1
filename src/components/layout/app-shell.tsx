@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { OvoLogo } from './logo';
-import { Loader2, LayoutDashboard, Briefcase, LayoutGrid, Bell, ArrowLeft, Package, CreditCard } from 'lucide-react';
+import { Loader2, LayoutDashboard, Briefcase, LayoutGrid, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -105,6 +105,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     )}
                 </div>
                 <div className="flex items-center gap-4">
+                    <Link href="/support" className="relative">
+                        <MessageCircle className="h-6 w-6" />
+                    </Link>
                     <Link href="/notifications" className="relative">
                         <Bell className="h-6 w-6" />
                          <span className="absolute -top-1 -right-1 flex h-3 w-3">

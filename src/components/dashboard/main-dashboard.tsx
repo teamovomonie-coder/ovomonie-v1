@@ -9,9 +9,14 @@ import { ChatInterface } from '@/components/ai-assistant/chat-interface';
 import { AgentLifeCard } from '@/components/dashboard/agent-life-card';
 import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { RecentTransactions } from './recent-transactions';
 
 export function MainDashboard() {
   const { balance } = useAuth();
+  const [isBalanceVisible, setIsBalanceVisible] = useState(true);
 
   return (
     <div className="px-4">
@@ -25,17 +30,25 @@ export function MainDashboard() {
             <CardContent className="p-4">
               <div className="flex justify-between items-center text-sm text-primary-foreground/80">
                 <span>Available Balance</span>
-                 <Link href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1 rounded-full">+ Add Money</Link>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-foreground hover:bg-primary-foreground/20" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+                        {isBalanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Link href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1 rounded-full">+ Add Money</Link>
+                </div>
               </div>
               <div className="text-3xl font-bold mt-2">
                 {balance === null ? (
                   <Skeleton className="h-8 w-48 bg-primary-foreground/20" />
-                ) : (
+                ) : isBalanceVisible ? (
                   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 100)
+                ) : (
+                  '₦ ******'
                 )}
               </div>
             </CardContent>
           </Card>
+          <RecentTransactions />
           <QuickAccess />
           <AgentLifeCard />
         </TabsContent>
