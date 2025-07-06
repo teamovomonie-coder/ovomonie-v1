@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { getAiAssistantResponse } from '@/ai/flows/ai-assistant-flow';
-import { textToSpeech } from '@/ai/flows/tts-flow';
+import { textToSpeech, type SupportedLanguage } from '@/ai/flows/tts-flow';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,7 +45,7 @@ export function ChatInterface() {
             setIsLoading(true);
             const greetingText = `Hello ${userName}, I am OVO, your personal banking assistant. How can I help you today?`;
             try {
-                const { media } = await textToSpeech(greetingText);
+                const { media } = await textToSpeech(greetingText, 'English');
                 setMessages([{ sender: 'bot', text: greetingText, audioUrl: media }]);
             } catch (error) {
                 console.error("TTS initialization failed", error);
@@ -143,7 +143,7 @@ export function ChatInterface() {
         query: text,
         userName: userName,
       });
-      const { media } = await textToSpeech(result.response);
+      const { media } = await textToSpeech(result.response, result.detectedLanguage);
       const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: media };
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {

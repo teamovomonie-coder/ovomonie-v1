@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
+import type { SupportedLanguage } from './tts-flow';
 
 // Define the schema for a single message in the conversation history
 const MessageSchema = z.object({
@@ -25,6 +26,8 @@ export type AiAssistantFlowInput = z.infer<typeof AiAssistantFlowInputSchema>;
 
 const AiAssistantFlowOutputSchema = z.object({
   response: z.string().describe("The AI assistant's response to the user query."),
+  detectedLanguage: z.enum(['English', 'Nigerian Pidgin', 'Yoruba', 'Igbo', 'Hausa', 'Unknown'])
+    .describe("The language detected in the user's query. This determines the language and accent for the response.")
 });
 export type AiAssistantFlowOutput = z.infer<typeof AiAssistantFlowOutputSchema>;
 
@@ -71,6 +74,7 @@ export async function getAiAssistantResponse(input: AiAssistantFlowInput): Promi
 const systemPrompt = `You are OVO, an intelligent voice AI assistant for OVOMONIE, a digital banking app in Nigeria.
 Your persona is that of a calm, polite, professional, and helpful Nigerian bank relationship officer. You are warm and reassuring.
 You are fluent in English, Nigerian Pidgin, Yoruba, Igbo, and Hausa. You must detect the user's language and respond in the same language, maintaining a natural, local accent and phrasing.
+After generating your response, you MUST populate the 'detectedLanguage' field with the language you detected from the user's query. If the language is not one of the supported languages, use 'Unknown'.
 
 Your primary function is to help the user with their banking needs by using the tools available to you.
 When asked about account balance, transactions, loans, investments, or savings, you MUST use the 'getAccountSummary' tool to retrieve the latest information. Do not make up or assume any values.
@@ -100,13 +104,17 @@ const aiAssistantFlow = ai.defineFlow(
         parts: [{ text: msg.content }],
     }));
 
-    const response = await ai.generate({
+    const { output } = await ai.generate({
+        model: 'googleai/gemini-pro',
         system: systemPrompt.replace('{{userName}}', input.userName),
         history: history,
         prompt: input.query,
         tools: [getAccountSummaryTool],
+        output: {
+            schema: AiAssistantFlowOutputSchema,
+        }
     });
 
-    return { response: response.text };
+    return output!;
   }
 );
