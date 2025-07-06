@@ -51,9 +51,6 @@ const prompt = ai.definePrompt({
   Please provide a list of financial product recommendations tailored to the user's needs and goals.
   The output should be a list of strings. Each string is a short description of the product. Example: ['High yield savings account', 'Balanced investment portfolio', 'Retirement savings plan'].
   `,
-  config: {
-    model: 'googleai/gemini-pro',
-  },
 });
 
 const personalizedRecommendationsFlow = ai.defineFlow(
