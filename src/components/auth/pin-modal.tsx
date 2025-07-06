@@ -36,12 +36,6 @@ interface PinModalProps {
   onClearError?: () => void;
 }
 
-// Mock PIN check function
-const verifyPin = async (pin: string): Promise<boolean> => {
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-  return pin === '1234'; // Mock PIN
-};
-
 export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, description, error, onClearError }: PinModalProps) {
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const { toast } = useToast();
@@ -54,18 +48,36 @@ export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, d
   const onSubmit = async (data: z.infer<typeof pinSchema>) => {
     onClearError?.();
     setIsVerifyingPin(true);
-    const isPinCorrect = await verifyPin(data.pin);
+    
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
 
-    if (isPinCorrect) {
-      // The onConfirm function is now responsible for the final API loading state
-      await onConfirm();
-    } else {
-      form.setError("pin", { type: "manual", message: "The PIN you entered is incorrect. Please try again." });
-    }
-    setIsVerifyingPin(false);
-    // Don't reset the form on incorrect PIN, just clear the value
-    if(!isPinCorrect) {
-        form.setValue("pin", "");
+        const response = await fetch('/api/auth/verify-pin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ pin: data.pin }),
+        });
+        
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'PIN verification failed.');
+        }
+
+        // If PIN is correct, proceed with the original confirmation action
+        await onConfirm();
+        
+    } catch (err) {
+        if (err instanceof Error) {
+            form.setError("pin", { type: "manual", message: err.message });
+        } else {
+            form.setError("pin", { type: "manual", message: "An unknown error occurred." });
+        }
+    } finally {
+        setIsVerifyingPin(false);
     }
   };
   
