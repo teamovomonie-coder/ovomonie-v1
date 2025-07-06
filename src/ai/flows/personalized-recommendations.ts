@@ -56,7 +56,6 @@ const personalizedRecommendationsFlow = ai.defineFlow(
   `;
     
     const { output } = await ai.generate({
-        model: 'googleai/gemini-pro',
         prompt: promptText,
         output: {
             schema: PersonalizedRecommendationsOutputSchema
