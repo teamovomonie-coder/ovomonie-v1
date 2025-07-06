@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { mockGetAccountByNumber } from '@/lib/user-data';
 
 interface User {
+  userId: string;
   fullName: string;
   accountNumber: string;
 }
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
-    localStorage.removeItem('ovo-user-phone');
+    localStorage.removeItem('ovo-user-id');
     localStorage.removeItem('ovo-user-accountNumber');
     setIsAuthenticated(false);
     setUser(null);
@@ -38,7 +39,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUserData = useCallback(async () => {
     try {
       const accountNumber = localStorage.getItem('ovo-user-accountNumber');
-      if (!accountNumber) {
+      const userId = localStorage.getItem('ovo-user-id');
+      if (!accountNumber || !userId) {
         if (localStorage.getItem('ovo-auth-token')) {
             logout();
         }
@@ -46,7 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const account = await mockGetAccountByNumber(accountNumber);
       if (account) {
-        setUser({ fullName: account.fullName, accountNumber: account.accountNumber });
+        setUser({ userId, fullName: account.fullName, accountNumber: account.accountNumber });
         setBalance(account.balance);
       } else {
         setUser(null);
@@ -83,12 +85,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error(errorData.message || 'Login failed.');
       }
       
-      const { token, fullName, accountNumber } = await response.json();
+      const { token, userId, fullName, accountNumber } = await response.json();
       localStorage.setItem('ovo-auth-token', token);
-      localStorage.setItem('ovo-user-phone', phone);
+      localStorage.setItem('ovo-user-id', userId);
       localStorage.setItem('ovo-user-accountNumber', accountNumber);
       setIsAuthenticated(true);
-      setUser({ fullName, accountNumber }); // Set user immediately on login
+      setUser({ userId, fullName, accountNumber }); // Set user immediately on login
       await fetchUserData();
   }, [fetchUserData]);
 

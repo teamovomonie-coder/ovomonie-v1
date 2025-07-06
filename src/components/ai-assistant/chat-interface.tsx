@@ -37,8 +37,7 @@ const supportedLanguages = [
     { value: 'yo-NG', name: 'Yoruba', apiCode: 'yo-NG' },
     { value: 'ig-NG', name: 'Igbo', apiCode: 'ig-NG' },
     { value: 'ha-NG', name: 'Hausa', apiCode: 'ha-NG' },
-    // Nigerian Pidgin doesn't have a standard code, en-NG is the closest. The AI model will handle detection.
-    { value: 'pcm-NG', name: 'Nigerian Pidgin', apiCode: 'en-NG' }
+    { value: 'pcm', name: 'Nigerian Pidgin', apiCode: 'en-NG' }
 ];
 
 
@@ -142,7 +141,7 @@ export function ChatInterface() {
 
   const handleSendMessage = async (e: React.FormEvent | null, text: string = input) => {
     e?.preventDefault();
-    if (!text.trim() || isLoading) return;
+    if (!text.trim() || isLoading || !user?.userId) return;
 
     const userMessage: Message = { sender: 'user', text };
     setMessages(prev => [...prev, userMessage]);
@@ -159,6 +158,7 @@ export function ChatInterface() {
         history: historyForAI,
         query: text,
         userName: userName,
+        userId: user.userId,
       });
 
       if (result.action) {
@@ -319,7 +319,7 @@ export function ChatInterface() {
             </SelectTrigger>
             <SelectContent>
                 {supportedLanguages.map(lang => (
-                    <SelectItem key={lang.name} value={lang.value}>
+                    <SelectItem key={lang.value} value={lang.value}>
                         {lang.name}
                     </SelectItem>
                 ))}

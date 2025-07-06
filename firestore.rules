@@ -1,12 +1,46 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all documents
-    // for development purposes.
-    // WARNING: This is not secure for production.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper function to check ownership based on a userId field in a document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users can read and update their own user document.
+    // New users can create their own document.
+    match /users/{userId} {
+      allow read, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+    }
+    
+    // Allow users to read their own financial transactions, but not create/update/delete them directly.
+    // Transactions should only be created by trusted server-side code (like our API routes).
+    match /financialTransactions/{transactionId} {
+      allow read: if isOwner(resource.data.userId);
+      // Deny client-side writes for security.
+      allow write: if false; 
+    }
+    
+    // Users can read their own loans. Updates/Creations are handled by the server.
+    match /loans/{loanId} {
+      allow read: if isOwner(resource.data.userId);
+       // Deny client-side writes for security.
+      allow write: if false;
+    }
+    
+    // Users can read their own investments. Updates/Creations are handled by the server.
+    match /investments/{investmentId} {
+      allow read: if isOwner(resource.data.userId);
+       // Deny client-side writes for security.
+      allow write: if false;
+    }
+
+    // Allow authenticated users to read bank lists, etc.
+    // In a real app with more complex collections, these would have more granular rules.
+    match /{collection}/{docId} {
+        allow read: if request.auth != null;
     }
   }
 }

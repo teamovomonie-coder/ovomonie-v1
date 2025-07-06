@@ -94,10 +94,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const firstName = user?.fullName.split(' ')[0] || '';
     
     const handleProactiveAssistantClick = async () => {
-        if (!user) return;
+        if (!user || !user.userId) return;
         setIsGeneratingRecommendation(true);
         try {
-            const result = await getPersonalizedRecommendation({ userName: user.fullName });
+            const result = await getPersonalizedRecommendation({ userName: user.fullName, userId: user.userId });
             setProactiveRecommendation(result.recommendation);
             setIsProactiveAssistantOpen(true);
         } catch (error) {
@@ -159,7 +159,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 onOpenChange={setIsProactiveAssistantOpen}
                 recommendation={proactiveRecommendation}
                 onAction={() => {
-                    // This could navigate to the main chat or another relevant screen
                     setIsProactiveAssistantOpen(false);
                     router.push('/ai-assistant');
                 }}
