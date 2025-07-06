@@ -33,12 +33,12 @@ interface Message {
 }
 
 const supportedLanguages = [
-    { code: 'en-NG', name: 'English' },
-    { code: 'yo-NG', name: 'Yoruba' },
-    { code: 'ig-NG', name: 'Igbo' },
-    { code: 'ha-NG', name: 'Hausa' },
+    { value: 'en-NG', name: 'English', apiCode: 'en-NG' },
+    { value: 'yo-NG', name: 'Yoruba', apiCode: 'yo-NG' },
+    { value: 'ig-NG', name: 'Igbo', apiCode: 'ig-NG' },
+    { value: 'ha-NG', name: 'Hausa', apiCode: 'ha-NG' },
     // Nigerian Pidgin doesn't have a standard code, en-NG is the closest. The AI model will handle detection.
-    { code: 'en-NG', name: 'Nigerian Pidgin' }
+    { value: 'pcm-NG', name: 'Nigerian Pidgin', apiCode: 'en-NG' }
 ];
 
 
@@ -122,7 +122,8 @@ export function ChatInterface() {
   // Update recognition language when user selects a new one
   useEffect(() => {
       if (recognitionRef.current) {
-          recognitionRef.current.lang = selectedLang;
+          const langObj = supportedLanguages.find(l => l.value === selectedLang);
+          recognitionRef.current.lang = langObj ? langObj.apiCode : 'en-NG';
       }
   }, [selectedLang]);
 
@@ -318,7 +319,7 @@ export function ChatInterface() {
             </SelectTrigger>
             <SelectContent>
                 {supportedLanguages.map(lang => (
-                    <SelectItem key={lang.name} value={lang.code}>
+                    <SelectItem key={lang.name} value={lang.value}>
                         {lang.name}
                     </SelectItem>
                 ))}
