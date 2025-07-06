@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 interface Transaction {
   id: string;
-  category: 'transfer' | 'bill' | 'airtime' | 'pos' | 'deposit' | 'withdrawal';
+  category: 'transfer' | 'bill' | 'airtime' | 'pos' | 'deposit' | 'withdrawal' | 'investment' | 'loan';
   type: 'debit' | 'credit';
   amount: number;
   reference: string;
@@ -32,7 +32,6 @@ interface Transaction {
 }
 
 const chartConfig = {
-  credits: { label: "Credits", color: "hsl(var(--chart-1))" },
   debits: { label: "Debits", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
@@ -55,12 +54,15 @@ export function StatementDashboard() {
         try {
             const response = await fetch('/api/transactions');
             if (!response.ok) {
-                throw new Error('Failed to fetch transactions');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch transactions');
             }
             const data = await response.json();
             setTransactions(data);
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load transaction history.'});
+            if (error instanceof Error) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -102,7 +104,7 @@ export function StatementDashboard() {
 
     const chartData = Object.entries(categorySpending).map(([name, total]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      debits: total,
+      debits: total/100, // convert from kobo
     })).sort((a,b) => b.debits - a.debits);
     
     return { totalCredits: credits, totalDebits: debits, chartData };
