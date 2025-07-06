@@ -108,6 +108,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
+  const [apiError, setApiError] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof airtimeSchema>>({
     resolver: zodResolver(airtimeSchema),
@@ -126,6 +127,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
     setIsProcessing(true);
+    setApiError(null);
     
     try {
         const clientReference = `airtime-${crypto.randomUUID()}`;
@@ -157,16 +159,12 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         });
         onPurchase({ ...purchaseData, type: 'Airtime' });
         form.reset();
+        setIsPinModalOpen(false);
 
     } catch(error) {
-        toast({
-            variant: 'destructive',
-            title: 'Purchase Failed',
-            description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        });
+        setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
         setIsProcessing(false);
-        setIsPinModalOpen(false);
     }
   };
 
@@ -211,7 +209,14 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
           </Button>
         </form>
       </Form>
-      <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleConfirmPurchase} isProcessing={isProcessing} />
+      <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+      />
     </>
   );
 }
@@ -223,6 +228,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof dataSchema>>({
     resolver: zodResolver(dataSchema),
@@ -248,6 +254,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     if (!purchaseData || balance === null) return;
     
     setIsProcessing(true);
+    setApiError(null);
     
     try {
         const clientReference = `data-${crypto.randomUUID()}`;
@@ -279,15 +286,11 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         });
         onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
         form.reset();
+        setIsPinModalOpen(false);
     } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Purchase Failed',
-            description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        });
+        setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
         setIsProcessing(false);
-        setIsPinModalOpen(false);
     }
   };
 
@@ -325,7 +328,14 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         </Button>
       </form>
     </Form>
-    <PinModal open={isPinModalOpen} onOpenChange={setIsPinModalOpen} onConfirm={handleConfirmPurchase} isProcessing={isProcessing} />
+    <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+    />
     </>
   );
 }

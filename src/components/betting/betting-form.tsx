@@ -137,6 +137,7 @@ export function BettingForm() {
   const [fundingData, setFundingData] = useState<FormData | null>(null);
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -198,6 +199,7 @@ export function BettingForm() {
   const handleConfirmFunding = async () => {
     if (!fundingData || balance === null || !verifiedName) return;
     setIsSubmitting(true);
+    setApiError(null);
     
     try {
         const clientReference = `betting-${crypto.randomUUID()}`;
@@ -230,16 +232,12 @@ export function BettingForm() {
         });
         setReceiptData(fundingData);
         form.reset();
+        setIsPinModalOpen(false);
 
     } catch (error) {
-         toast({
-            variant: 'destructive',
-            title: 'Funding Failed',
-            description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        });
+         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
         setIsSubmitting(false);
-        setIsPinModalOpen(false);
     }
   };
 
@@ -368,6 +366,8 @@ export function BettingForm() {
         isProcessing={isSubmitting}
         title="Confirm Betting Payment"
         description="Enter your 4-digit PIN to authorize this payment."
+        error={apiError}
+        onClearError={() => setApiError(null)}
       />
     </>
   );

@@ -137,13 +137,13 @@ const cardSchema = z.object({
 type CardFormData = z.infer<typeof cardSchema>;
 
 function FundWithCard() {
-    const { toast } = useToast();
-    const { balance, updateBalance } = useAuth();
+    const { updateBalance } = useAuth();
     const { addNotification } = useNotifications();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [fundingData, setFundingData] = useState<CardFormData | null>(null);
     const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
+    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<CardFormData>({
         resolver: zodResolver(cardSchema),
@@ -151,7 +151,6 @@ function FundWithCard() {
     });
     
     function onSubmit(data: CardFormData) {
-        if (!balance || data.amount * 100 < 0) return;
         setFundingData(data);
         setIsPinModalOpen(true);
     }
@@ -160,6 +159,7 @@ function FundWithCard() {
         if (!fundingData) return;
 
         setIsProcessing(true);
+        setApiError(null);
         try {
             const clientReference = `card-deposit-${crypto.randomUUID()}`;
             const response = await fetch('/api/funding/card', {
@@ -184,16 +184,12 @@ function FundWithCard() {
             });
 
             setReceiptData({ amount: fundingData.amount });
+            setIsPinModalOpen(false);
 
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Funding Error',
-                description: error instanceof Error ? error.message : 'An unknown error occurred.',
-            });
+            setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
         } finally {
             setIsProcessing(false);
-            setIsPinModalOpen(false);
         }
     }
     
@@ -254,6 +250,8 @@ function FundWithCard() {
                 isProcessing={isProcessing}
                 title="Authorize Card Deposit"
                 description="Please enter your 4-digit PIN to authorize this deposit."
+                error={apiError}
+                onClearError={() => setApiError(null)}
             />
         </>
     );
@@ -409,6 +407,7 @@ function FundWithAgent() {
     const { balance, updateBalance } = useAuth();
     const { addNotification } = useNotifications();
     const { toast } = useToast();
+    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<z.infer<typeof agentSchema>>({
         resolver: zodResolver(agentSchema),
@@ -449,17 +448,22 @@ function FundWithAgent() {
     const handleConfirmFunding = async () => {
         if (!fundingData) return;
         setIsProcessing(true);
-        // This would be an API call in a real app
-        await new Promise(res => setTimeout(res, 1500));
-        updateBalance((balance || 0) + (fundingData.amount * 100));
-        addNotification({
-            title: 'Agent Deposit Successful',
-            description: `You deposited ₦${fundingData.amount.toLocaleString()} via an agent.`,
-            category: 'transaction',
-        });
-        setReceiptData({ amount: fundingData.amount });
-        setIsProcessing(false);
-        setIsPinModalOpen(false);
+        setApiError(null);
+        try {
+            await new Promise(res => setTimeout(res, 1500));
+            updateBalance((balance || 0) + (fundingData.amount * 100));
+            addNotification({
+                title: 'Agent Deposit Successful',
+                description: `You deposited ₦${fundingData.amount.toLocaleString()} via an agent.`,
+                category: 'transaction',
+            });
+            setReceiptData({ amount: fundingData.amount });
+            setIsPinModalOpen(false);
+        } catch (error) {
+            setApiError(error instanceof Error ? error.message : "An unknown error occurred.");
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleDone = () => {
@@ -526,6 +530,8 @@ function FundWithAgent() {
                 onConfirm={handleConfirmFunding}
                 isProcessing={isProcessing}
                 title="Authorize Agent Deposit"
+                error={apiError}
+                onClearError={() => setApiError(null)}
             />
         </>
     );

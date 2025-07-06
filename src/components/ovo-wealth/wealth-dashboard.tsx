@@ -270,6 +270,7 @@ export function WealthDashboard() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receiptData, setReceiptData] = useState<{ amount: number; plan: string; } | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
 
   const fetchInvestments = useCallback(async () => {
@@ -306,6 +307,7 @@ export function WealthDashboard() {
   const handleConfirmInvestment = async () => {
     if (!pendingInvestment) return;
     setIsProcessing(true);
+    setApiError(null);
     
     const product = investmentProducts.find(p => p.title === pendingInvestment.productId);
     if (!product) {
@@ -337,16 +339,12 @@ export function WealthDashboard() {
         });
         await fetchInvestments();
         setReceiptData({ amount: pendingInvestment.amount, plan: pendingInvestment.productId });
+        setIsPinModalOpen(false);
 
     } catch (error) {
-         toast({
-            variant: 'destructive',
-            title: 'Investment Failed',
-            description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        });
+         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
         setIsProcessing(false);
-        setIsPinModalOpen(false);
         setPendingInvestment(null);
     }
   };
@@ -519,6 +517,8 @@ export function WealthDashboard() {
             isProcessing={isProcessing}
             title="Authorize Investment"
             description="Enter your 4-digit PIN to confirm this investment."
+            error={apiError}
+            onClearError={() => setApiError(null)}
         />
     </>
   )

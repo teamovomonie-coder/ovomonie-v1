@@ -110,6 +110,7 @@ export function InternalTransferForm() {
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
@@ -201,9 +202,10 @@ export function InternalTransferForm() {
   }
 
   const handleFinalSubmit = async () => {
-    if (!submittedData) return;
+    if (!submittedData || !recipientName) return;
 
     setIsProcessing(true);
+    setApiError(null);
     try {
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) {
@@ -249,31 +251,18 @@ export function InternalTransferForm() {
       setStep('receipt');
       
     } catch (error: any) {
-      let title = 'Transfer Failed';
       let description = 'An unknown error occurred.';
 
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        title = 'Network Error';
         description = 'Please check your internet connection and try again.';
       } else if (error.response?.status === 401) {
-          title = 'Authentication Error';
           description = 'Your session has expired. Please log in again.';
           logout();
       } else if (error.message) {
           description = error.message;
-          if (description.toLowerCase().includes('insufficient funds')) {
-            title = 'Insufficient Funds';
-          } else if (description.toLowerCase().includes('security review')) {
-            title = 'Security Alert';
-          }
       }
       
-      toast({
-        variant: 'destructive',
-        title: title,
-        description: description,
-      });
-      setIsPinModalOpen(false);
+      setApiError(description);
     } finally {
       setIsProcessing(false);
     }
@@ -353,6 +342,8 @@ export function InternalTransferForm() {
           onOpenChange={setIsPinModalOpen}
           onConfirm={handleFinalSubmit}
           isProcessing={isProcessing}
+          error={apiError}
+          onClearError={() => setApiError(null)}
         />
       </>
     );

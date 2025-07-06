@@ -179,6 +179,7 @@ export function BillerList() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [dialogView, setDialogView] = useState<'form' | 'summary'>('form');
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
@@ -266,6 +267,7 @@ export function BillerList() {
   const handleConfirmPayment = async () => {
     if (!paymentData || !selectedBiller) return;
     setIsSubmitting(true);
+    setApiError(null);
 
     try {
         const clientReference = `bill-${crypto.randomUUID()}`;
@@ -304,14 +306,10 @@ export function BillerList() {
             verifiedName: verifiedName,
             bouquet,
         });
-        setSelectedBiller(null); // Close payment dialog
+        setSelectedBiller(null);
 
     } catch (error) {
-         toast({
-            variant: 'destructive',
-            title: 'Payment Failed',
-            description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        });
+         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
         setIsSubmitting(false);
         setIsPinModalOpen(false);
@@ -546,6 +544,8 @@ export function BillerList() {
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmPayment}
         isProcessing={isSubmitting}
+        error={apiError}
+        onClearError={() => setApiError(null)}
       />
       {receiptData && <PaymentReceipt data={receiptData} onDone={resetDialogState} />}
     </>

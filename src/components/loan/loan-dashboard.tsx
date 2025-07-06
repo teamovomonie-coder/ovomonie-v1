@@ -155,6 +155,7 @@ export function LoanDashboard() {
   const { toast } = useToast();
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<LoanApplicationData>({
     resolver: zodResolver(loanApplicationSchema),
@@ -202,10 +203,11 @@ export function LoanDashboard() {
       if (!applicationData) return;
       setIsProcessing(true);
       try {
+        const clientReference = `loan-disburse-${crypto.randomUUID()}`;
         const response = await fetch('/api/loans', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(applicationData),
+            body: JSON.stringify({...applicationData, clientReference}),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Loan disbursement failed.');
@@ -239,11 +241,13 @@ export function LoanDashboard() {
       if (!repaymentAmount || !activeLoan) return;
 
       setIsProcessing(true);
+      setApiError(null);
       try {
+        const clientReference = `loan-repay-${crypto.randomUUID()}`;
         const response = await fetch('/api/loans/repay', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ loanId: activeLoan.id, amount: repaymentAmount }),
+            body: JSON.stringify({ loanId: activeLoan.id, amount: repaymentAmount, clientReference }),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Repayment failed.');
@@ -256,11 +260,11 @@ export function LoanDashboard() {
         });
         toast({ title: 'Repayment Successful' });
         await fetchActiveLoan();
+        setIsPinModalOpen(false);
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not process repayment.'})
+        setApiError(error instanceof Error ? error.message : 'Could not process repayment.');
       } finally {
           setIsProcessing(false);
-          setIsPinModalOpen(false);
           setRepaymentAmount(null);
           setIsRepayDialogOpen(false);
       }
@@ -498,6 +502,8 @@ export function LoanDashboard() {
         onConfirm={handleConfirmRepayment}
         isProcessing={isProcessing}
         title="Confirm Loan Repayment"
+        error={apiError}
+        onClearError={() => setApiError(null)}
     />
     </>
   );
