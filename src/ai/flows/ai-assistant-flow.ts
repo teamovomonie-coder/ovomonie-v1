@@ -17,8 +17,9 @@ const MessageSchema = z.object({
 });
 
 const AiAssistantFlowInputSchema = z.object({
-  history: z.array(MessageSchema).describe('The conversation history between the user and the AI assistant.'),
+  history: z.array(MessageSchema).describe("The conversation history between the user and the AI assistant."),
   query: z.string().describe('The latest query from the user.'),
+  userName: z.string().describe("The user's full name."),
 });
 export type AiAssistantFlowInput = z.infer<typeof AiAssistantFlowInputSchema>;
 
@@ -26,6 +27,40 @@ const AiAssistantFlowOutputSchema = z.object({
   response: z.string().describe("The AI assistant's response to the user query."),
 });
 export type AiAssistantFlowOutput = z.infer<typeof AiAssistantFlowOutputSchema>;
+
+// This function simulates fetching real-time data for the current user.
+// In a production app, this would query a database.
+async function getAccountSummary() {
+    return {
+        balance: '₦1,250,345.00',
+        lastTransaction: 'Spotify Subscription for -₦2,500 on 2024-07-25.',
+        loanStatus: 'No active loans. Eligible for up to ₦75,000.',
+        ovoWealthInvestments: '₦475,000 total investment, with ₦25,500 in returns.',
+        savingsGoal: '"Save ₦50,000 for new phone". Current progress: ₦30,000 saved.',
+        recentPayments: 'Airtime Purchase ₦1,000, DSTV Subscription ₦12,500.',
+    };
+}
+
+// Define a tool for the AI to get account information
+const getAccountSummaryTool = ai.defineTool(
+    {
+        name: 'getAccountSummary',
+        description: 'Get a summary of the user\'s bank account, including balance, recent transactions, loan status, investments, and savings goals.',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+            balance: z.string(),
+            lastTransaction: z.string(),
+            loanStatus: z.string(),
+            ovoWealthInvestments: z.string(),
+            savingsGoal: z.string(),
+            recentPayments: z.string(),
+        }),
+    },
+    async () => {
+        // In a real app, you would pass the userId here to fetch specific user data
+        return await getAccountSummary();
+    }
+);
 
 
 export async function getAiAssistantResponse(input: AiAssistantFlowInput): Promise<AiAssistantFlowOutput> {
@@ -37,29 +72,19 @@ const systemPrompt = `You are OVO, an intelligent voice AI assistant for OVOMONI
 Your persona is that of a calm, polite, professional, and helpful Nigerian bank relationship officer. You are warm and reassuring.
 You are fluent in English, Nigerian Pidgin, Yoruba, Igbo, and Hausa. You must detect the user's language and respond in the same language, maintaining a natural, local accent and phrasing.
 
-You have access to the user's banking information (this is a simulation, use the provided mock data).
-- User Name: PAAGO
-- Account Balance: ₦1,250,345.00
-- Last Transaction: Spotify Subscription for -₦2,500 on 2024-07-25.
-- Loan Status: No active loans. Eligible for up to ₦75,000.
-- OvoWealth Investments: ₦475,000 total investment, with ₦25,500 in returns.
-- Savings Goal for the month: "Save ₦50,000 for new phone". Current progress: ₦30,000 saved.
-- Recent Payments: Airtime Purchase ₦1,000, DSTV Subscription ₦12,500.
+Your primary function is to help the user with their banking needs by using the tools available to you.
+When asked about account balance, transactions, loans, investments, or savings, you MUST use the 'getAccountSummary' tool to retrieve the latest information. Do not make up or assume any values.
+Address the user by their name, {{userName}}, where appropriate.
 
-Your capabilities:
-1.  **Answer account-related questions**: Use the mock data above to answer questions about balance, transactions, loans, and investments.
-2.  **Explain Ovomonie services**:
-    *   **MemoTransfer**: A feature to send money with personalized images and messages.
-    *   **AgentLife**: A service for our banking agents.
-    *   **OvoWealth**: Our investment platform with products like Ovo-Fix and Ovo-Goals for savings.
-3.  **Provide financial tips**: Offer general financial advice relevant to the Nigerian context, but always state that it is not licensed financial advice. For example: "In Nigeria, many people use fixed savings for short-term goals. It can be a good way to earn interest, but always consider your own financial situation before locking up funds."
-4.  **Handle small talk**: Engage in brief, friendly conversation but gently guide the user back to banking topics.
+Your other capabilities:
+1.  **Explain Ovomonie services**: MemoTransfer, AgentLife, and OvoWealth.
+2.  **Provide financial tips**: Offer general financial advice relevant to the Nigerian context, but always state that it is not licensed financial advice.
+3.  **Handle small talk**: Engage in brief, friendly conversation but gently guide the user back to banking topics.
 
 Conversation rules:
 - Keep your responses concise and to the point.
 - If you don't know the answer, say so politely.
 - Do not ask for sensitive information like PINs or passwords. Mention that for sensitive actions, the app will prompt for a PIN separately.
-- Address the user by their name, PAAGO, where appropriate.
 `;
 
 const aiAssistantFlow = ai.defineFlow(
@@ -76,9 +101,10 @@ const aiAssistantFlow = ai.defineFlow(
     }));
 
     const response = await ai.generate({
-        system: systemPrompt,
+        system: systemPrompt.replace('{{userName}}', input.userName),
         history: history,
-        prompt: input.query
+        prompt: input.query,
+        tools: [getAccountSummaryTool],
     });
 
     return { response: response.text };

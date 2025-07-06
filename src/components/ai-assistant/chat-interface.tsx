@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Mic, User, Bot, Loader2, StopCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 // SpeechRecognition might not be on the window object by default in TypeScript
 declare global {
@@ -34,13 +35,15 @@ export function ChatInterface() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
+  const { user } = useAuth();
+  const userName = user?.fullName || 'User';
 
   // Initial greeting
   useEffect(() => {
     if (!isInitialized) {
         const initializeChat = async () => {
             setIsLoading(true);
-            const greetingText = "Hello PAAGO, I am OVO, your personal banking assistant. How can I help you today?";
+            const greetingText = `Hello ${userName}, I am OVO, your personal banking assistant. How can I help you today?`;
             try {
                 const { media } = await textToSpeech(greetingText);
                 setMessages([{ sender: 'bot', text: greetingText, audioUrl: media }]);
@@ -59,7 +62,7 @@ export function ChatInterface() {
         };
         initializeChat();
     }
-  }, [isInitialized, toast]);
+  }, [isInitialized, toast, userName]);
 
 
   // Request microphone permission and setup SpeechRecognition
@@ -138,6 +141,7 @@ export function ChatInterface() {
       const result = await getAiAssistantResponse({
         history: historyForAI,
         query: text,
+        userName: userName,
       });
       const { media } = await textToSpeech(result.response);
       const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: media };
@@ -195,7 +199,7 @@ export function ChatInterface() {
               </div>
                {message.sender === 'user' && (
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback><User className="h-5 w-5"/></AvatarFallback>
+                  <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
                 </Avatar>
               )}
             </div>
