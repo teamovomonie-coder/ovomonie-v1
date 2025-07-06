@@ -34,10 +34,10 @@ interface Message {
 
 const supportedLanguages = [
     { value: 'en-NG', name: 'English', apiCode: 'en-NG' },
+    { value: 'pcm', name: 'Nigerian Pidgin', apiCode: 'pcm' },
     { value: 'yo-NG', name: 'Yoruba', apiCode: 'yo-NG' },
     { value: 'ig-NG', name: 'Igbo', apiCode: 'ig-NG' },
     { value: 'ha-NG', name: 'Hausa', apiCode: 'ha-NG' },
-    { value: 'pcm', name: 'Nigerian Pidgin', apiCode: 'pcm' }
 ];
 
 
@@ -68,8 +68,8 @@ export function ChatInterface() {
             setIsLoading(true);
             const greetingText = `Hello ${userName}, I am OVO, your personal banking assistant. How can I help you today?`;
             try {
-                const { media } = await textToSpeech(greetingText, 'English');
-                setMessages([{ sender: 'bot', text: greetingText, audioUrl: media }]);
+                const ttsResult = await textToSpeech(greetingText, 'English');
+                setMessages([{ sender: 'bot', text: greetingText, audioUrl: ttsResult?.media }]);
             } catch (error) {
                 console.error("TTS initialization failed", error);
                 setMessages([{ sender: 'bot', text: greetingText }]);
@@ -167,8 +167,16 @@ export function ChatInterface() {
       
       let audioUrl: string | undefined;
       try {
-        const { media } = await textToSpeech(result.response, result.detectedLanguage);
-        audioUrl = media;
+        const ttsResult = await textToSpeech(result.response, result.detectedLanguage);
+        if (ttsResult) {
+            audioUrl = ttsResult.media;
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Audio Generation Failed',
+                description: 'Could not generate audio. This may be due to API quota limits.',
+            });
+        }
       } catch (ttsError) {
         console.error("TTS generation failed:", ttsError);
         toast({

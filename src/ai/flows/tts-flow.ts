@@ -29,31 +29,37 @@ function getVoiceForLanguage(language: SupportedLanguage): string {
     }
 }
 
-export async function textToSpeech(query: string, language: SupportedLanguage = 'English'): Promise<{media: string}> {
+export async function textToSpeech(query: string, language: SupportedLanguage = 'English'): Promise<{media: string} | null> {
   const voiceName = getVoiceForLanguage(language);
   
-  const {media} = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash-preview-tts'),
-    config: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {voiceName},
+  try {
+    const {media} = await ai.generate({
+        model: googleAI.model('gemini-2.5-flash-preview-tts'),
+        config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+            voiceConfig: {
+            prebuiltVoiceConfig: {voiceName},
+            },
         },
-      },
-    },
-    prompt: query,
-  });
-  if (!media) {
-    throw new Error('no media returned');
+        },
+        prompt: query,
+    });
+    if (!media) {
+        console.error('TTS flow: No media returned from ai.generate');
+        return null;
+    }
+    const audioBuffer = Buffer.from(
+        media.url.substring(media.url.indexOf(',') + 1),
+        'base64'
+    );
+    return {
+        media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+    };
+  } catch (error) {
+      console.error("Error in textToSpeech flow (rate limit likely):", error);
+      return null;
   }
-  const audioBuffer = Buffer.from(
-    media.url.substring(media.url.indexOf(',') + 1),
-    'base64'
-  );
-  return {
-    media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
-  };
 }
 
 async function toWav(
