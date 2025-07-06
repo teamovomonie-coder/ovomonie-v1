@@ -1,9 +1,10 @@
 
+
 import { AppShell } from "@/components/layout/app-shell";
-import { TransferForm } from "@/components/memo-transfer/transfer-form";
+import { ExternalTransferForm } from "@/components/external-transfer/external-transfer-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function InternalTransferPage() {
+export default function MemoTransferPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
@@ -11,11 +12,11 @@ export default function InternalTransferPage() {
           <CardHeader>
             <CardTitle>MemoTransfer</CardTitle>
             <CardDescription>
-              Send personalized money transfers with images and custom messages to any bank account in Nigeria.
+              Send personalized money transfers with AI-generated images and custom messages to any bank account in Nigeria.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TransferForm />
+            <ExternalTransferForm defaultMemo={true} />
           </CardContent>
         </Card>
       </div>

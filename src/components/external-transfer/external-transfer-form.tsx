@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -37,6 +38,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive.'),
   narration: z.string().max(50, "Narration can't exceed 50 characters.").optional(),
   message: z.string().max(150, 'Message is too long.').optional(),
+  imageTheme: z.string().optional(),
   photo: z.any().optional(),
 });
 
@@ -109,9 +111,9 @@ const topBankCodes = ["058", "044", "057", "011", "033"];
 const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
 const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
-export function ExternalTransferForm() {
+export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: boolean }) {
   const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
-  const [isMemoTransfer, setIsMemoTransfer] = useState(false);
+  const [isMemoTransfer, setIsMemoTransfer] = useState(defaultMemo);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -127,10 +129,12 @@ export function ExternalTransferForm() {
   
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '' },
+    defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '', imageTheme: '' },
   });
 
   const { watch, clearErrors, setError } = form;
@@ -183,15 +187,22 @@ export function ExternalTransferForm() {
     }
   }, [watchedAccountNumber, watchedBankCode, clearErrors, setError]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-        form.setValue('photo', reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleGenerateImage = async () => {
+    const theme = form.getValues('imageTheme');
+    if (!theme) {
+        toast({ variant: 'destructive', title: 'Theme required', description: 'Please enter a theme for the image.'});
+        return;
+    }
+    setIsGeneratingImage(true);
+    setPhotoPreview(null);
+    try {
+        const result = await generateReceiptImage({ prompt: theme });
+        setPhotoPreview(result.imageDataUri);
+        form.setValue('photo', result.imageDataUri);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Image Generation Failed', description: 'Could not generate image. Please try again.' });
+    } finally {
+        setIsGeneratingImage(false);
     }
   };
 
@@ -289,7 +300,7 @@ export function ExternalTransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
-    setIsMemoTransfer(false);
+    setIsMemoTransfer(defaultMemo);
     form.reset();
   };
 
@@ -343,9 +354,6 @@ export function ExternalTransferForm() {
               <ul className="list-disc pl-5 space-y-1 text-xs">
                 <li><b>GTB (058):</b> 0123456789, 1234567890</li>
                 <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
-                <li><b>UBA (033):</b> 1122334455, 2233445566</li>
-                <li><b>First Bank (011):</b> 5566778899, 6677889900</li>
-                <li><b>Zenith Bank (057):</b> 1112223334</li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -444,7 +452,7 @@ export function ExternalTransferForm() {
                   )}
               </div>
               {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-50 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
                      <Check className="h-4 w-4" /> {recipientName}
                   </div>
               )}
@@ -486,29 +494,27 @@ export function ExternalTransferForm() {
             <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
             <FormField
               control={form.control}
-              name="photo"
-              render={() => (
+              name="imageTheme"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Add a Photo</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} className="absolute h-full w-full opacity-0 cursor-pointer" />
-                      <label htmlFor="photo-upload" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
-                        {photoPreview ? (
-                          <Image src={photoPreview} alt="Preview" width={100} height={100} className="object-contain h-full" data-ai-hint="person" />
-                        ) : (
-                          <div className="text-center text-muted-foreground">
-                            <Upload className="mx-auto h-8 w-8" />
-                            <p>Click to upload</p>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </FormControl>
+                  <FormLabel>Image Theme</FormLabel>
+                  <div className="flex gap-2">
+                    <FormControl>
+                        <Input placeholder="e.g., Birthday celebration" {...field} />
+                    </FormControl>
+                    <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
+                        {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                    </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+             {photoPreview && (
+                <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                  <Image src={photoPreview} alt="Generated Preview" layout="fill" objectFit="cover" data-ai-hint="celebration" />
+                </div>
+            )}
             <FormField
               control={form.control}
               name="message"
