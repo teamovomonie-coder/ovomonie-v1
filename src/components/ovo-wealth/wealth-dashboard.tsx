@@ -319,10 +319,11 @@ export function WealthDashboard() {
     const estimatedReturn = (pendingInvestment.amount * annualRate / 365) * parseInt(pendingInvestment.duration);
     
     try {
+        const clientReference = `investment-${crypto.randomUUID()}`;
         const response = await fetch('/api/wealth/investments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...pendingInvestment, estimatedReturn }),
+            body: JSON.stringify({ ...pendingInvestment, estimatedReturn, clientReference }),
         });
         
         const result = await response.json();

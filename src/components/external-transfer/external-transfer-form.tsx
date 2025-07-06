@@ -223,6 +223,8 @@ export function ExternalTransferForm() {
       if (!token) {
         throw new Error('Authentication token not found. Please log in again.');
       }
+      
+      const clientReference = `external-transfer-${crypto.randomUUID()}`;
 
       const response = await fetch('/api/transfers/external', {
         method: 'POST',
@@ -231,6 +233,7 @@ export function ExternalTransferForm() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          clientReference,
           recipientName: recipientName,
           bankCode: submittedData.bankCode,
           accountNumber: submittedData.accountNumber,
@@ -441,7 +444,7 @@ export function ExternalTransferForm() {
                   )}
               </div>
               {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-50 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
                      <Check className="h-4 w-4" /> {recipientName}
                   </div>
               )}

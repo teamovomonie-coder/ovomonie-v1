@@ -129,7 +129,7 @@ function PaymentReceipt({ data, onDone }: { data: ReceiptData; onDone: () => voi
                         </div>
                     </div>
                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">For Account</span>
+                        <span className="text-muted-foreground">{data.biller.fieldLabel}</span>
                         <span className="font-semibold">{data.accountId}</span>
                     </div>
                     {data.verifiedName && (
@@ -268,10 +268,12 @@ export function BillerList() {
     setIsSubmitting(true);
 
     try {
+        const clientReference = `bill-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                clientReference,
                 amount: paymentData.amount,
                 category: 'bill',
                 narration: paymentData.description,

@@ -200,11 +200,13 @@ export function BettingForm() {
     setIsSubmitting(true);
     
     try {
+        const clientReference = `betting-${crypto.randomUUID()}`;
         const platformName = bettingPlatforms.find(p => p.id === fundingData.platform)?.name || 'Betting Platform';
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                clientReference,
                 amount: fundingData.amount,
                 category: 'betting',
                 narration: `Betting wallet funding for ${platformName}`,

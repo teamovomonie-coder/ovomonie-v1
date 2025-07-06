@@ -47,7 +47,7 @@ const NineMobileLogo = ({ className }: { className?: string }) => <div className
 const networks = [
   { id: 'mtn', name: 'MTN', Logo: MtnLogo },
   { id: 'airtel', name: 'Airtel', Logo: AirtelLogo },
-  { id: 'glo', name: 'Glo', Logo: GloLogo },
+  { id: 'glo', name: 'Glo', Logo: NineMobileLogo },
   { id: '9mobile', name: '9mobile', Logo: NineMobileLogo },
 ];
 
@@ -128,10 +128,12 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
     setIsProcessing(true);
     
     try {
+        const clientReference = `airtime-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                clientReference,
                 amount: purchaseData.amount,
                 category: 'airtime',
                 narration: `Airtime purchase for ${purchaseData.phoneNumber}`,
@@ -248,10 +250,12 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     setIsProcessing(true);
     
     try {
+        const clientReference = `data-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                clientReference,
                 amount: purchaseData.plan.price,
                 category: 'airtime',
                 narration: `Data purchase: ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}`,
@@ -423,5 +427,3 @@ export function AirtimeForm() {
         </>
     );
 }
-
-    

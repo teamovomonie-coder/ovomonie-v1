@@ -161,10 +161,14 @@ function FundWithCard() {
 
         setIsProcessing(true);
         try {
+            const clientReference = `card-deposit-${crypto.randomUUID()}`;
             const response = await fetch('/api/funding/card', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: fundingData.amount }),
+                body: JSON.stringify({ 
+                    amount: fundingData.amount,
+                    clientReference: clientReference,
+                }),
             });
 
             const result = await response.json();

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -208,6 +209,8 @@ export function InternalTransferForm() {
       if (!token) {
         throw new Error('Authentication token not found. Please log in again.');
       }
+      
+      const clientReference = `internal-transfer-${crypto.randomUUID()}`;
 
       const response = await fetch('/api/transfers/internal', {
         method: 'POST',
@@ -216,6 +219,7 @@ export function InternalTransferForm() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          clientReference,
           recipientAccountNumber: submittedData.accountNumber,
           amount: submittedData.amount,
           narration: submittedData.narration,

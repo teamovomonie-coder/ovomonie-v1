@@ -57,6 +57,7 @@ export const performTransfer = async (
     senderAccountNumber: string,
     recipientAccountNumber: string,
     amountInKobo: number,
+    clientReference: string,
     narration?: string
 ): Promise<{ success: true; newSenderBalance: number; reference: string } | { success: false; message: string }> => {
     
@@ -69,10 +70,18 @@ export const performTransfer = async (
     }
     
     try {
-        const reference = `OVO-INT-${Date.now()}`;
         let newSenderBalance = 0;
 
         await runTransaction(db, async (transaction) => {
+            const financialTransactionsRef = collection(db, 'financialTransactions');
+            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+
+            if (!existingTxnSnapshot.empty) {
+                console.log(`Idempotent request for internal transfer: ${clientReference} already processed.`);
+                return;
+            }
+
             const senderQuery = query(collection(db, "users"), where("accountNumber", "==", senderAccountNumber));
             const recipientQuery = query(collection(db, "users"), where("accountNumber", "==", recipientAccountNumber));
 
@@ -103,7 +112,6 @@ export const performTransfer = async (
             transaction.update(senderDoc.ref, { balance: newSenderBalance });
             transaction.update(recipientDoc.ref, { balance: newRecipientBalance });
             
-            const financialTransactionsRef = collection(db, 'financialTransactions');
 
             // Log Debit for Sender
             const senderLog = {
@@ -111,7 +119,7 @@ export const performTransfer = async (
                 category: 'transfer',
                 type: 'debit',
                 amount: amountInKobo,
-                reference,
+                reference: clientReference,
                 narration: narration || `Transfer to ${recipientData.fullName}`,
                 party: {
                     name: recipientData.fullName,
@@ -129,7 +137,7 @@ export const performTransfer = async (
                 category: 'transfer',
                 type: 'credit',
                 amount: amountInKobo,
-                reference,
+                reference: clientReference,
                 narration: narration || `Transfer from ${senderData.fullName}`,
                 party: {
                     name: senderData.fullName,
@@ -141,8 +149,12 @@ export const performTransfer = async (
             };
             transaction.set(doc(financialTransactionsRef), recipientLog);
         });
+
+        // Re-fetch balance to return the most up-to-date value, even if the txn was idempotent
+        const finalSenderAccount = await mockGetAccountByNumber(senderAccountNumber);
+        newSenderBalance = finalSenderAccount!.balance;
         
-        return { success: true, newSenderBalance, reference };
+        return { success: true, newSenderBalance, reference: clientReference };
 
     } catch (error) {
         console.error("Firestore transaction failed: ", error);
