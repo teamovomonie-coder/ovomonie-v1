@@ -37,6 +37,7 @@ export async function getPersonalizedRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
+  model: 'googleai/gemini-pro',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
   prompt: `You are a financial advisor providing personalized financial product recommendations to users.
