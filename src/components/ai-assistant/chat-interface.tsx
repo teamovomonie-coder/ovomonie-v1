@@ -37,7 +37,7 @@ const supportedLanguages = [
     { value: 'yo-NG', name: 'Yoruba', apiCode: 'yo-NG' },
     { value: 'ig-NG', name: 'Igbo', apiCode: 'ig-NG' },
     { value: 'ha-NG', name: 'Hausa', apiCode: 'ha-NG' },
-    { value: 'pcm', name: 'Nigerian Pidgin', apiCode: 'en-NG' }
+    { value: 'pcm', name: 'Nigerian Pidgin', apiCode: 'pcm' }
 ];
 
 
@@ -165,9 +165,22 @@ export function ChatInterface() {
           setPendingAction(result.action);
       }
       
-      const { media } = await textToSpeech(result.response, result.detectedLanguage);
-      const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: media };
+      let audioUrl: string | undefined;
+      try {
+        const { media } = await textToSpeech(result.response, result.detectedLanguage);
+        audioUrl = media;
+      } catch (ttsError) {
+        console.error("TTS generation failed:", ttsError);
+        toast({
+            variant: 'destructive',
+            title: 'Audio Generation Failed',
+            description: 'Could not generate audio. This may be due to API quota limits.',
+        });
+      }
+
+      const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: audioUrl };
       setMessages(prev => [...prev, botMessage]);
+
     } catch (error) {
       console.error("Error in AI Assistant:", error);
       const errorMessage: Message = { sender: 'bot', text: "I'm sorry, I encountered a technical issue. Could you please try again?" };
