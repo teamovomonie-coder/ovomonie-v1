@@ -187,7 +187,7 @@ const aiAssistantFlow = ai.defineFlow(
     }));
 
     const { output } = await ai.generate({
-        model: googleAI.model('gemini-1.5-pro-latest'),
+        model: googleAI.model('gemini-1.5-flash-latest'),
         system: systemPrompt.replace('{{userName}}', input.userName),
         history: history,
         prompt: `My user ID is ${input.userId}. My query is: ${input.query}`,

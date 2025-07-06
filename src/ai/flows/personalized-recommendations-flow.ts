@@ -116,7 +116,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         .replace('{{financialData}}', JSON.stringify(financialData, null, 2));
     
     const { output } = await ai.generate({
-        model: googleAI.model('gemini-1.5-pro-latest'),
+        model: googleAI.model('gemini-1.5-flash-latest'),
         prompt: promptText,
         output: {
             schema: PersonalizedRecommendationsOutputSchema
