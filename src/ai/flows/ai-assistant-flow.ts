@@ -41,7 +41,7 @@ const AiAssistantFlowOutputSchema = z.object({
             recipientAccountNumber: z.string(),
             amount: z.number().describe("The amount in Naira, not Kobo."),
         })
-    }).optional().describe("If the user's request is an action, this field will contain the action details to be executed by the app."),
+    }).nullable().optional().describe("If the user's request is an action, this field will contain the action details to be executed by the app."),
 });
 export type AiAssistantFlowOutput = z.infer<typeof AiAssistantFlowOutputSchema>;
 
