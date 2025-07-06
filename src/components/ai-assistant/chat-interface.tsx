@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -7,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mic, User, Bot, Loader2, StopCircle } from 'lucide-react';
+import { Mic, User, Bot, Loader2, StopCircle, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { ActionConfirmationDialog } from './action-confirmation-dialog';
 import { PinModal } from '../auth/pin-modal';
 import { useNotifications } from '@/context/notification-context';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 // SpeechRecognition might not be on the window object by default in TypeScript
 declare global {
@@ -28,6 +31,16 @@ interface Message {
   text: string;
   audioUrl?: string;
 }
+
+const supportedLanguages = [
+    { code: 'en-NG', name: 'English' },
+    { code: 'yo-NG', name: 'Yoruba' },
+    { code: 'ig-NG', name: 'Igbo' },
+    { code: 'ha-NG', name: 'Hausa' },
+    // Nigerian Pidgin doesn't have a standard code, en-NG is the closest. The AI model will handle detection.
+    { code: 'en-NG', name: 'Nigerian Pidgin' }
+];
+
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,6 +59,7 @@ export function ChatInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const { addNotification } = useNotifications();
+  const [selectedLang, setSelectedLang] = useState('en-NG');
 
 
   // Initial greeting
@@ -77,27 +91,12 @@ export function ChatInterface() {
 
   // Request microphone permission and setup SpeechRecognition
   useEffect(() => {
-    const getMicPermission = async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Microphone Access Denied',
-          description: 'Please enable microphone permissions in your browser settings to use voice commands.',
-        });
-      }
-    };
-    getMicPermission();
-
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
+      
       recognition.onstart = () => {
         setIsRecording(true);
       };
@@ -119,6 +118,13 @@ export function ChatInterface() {
         toast({ variant: 'destructive', title: 'Browser Not Supported', description: 'Voice recognition is not supported in your browser.'});
     }
   }, [toast]);
+  
+  // Update recognition language when user selects a new one
+  useEffect(() => {
+      if (recognitionRef.current) {
+          recognitionRef.current.lang = selectedLang;
+      }
+  }, [selectedLang]);
 
   const handleMicClick = () => {
     if (isRecording) {
@@ -304,6 +310,20 @@ export function ChatInterface() {
             className="flex-1"
             disabled={isLoading || isRecording}
           />
+          <Select value={selectedLang} onValueChange={setSelectedLang}>
+            <SelectTrigger className="w-auto">
+                <SelectValue asChild>
+                    <Languages className="h-5 w-5" />
+                </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+                {supportedLanguages.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                        {lang.name}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
           <Button type="button" size="icon" onClick={handleMicClick} disabled={isLoading}>
             {isRecording ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5" />}
             <span className="sr-only">{isRecording ? 'Stop recording' : 'Start recording'}</span>
