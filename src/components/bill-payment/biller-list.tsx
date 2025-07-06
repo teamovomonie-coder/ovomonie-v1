@@ -264,33 +264,56 @@ export function BillerList() {
   };
   
   const handleConfirmPayment = async () => {
-    if (!paymentData) return;
-    
+    if (!paymentData || !selectedBiller) return;
     setIsSubmitting(true);
-    await new Promise(res => setTimeout(res, 1500));
 
-    const newBalance = (balance || 0) - (paymentData.amount * 100);
-    updateBalance(newBalance);
+    try {
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: paymentData.amount,
+                category: 'bill',
+                narration: paymentData.description,
+                party: {
+                    name: selectedBiller.name,
+                    billerId: accountId,
+                }
+            })
+        });
 
-    addNotification({
-        title: 'Bill Payment Successful',
-        description: paymentData.description,
-        category: 'transaction',
-    });
-    
-    const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
-    
-    setReceiptData({
-        biller: selectedBiller!,
-        amount: paymentData.amount,
-        accountId: accountId,
-        verifiedName: verifiedName,
-        bouquet,
-    });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Bill payment failed.');
+        }
 
-    setIsSubmitting(false);
-    setIsPinModalOpen(false);
-    setSelectedBiller(null); // Close payment dialog
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Bill Payment Successful',
+            description: paymentData.description,
+            category: 'transaction',
+        });
+
+        const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
+        setReceiptData({
+            biller: selectedBiller!,
+            amount: paymentData.amount,
+            accountId: accountId,
+            verifiedName: verifiedName,
+            bouquet,
+        });
+        setSelectedBiller(null); // Close payment dialog
+
+    } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: 'Payment Failed',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+    } finally {
+        setIsSubmitting(false);
+        setIsPinModalOpen(false);
+    }
   }
 
   const filteredBillers = allBillers.filter(biller => 

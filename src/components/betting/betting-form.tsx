@@ -196,23 +196,49 @@ export function BettingForm() {
   };
   
   const handleConfirmFunding = async () => {
-    if (!fundingData || balance === null) return;
+    if (!fundingData || balance === null || !verifiedName) return;
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const newBalance = balance - (fundingData.amount * 100);
-    updateBalance(newBalance);
+    try {
+        const platformName = bettingPlatforms.find(p => p.id === fundingData.platform)?.name || 'Betting Platform';
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: fundingData.amount,
+                category: 'betting',
+                narration: `Betting wallet funding for ${platformName}`,
+                party: {
+                    name: platformName,
+                    billerId: fundingData.accountId,
+                }
+            })
+        });
 
-    addNotification({
-      title: 'Betting Account Funded',
-      description: `You funded your ${bettingPlatforms.find(p => p.id === fundingData.platform)?.name} account with ₦${fundingData.amount.toLocaleString()}.`,
-      category: 'transaction',
-    });
-    
-    setReceiptData(fundingData);
-    setIsSubmitting(false);
-    setIsPinModalOpen(false);
-    form.reset();
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Funding failed.');
+        }
+
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Betting Account Funded',
+            description: `You funded your ${platformName} account with ₦${fundingData.amount.toLocaleString()}.`,
+            category: 'transaction',
+        });
+        setReceiptData(fundingData);
+        form.reset();
+
+    } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: 'Funding Failed',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+    } finally {
+        setIsSubmitting(false);
+        setIsPinModalOpen(false);
+    }
   };
 
   const resetForm = () => {

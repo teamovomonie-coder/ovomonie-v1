@@ -126,23 +126,46 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
     setIsProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
     
-    // Update balance
-    const newBalance = balance - (purchaseData.amount * 100);
-    updateBalance(newBalance);
+    try {
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: purchaseData.amount,
+                category: 'airtime',
+                narration: `Airtime purchase for ${purchaseData.phoneNumber}`,
+                party: {
+                    name: networks.find(n => n.id === purchaseData.network)?.name || 'Airtime',
+                    billerId: purchaseData.phoneNumber
+                }
+            })
+        });
 
-    // Create notification
-    addNotification({
-      title: 'Airtime Purchase Successful',
-      description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
-      category: 'transaction',
-    });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Airtime purchase failed.');
+        }
 
-    onPurchase({ ...purchaseData, type: 'Airtime' });
-    setIsProcessing(false);
-    setIsPinModalOpen(false);
-    form.reset();
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Airtime Purchase Successful',
+            description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
+            category: 'transaction',
+        });
+        onPurchase({ ...purchaseData, type: 'Airtime' });
+        form.reset();
+
+    } catch(error) {
+        toast({
+            variant: 'destructive',
+            title: 'Purchase Failed',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+    } finally {
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    }
   };
 
 
@@ -223,21 +246,45 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     if (!purchaseData || balance === null) return;
     
     setIsProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const newBalance = balance - (purchaseData.plan.price * 100);
-    updateBalance(newBalance);
+    try {
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: purchaseData.plan.price,
+                category: 'airtime',
+                narration: `Data purchase: ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}`,
+                party: {
+                    name: networks.find(n => n.id === purchaseData.values.network)?.name || 'Data',
+                    billerId: purchaseData.values.phoneNumber,
+                }
+            })
+        });
 
-    addNotification({
-      title: 'Data Purchase Successful',
-      description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
-      category: 'transaction',
-    });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Data purchase failed.');
+        }
 
-    onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
-    setIsProcessing(false);
-    setIsPinModalOpen(false);
-    form.reset();
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Data Purchase Successful',
+            description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
+            category: 'transaction',
+        });
+        onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
+        form.reset();
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Purchase Failed',
+            description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        });
+    } finally {
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    }
   };
 
   return (
