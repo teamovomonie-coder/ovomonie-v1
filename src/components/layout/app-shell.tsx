@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle } from 'lucide-react';
+import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +16,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Button } from '@/components/ui/button';
+import { getPersonalizedRecommendation } from '@/ai/flows/personalized-recommendations-flow';
+import { ProactiveAssistantDialog } from '../ai-assistant/proactive-assistant-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface NavItem {
     href: string;
@@ -66,6 +69,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, user } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const { toast } = useToast();
+
+    const [isProactiveAssistantOpen, setIsProactiveAssistantOpen] = useState(false);
+    const [proactiveRecommendation, setProactiveRecommendation] = useState('');
+    const [isGeneratingRecommendation, setIsGeneratingRecommendation] = useState(false);
 
     useEffect(() => {
         if (isAuthenticated === false) {
@@ -85,6 +93,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     
     const firstName = user?.fullName.split(' ')[0] || '';
     
+    const handleProactiveAssistantClick = async () => {
+        if (!user) return;
+        setIsGeneratingRecommendation(true);
+        try {
+            const result = await getPersonalizedRecommendation({ userName: user.fullName });
+            setProactiveRecommendation(result.recommendation);
+            setIsProactiveAssistantOpen(true);
+        } catch (error) {
+            console.error("Failed to get recommendation:", error);
+            toast({
+                variant: 'destructive',
+                title: 'AI Assistant Error',
+                description: 'Could not generate a recommendation at this time.',
+            });
+        } finally {
+            setIsGeneratingRecommendation(false);
+        }
+    }
+    
     return (
         <div className="flex flex-col min-h-screen bg-background">
             {showHeader && (
@@ -100,6 +127,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-4">
+                        <Button variant="ghost" size="icon" onClick={handleProactiveAssistantClick} disabled={isGeneratingRecommendation}>
+                            {isGeneratingRecommendation ? <Loader2 className="h-6 w-6 animate-spin" /> : <Mic className="h-6 w-6" />}
+                        </Button>
                         <CustomLink href="/support" className="relative">
                             <MessageCircle className="h-6 w-6" />
                         </CustomLink>
@@ -123,6 +153,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
                 </nav>
             </footer>
+            
+             <ProactiveAssistantDialog
+                open={isProactiveAssistantOpen}
+                onOpenChange={setIsProactiveAssistantOpen}
+                recommendation={proactiveRecommendation}
+                onAction={() => {
+                    // This could navigate to the main chat or another relevant screen
+                    setIsProactiveAssistantOpen(false);
+                    router.push('/ai-assistant');
+                }}
+            />
         </div>
     );
 }
