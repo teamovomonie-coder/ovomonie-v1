@@ -10,6 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { SupportedLanguage } from './tts-flow';
+import { mockGetAccountByNumber } from '@/lib/user-data';
 
 // Define the schema for a single message in the conversation history
 const MessageSchema = z.object({
@@ -27,7 +28,15 @@ export type AiAssistantFlowInput = z.infer<typeof AiAssistantFlowInputSchema>;
 const AiAssistantFlowOutputSchema = z.object({
   response: z.string().describe("The AI assistant's response to the user query."),
   detectedLanguage: z.enum(['English', 'Nigerian Pidgin', 'Yoruba', 'Igbo', 'Hausa', 'Unknown'])
-    .describe("The language detected in the user's query. This determines the language and accent for the response.")
+    .describe("The language detected in the user's query. This determines the language and accent for the response."),
+  action: z.object({
+        type: z.literal('internal_transfer'),
+        details: z.object({
+            recipientName: z.string(),
+            recipientAccountNumber: z.string(),
+            amount: z.number().describe("The amount in Naira, not Kobo."),
+        })
+    }).optional().describe("If the user's request is an action, this field will contain the action details to be executed by the app."),
 });
 export type AiAssistantFlowOutput = z.infer<typeof AiAssistantFlowOutputSchema>;
 
@@ -65,6 +74,34 @@ const getAccountSummaryTool = ai.defineTool(
     }
 );
 
+// Define a tool for the AI to initiate an internal transfer
+const initiateInternalTransferTool = ai.defineTool(
+    {
+        name: 'initiateInternalTransfer',
+        description: 'Use this tool to prepare an internal transfer between Ovomonie users. You must verify the recipient\'s account number. If verification is successful, you will receive the recipient\'s full name.',
+        inputSchema: z.object({
+            recipientAccountNumber: z.string().length(10).describe("The recipient's 10-digit Ovomonie account number."),
+            amount: z.number().positive().describe("The amount in Naira (e.g., 5000) to transfer.")
+        }),
+        outputSchema: z.object({
+            recipientName: z.string(),
+            recipientAccountNumber: z.string(),
+            amount: z.number(),
+        }),
+    },
+    async ({ recipientAccountNumber, amount }) => {
+        const recipient = await mockGetAccountByNumber(recipientAccountNumber);
+        if (!recipient) {
+            throw new Error('Recipient account not found.');
+        }
+        return {
+            recipientName: recipient.fullName,
+            recipientAccountNumber,
+            amount,
+        };
+    }
+);
+
 
 export async function getAiAssistantResponse(input: AiAssistantFlowInput): Promise<AiAssistantFlowOutput> {
   return aiAssistantFlow(input);
@@ -77,7 +114,10 @@ You are fluent in English, Nigerian Pidgin, Yoruba, Igbo, and Hausa. You must de
 After generating your response, you MUST populate the 'detectedLanguage' field with the language you detected from the user's query. If the language is not one of the supported languages, use 'Unknown'.
 
 Your primary function is to help the user with their banking needs by using the tools available to you.
-When asked about account balance, transactions, loans, investments, or savings, you MUST use the 'getAccountSummary' tool to retrieve the latest information. Do not make up or assume any values.
+- When asked about account balance, transactions, loans, investments, or savings, you MUST use the 'getAccountSummary' tool to retrieve the latest information. Do not make up or assume any values.
+- When asked to send money to another Ovomonie user, you MUST use the 'initiateInternalTransfer' tool. Collect the recipient's account number and the amount from the user. If the tool call is successful, formulate a response asking the user to confirm the transaction (e.g., "Just to confirm, you want to send N5,000 to John Doe?").
+- Crucially, if the tool call is successful, you MUST populate the 'action' field in the output schema with the type 'internal_transfer' and the details returned by the tool. If the tool call fails (e.g., account not found), inform the user of the error clearly.
+
 Address the user by their name, {{userName}}, where appropriate.
 
 Your other capabilities:
@@ -109,7 +149,7 @@ const aiAssistantFlow = ai.defineFlow(
         system: systemPrompt.replace('{{userName}}', input.userName),
         history: history,
         prompt: input.query,
-        tools: [getAccountSummaryTool],
+        tools: [getAccountSummaryTool, initiateInternalTransferTool],
         output: {
             schema: AiAssistantFlowOutputSchema,
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { getAiAssistantResponse } from '@/ai/flows/ai-assistant-flow';
+import { getAiAssistantResponse, AiAssistantFlowOutput } from '@/ai/flows/ai-assistant-flow';
 import { textToSpeech, type SupportedLanguage } from '@/ai/flows/tts-flow';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import { Mic, User, Bot, Loader2, StopCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { ActionConfirmationDialog } from './action-confirmation-dialog';
+import { PinModal } from '../auth/pin-modal';
+import { useNotifications } from '@/context/notification-context';
 
 // SpeechRecognition might not be on the window object by default in TypeScript
 declare global {
@@ -35,8 +38,15 @@ export function ChatInterface() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
-  const { user } = useAuth();
+  const { user, updateBalance, logout } = useAuth();
   const userName = user?.fullName || 'User';
+  
+  const [pendingAction, setPendingAction] = useState<AiAssistantFlowOutput['action']>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const { addNotification } = useNotifications();
+
 
   // Initial greeting
   useEffect(() => {
@@ -143,6 +153,11 @@ export function ChatInterface() {
         query: text,
         userName: userName,
       });
+
+      if (result.action) {
+          setPendingAction(result.action);
+      }
+      
       const { media } = await textToSpeech(result.response, result.detectedLanguage);
       const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: media };
       setMessages(prev => [...prev, botMessage]);
@@ -169,6 +184,70 @@ export function ChatInterface() {
       }
     }
   }, [messages]);
+  
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    setPendingAction(null); // Close the confirmation dialog
+    setIsPinModalOpen(true); // Open the PIN modal
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === 'internal_transfer') {
+      setIsProcessing(true);
+      setApiError(null);
+      try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+
+        const clientReference = `ai-transfer-${crypto.randomUUID()}`;
+        
+        const response = await fetch('/api/transfers/internal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                recipientAccountNumber: pendingAction.details.recipientAccountNumber,
+                amount: pendingAction.details.amount,
+                narration: `AI-assisted transfer`,
+                clientReference,
+            }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            const error: any = new Error(result.message || 'Transfer failed.');
+            error.response = response;
+            throw error;
+        }
+        
+        updateBalance(result.data.newSenderBalance);
+        addNotification({
+            title: 'Transfer Successful!',
+            description: `You sent ₦${pendingAction.details.amount.toLocaleString()} to ${pendingAction.details.recipientName}.`,
+            category: 'transaction',
+        });
+        toast({ title: 'Transfer Successful!' });
+        setIsPinModalOpen(false);
+
+      } catch (error: any) {
+        let description = 'An unknown error occurred.';
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            description = 'Please check your internet connection.';
+        } else if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+        setIsPinModalOpen(true); 
+      } finally {
+        setIsProcessing(false);
+        setPendingAction(null);
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -235,6 +314,21 @@ export function ChatInterface() {
         </form>
       </div>
       <audio ref={audioRef} className="hidden" />
+       <ActionConfirmationDialog
+        action={pendingAction}
+        open={!!pendingAction}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+        onConfirm={handleConfirmAction}
+      />
+       <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleFinalSubmit}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Authorize Transaction"
+      />
     </div>
   );
 }
