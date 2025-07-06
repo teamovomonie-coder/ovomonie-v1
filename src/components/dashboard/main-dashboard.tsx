@@ -1,4 +1,3 @@
-
 "use client";
 
 import CustomLink from '@/components/layout/custom-link';
@@ -6,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickAccess } from "@/components/dashboard/quick-access";
 import { ChatInterface } from '@/components/ai-assistant/chat-interface';
-import { Recommendations } from '@/components/dashboard/recommendations';
+import { PromotionalCarousel } from '@/components/dashboard/promotional-carousel';
+import { AgentLifeCard } from '@/components/dashboard/agent-life-card';
 import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
@@ -24,9 +24,9 @@ export function MainDashboard() {
           <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Dashboard</TabsTrigger>
           <TabsTrigger value="ai-assistant" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">AI Assistant</TabsTrigger>
         </TabsList>
-        <TabsContent value="dashboard" className="space-y-4">
+        <TabsContent value="dashboard">
           <Card className="bg-primary text-primary-foreground shadow-lg rounded-2xl my-4">
-            <CardContent className="p-4 flex flex-col gap-4">
+            <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm text-primary-foreground/80">
                     <span>Available Balance</span>
                     <CustomLink href="/statements" className="text-xs font-semibold flex items-center gap-1">
@@ -53,7 +53,8 @@ export function MainDashboard() {
             </CardContent>
           </Card>
           <QuickAccess />
-          <Recommendations />
+          <PromotionalCarousel />
+          <AgentLifeCard />
         </TabsContent>
         <TabsContent value="ai-assistant" className="mt-4">
            <Card className="h-[calc(100vh-14rem)] flex flex-col">
