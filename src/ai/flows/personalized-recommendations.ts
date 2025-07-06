@@ -36,31 +36,33 @@ export async function getPersonalizedRecommendations(
   return personalizedRecommendationsFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'personalizedRecommendationsPrompt',
-  input: {schema: PersonalizedRecommendationsInputSchema},
-  output: {schema: PersonalizedRecommendationsOutputSchema},
-  prompt: `You are a financial advisor providing personalized financial product recommendations to users.
-
-  Based on the user's past financial behavior and stated financial goals, recommend relevant financial products such as savings plans or investment opportunities.
-
-  User ID: {{{userId}}}
-  Recent Transactions: {{{recentTransactions}}}
-  Financial Goals: {{{financialGoals}}}
-
-  Please provide a list of financial product recommendations tailored to the user's needs and goals.
-  The output should be a list of strings. Each string is a short description of the product. Example: ['High yield savings account', 'Balanced investment portfolio', 'Retirement savings plan'].
-  `,
-});
-
 const personalizedRecommendationsFlow = ai.defineFlow(
   {
     name: 'personalizedRecommendationsFlow',
     inputSchema: PersonalizedRecommendationsInputSchema,
     outputSchema: PersonalizedRecommendationsOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const promptText = `You are a financial advisor providing personalized financial product recommendations to users.
+
+  Based on the user's past financial behavior and stated financial goals, recommend relevant financial products such as savings plans or investment opportunities.
+
+  User ID: ${input.userId}
+  Recent Transactions: ${input.recentTransactions}
+  Financial Goals: ${input.financialGoals}
+
+  Please provide a list of financial product recommendations tailored to the user's needs and goals.
+  The output should be a list of strings. Each string is a short description of the product. Example: ['High yield savings account', 'Balanced investment portfolio', 'Retirement savings plan'].
+  `;
+    
+    const { output } = await ai.generate({
+        model: 'googleai/gemini-pro',
+        prompt: promptText,
+        output: {
+            schema: PersonalizedRecommendationsOutputSchema
+        }
+    });
+    
     return output!;
   }
 );
