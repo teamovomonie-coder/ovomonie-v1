@@ -54,7 +54,7 @@ export function Recommendations() {
           <ul className="space-y-3">
             {recommendations.map((rec, index) => (
               <li key={index} className="flex items-start text-sm">
-                <Lightbulb className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-accent" />
+                <Lightbulb className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary" />
                 <span>{rec}</span>
               </li>
             ))}
