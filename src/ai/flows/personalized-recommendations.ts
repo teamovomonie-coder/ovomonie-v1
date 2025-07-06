@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
 
 const PersonalizedRecommendationsInputSchema = z.object({
   userId: z.string().describe('The ID of the user.'),
@@ -56,7 +57,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
   `;
     
     const { output } = await ai.generate({
-        model: 'googleai/gemini-pro',
+        model: googleAI.model('gemini-pro'),
         prompt: promptText,
         output: {
             schema: PersonalizedRecommendationsOutputSchema
