@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { SupportedLanguage } from './tts-flow';
 import { mockGetAccountByNumber } from '@/lib/user-data';
+import { googleAI } from '@genkit-ai/googleai';
 
 // Define the schema for a single message in the conversation history
 const MessageSchema = z.object({
@@ -152,7 +153,7 @@ const aiAssistantFlow = ai.defineFlow(
     }));
 
     const { output } = await ai.generate({
-        model: 'googleai/gemini-pro',
+        model: googleAI.model('gemini-pro'),
         system: systemPrompt.replace('{{userName}}', input.userName),
         history: history,
         prompt: input.query,
