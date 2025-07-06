@@ -318,7 +318,7 @@ export function ChatInterface() {
             </SelectTrigger>
             <SelectContent>
                 {supportedLanguages.map(lang => (
-                    <SelectItem key={lang.code} value={lang.code}>
+                    <SelectItem key={lang.name} value={lang.code}>
                         {lang.name}
                     </SelectItem>
                 ))}
