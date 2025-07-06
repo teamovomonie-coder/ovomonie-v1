@@ -14,7 +14,7 @@ import type { SupportedLanguage } from './tts-flow';
 import { mockGetAccountByNumber } from '@/lib/user-data';
 import { googleAI } from '@genkit-ai/googleai';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 
 // Define the schema for a single message in the conversation history
 const MessageSchema = z.object({
