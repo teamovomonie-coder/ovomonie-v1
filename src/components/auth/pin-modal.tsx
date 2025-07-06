@@ -17,9 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-
 
 const pinSchema = z.object({
   pin: z.string().length(4, "Your PIN must be 4 digits."),
@@ -28,17 +25,13 @@ const pinSchema = z.object({
 interface PinModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
-  isProcessing: boolean;
+  onConfirm: () => void;
   title?: string;
   description?: string;
-  error?: string | null;
-  onClearError?: () => void;
 }
 
-export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, description, error, onClearError }: PinModalProps) {
+export function PinModal({ open, onOpenChange, onConfirm, title, description }: PinModalProps) {
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
-  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof pinSchema>>({
     resolver: zodResolver(pinSchema),
@@ -46,7 +39,6 @@ export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, d
   });
 
   const onSubmit = async (data: z.infer<typeof pinSchema>) => {
-    onClearError?.();
     setIsVerifyingPin(true);
     
     try {
@@ -67,8 +59,8 @@ export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, d
             throw new Error(result.message || 'PIN verification failed.');
         }
 
-        // If PIN is correct, proceed with the original confirmation action
-        await onConfirm();
+        // If PIN is correct, call the confirmation callback which triggers the async operation
+        onConfirm();
         
     } catch (err) {
         if (err instanceof Error) {
@@ -82,23 +74,20 @@ export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, d
   };
   
   const handleOpenChange = (isOpen: boolean) => {
-    if (!isProcessing && !isVerifyingPin) {
+    if (!isVerifyingPin) {
       form.reset();
-      onClearError?.();
       onOpenChange(isOpen);
     }
   }
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     form.setValue('pin', e.target.value);
-    onClearError?.();
     if (form.formState.errors.pin) {
         form.clearErrors('pin');
     }
   };
 
   useEffect(() => {
-    // Reset form when modal is reopened
     if(open) {
       form.reset();
     }
@@ -133,14 +122,9 @@ export function PinModal({ open, onOpenChange, onConfirm, isProcessing, title, d
                 </FormItem>
               )}
             />
-            {error && (
-                <Alert variant="destructive" className="text-center">
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
-            )}
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={isVerifyingPin || isProcessing}>
-                {(isVerifyingPin || isProcessing) && <Loader2 className="animate-spin mr-2" />}
+              <Button type="submit" className="w-full" disabled={isVerifyingPin}>
+                {isVerifyingPin && <Loader2 className="animate-spin mr-2" />}
                 Authorize
               </Button>
             </DialogFooter>

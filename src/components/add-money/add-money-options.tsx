@@ -137,13 +137,12 @@ const cardSchema = z.object({
 type CardFormData = z.infer<typeof cardSchema>;
 
 function FundWithCard() {
+    const { toast } = useToast();
     const { updateBalance } = useAuth();
     const { addNotification } = useNotifications();
-    const [isProcessing, setIsProcessing] = useState(false);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [fundingData, setFundingData] = useState<CardFormData | null>(null);
     const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
-    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<CardFormData>({
         resolver: zodResolver(cardSchema),
@@ -157,9 +156,12 @@ function FundWithCard() {
 
     async function handleConfirmFunding() {
         if (!fundingData) return;
+        
+        const { id: toastId } = toast({
+            title: "Processing Deposit...",
+            description: "Authorizing your card payment.",
+        });
 
-        setIsProcessing(true);
-        setApiError(null);
         try {
             const clientReference = `card-deposit-${crypto.randomUUID()}`;
             const response = await fetch('/api/funding/card', {
@@ -183,13 +185,21 @@ function FundWithCard() {
                 category: 'transaction',
             });
 
+            toast({
+                id: toastId,
+                title: "Deposit Successful",
+                description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
+                variant: 'default',
+            });
             setReceiptData({ amount: fundingData.amount });
-            setIsPinModalOpen(false);
 
         } catch (error) {
-            setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
-        } finally {
-            setIsProcessing(false);
+             toast({
+                id: toastId,
+                title: "Deposit Failed",
+                description: error instanceof Error ? error.message : 'An unknown error occurred.',
+                variant: 'destructive',
+            });
         }
     }
     
@@ -237,8 +247,7 @@ function FundWithCard() {
                             </FormItem>
                         )} />
                      </div>
-                     <Button type="submit" className="w-full" disabled={isProcessing}>
-                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                     <Button type="submit" className="w-full">
                         Fund Wallet
                      </Button>
                 </form>
@@ -246,12 +255,12 @@ function FundWithCard() {
             <PinModal
                 open={isPinModalOpen}
                 onOpenChange={setIsPinModalOpen}
-                onConfirm={handleConfirmFunding}
-                isProcessing={isProcessing}
+                onConfirm={() => {
+                    setIsPinModalOpen(false);
+                    handleConfirmFunding();
+                }}
                 title="Authorize Card Deposit"
                 description="Please enter your 4-digit PIN to authorize this deposit."
-                error={apiError}
-                onClearError={() => setApiError(null)}
             />
         </>
     );
@@ -402,12 +411,10 @@ function FundWithAgent() {
     const [verifiedAgent, setVerifiedAgent] = useState<string | null>(null);
     const [fundingData, setFundingData] = useState<z.infer<typeof agentSchema> | null>(null);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
     const { balance, updateBalance } = useAuth();
     const { addNotification } = useNotifications();
     const { toast } = useToast();
-    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<z.infer<typeof agentSchema>>({
         resolver: zodResolver(agentSchema),
@@ -440,15 +447,18 @@ function FundWithAgent() {
             toast({ variant: 'destructive', title: 'Verification Required', description: 'Please verify the agent before proceeding.' });
             return;
         }
-        if (!balance || data.amount * 100 < 0) return;
         setFundingData(data);
         setIsPinModalOpen(true);
     };
 
     const handleConfirmFunding = async () => {
         if (!fundingData) return;
-        setIsProcessing(true);
-        setApiError(null);
+
+        const { id: toastId } = toast({
+            title: "Processing Deposit...",
+            description: "Confirming deposit with agent.",
+        });
+        
         try {
             await new Promise(res => setTimeout(res, 1500));
             updateBalance((balance || 0) + (fundingData.amount * 100));
@@ -457,12 +467,20 @@ function FundWithAgent() {
                 description: `You deposited ₦${fundingData.amount.toLocaleString()} via an agent.`,
                 category: 'transaction',
             });
+             toast({
+                id: toastId,
+                title: "Deposit Successful",
+                description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
+                variant: 'default',
+            });
             setReceiptData({ amount: fundingData.amount });
-            setIsPinModalOpen(false);
         } catch (error) {
-            setApiError(error instanceof Error ? error.message : "An unknown error occurred.");
-        } finally {
-            setIsProcessing(false);
+            toast({
+                id: toastId,
+                title: "Deposit Failed",
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+                variant: 'destructive',
+            });
         }
     };
 
@@ -519,7 +537,7 @@ function FundWithAgent() {
                             <FormMessage />
                         </FormItem>
                      )} />
-                    <Button type="submit" className="w-full" disabled={isProcessing || !verifiedAgent}>
+                    <Button type="submit" className="w-full" disabled={!verifiedAgent}>
                         Request Deposit
                     </Button>
                 </form>
@@ -527,11 +545,11 @@ function FundWithAgent() {
             <PinModal
                 open={isPinModalOpen}
                 onOpenChange={setIsPinModalOpen}
-                onConfirm={handleConfirmFunding}
-                isProcessing={isProcessing}
+                onConfirm={() => {
+                    setIsPinModalOpen(false);
+                    handleConfirmFunding();
+                }}
                 title="Authorize Agent Deposit"
-                error={apiError}
-                onClearError={() => setApiError(null)}
             />
         </>
     );

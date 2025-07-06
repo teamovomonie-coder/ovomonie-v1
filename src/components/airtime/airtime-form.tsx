@@ -102,13 +102,11 @@ type ReceiptData = {
 // --- Sub-components ---
 
 function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<z.infer<typeof airtimeSchema> | null>(null);
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
-  const [apiError, setApiError] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof airtimeSchema>>({
     resolver: zodResolver(airtimeSchema),
@@ -126,8 +124,11 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
 
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
-    setIsProcessing(true);
-    setApiError(null);
+    
+    const { id: toastId } = toast({
+      title: "Processing Purchase...",
+      description: `Buying ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
+    });
     
     try {
         const clientReference = `airtime-${crypto.randomUUID()}`;
@@ -157,14 +158,22 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
             description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
             category: 'transaction',
         });
+        toast({
+          id: toastId,
+          title: "Purchase Successful!",
+          description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
+          variant: "default",
+        });
         onPurchase({ ...purchaseData, type: 'Airtime' });
         form.reset();
-        setIsPinModalOpen(false);
 
     } catch(error) {
-        setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
-    } finally {
-        setIsProcessing(false);
+        toast({
+          id: toastId,
+          title: "Purchase Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          variant: "destructive",
+        });
     }
   };
 
@@ -203,8 +212,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
               <FormMessage />
             </FormItem>
           )}/>
-          <Button type="submit" className="w-full" disabled={isProcessing}>
-            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" className="w-full">
             Buy Airtime
           </Button>
         </form>
@@ -212,23 +220,21 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
       <PinModal
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
-        onConfirm={handleConfirmPurchase}
-        isProcessing={isProcessing}
-        error={apiError}
-        onClearError={() => setApiError(null)}
+        onConfirm={() => {
+          setIsPinModalOpen(false);
+          handleConfirmPurchase();
+        }}
       />
     </>
   );
 }
 
 function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<{values: z.infer<typeof dataSchema>, plan: typeof dataPlans.mtn[0]} | null>(null);
   const { balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof dataSchema>>({
     resolver: zodResolver(dataSchema),
@@ -253,8 +259,10 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
     
-    setIsProcessing(true);
-    setApiError(null);
+    const { id: toastId } = toast({
+      title: "Processing Purchase...",
+      description: `Buying ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
+    });
     
     try {
         const clientReference = `data-${crypto.randomUUID()}`;
@@ -264,7 +272,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
             body: JSON.stringify({
                 clientReference,
                 amount: purchaseData.plan.price,
-                category: 'airtime',
+                category: 'airtime', // API treats data as airtime category
                 narration: `Data purchase: ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}`,
                 party: {
                     name: networks.find(n => n.id === purchaseData.values.network)?.name || 'Data',
@@ -284,13 +292,21 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
             description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
             category: 'transaction',
         });
+        toast({
+          id: toastId,
+          title: "Purchase Successful!",
+          description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
+          variant: "default",
+        });
         onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
         form.reset();
-        setIsPinModalOpen(false);
     } catch (error) {
-        setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
-    } finally {
-        setIsProcessing(false);
+        toast({
+          id: toastId,
+          title: "Purchase Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          variant: "destructive",
+        });
     }
   };
 
@@ -322,8 +338,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
                 Total: ₦{selectedPlan.price.toLocaleString()}
             </div>
         )}
-        <Button type="submit" className="w-full" disabled={isProcessing || !selectedPlan}>
-          {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" className="w-full" disabled={!selectedPlan}>
           Buy Data
         </Button>
       </form>
@@ -331,10 +346,10 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     <PinModal
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
-        onConfirm={handleConfirmPurchase}
-        isProcessing={isProcessing}
-        error={apiError}
-        onClearError={() => setApiError(null)}
+        onConfirm={() => {
+            setIsPinModalOpen(false);
+            handleConfirmPurchase();
+        }}
     />
     </>
   );
