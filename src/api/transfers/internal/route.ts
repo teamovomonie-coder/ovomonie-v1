@@ -1,7 +1,9 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { mockGetAccountByNumber, performTransfer, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { mockGetAccountByNumber, performTransfer } from '@/lib/user-data';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export async function POST(request: Request) {
     try {
@@ -17,6 +19,11 @@ export async function POST(request: Request) {
         if (!token.startsWith('fake-token-')) {
              return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
         }
+
+        const userId = token.split('-')[2];
+        if (!userId) {
+            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
+        }
         // --- End Security Check ---
 
         const body = await request.json();
@@ -30,7 +37,16 @@ export async function POST(request: Request) {
              return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
         }
 
-        const senderAccountNumber = MOCK_SENDER_ACCOUNT;
+        // Fetch sender's account details using the authenticated user ID
+        const senderRef = doc(db, "users", userId);
+        const senderDoc = await getDoc(senderRef);
+
+        if (!senderDoc.exists()) {
+            throw new Error("Sender account not found.");
+        }
+        const senderAccountDetails = senderDoc.data();
+        const senderAccountNumber = senderAccountDetails.accountNumber;
+
         if (recipientAccountNumber === senderAccountNumber) {
             return NextResponse.json({ message: 'You cannot transfer money to yourself.' }, { status: 400 });
         }
@@ -56,12 +72,12 @@ export async function POST(request: Request) {
         }
 
         // 4. Return success response
-        const senderAccount = await mockGetAccountByNumber(senderAccountNumber); // Re-fetch to get latest details
+        const finalSenderAccount = await mockGetAccountByNumber(senderAccountNumber); // Re-fetch to get latest details
 
         return NextResponse.json({
             message: 'Transfer successful!',
             data: {
-                sender: senderAccount?.fullName,
+                sender: finalSenderAccount?.fullName,
                 recipient: recipientAccount.fullName,
                 amount: amount,
                 newBalanceInKobo: transferResult.newSenderBalance,
@@ -71,6 +87,9 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error('Internal Transfer Error:', error);
+        if (error instanceof Error) {
+            return NextResponse.json({ message: error.message }, { status: 400 });
+        }
         return NextResponse.json({ message: 'An unexpected error occurred.' }, { status: 500 });
     }
 }
