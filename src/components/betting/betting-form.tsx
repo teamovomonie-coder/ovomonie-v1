@@ -135,7 +135,7 @@ export function BettingForm() {
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [fundingData, setFundingData] = useState<FormData | null>(null);
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -202,11 +202,17 @@ export function BettingForm() {
     setApiError(null);
     
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication token not found. Please log in again.");
+
         const clientReference = `betting-${crypto.randomUUID()}`;
         const platformName = bettingPlatforms.find(p => p.id === fundingData.platform)?.name || 'Betting Platform';
         const response = await fetch('/api/payments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
                 clientReference,
                 amount: fundingData.amount,
@@ -221,7 +227,9 @@ export function BettingForm() {
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.message || 'Funding failed.');
+            const error: any = new Error(result.message || 'Funding failed.');
+            error.response = response;
+            throw error;
         }
 
         updateBalance(result.newBalanceInKobo);
@@ -234,8 +242,15 @@ export function BettingForm() {
         form.reset();
         setIsPinModalOpen(false);
 
-    } catch (error) {
-         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
+    } catch (error: any) {
+        let description = "An unknown error occurred.";
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
     } finally {
         setIsSubmitting(false);
     }
@@ -245,6 +260,7 @@ export function BettingForm() {
     setVerifiedName(null);
     setReceiptData(null);
     setFundingData(null);
+    form.reset();
   }
 
   if (receiptData && verifiedName) {
