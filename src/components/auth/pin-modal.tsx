@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -26,7 +27,7 @@ const pinSchema = z.object({
 interface PinModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (pin: string) => void;
+  onConfirm: () => void;
   title?: string;
   description?: string;
   isProcessing?: boolean;
@@ -35,6 +36,8 @@ interface PinModalProps {
 }
 
 export function PinModal({ open, onOpenChange, onConfirm, title, description, isProcessing = false, error, onClearError }: PinModalProps) {
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const form = useForm<z.infer<typeof pinSchema>>({
     resolver: zodResolver(pinSchema),
@@ -42,40 +45,51 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
   });
 
   const onSubmit = async (data: z.infer<typeof pinSchema>) => {
-    onConfirm(data.pin);
+    setIsVerifying(true);
+    setVerificationError(null);
+    if(onClearError) onClearError();
+
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found. Please log in again.');
+        
+        const response = await fetch('/api/auth/verify-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ pin: data.pin }),
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'An unknown error occurred.');
+        }
+
+        // If PIN is correct, call the original onConfirm function
+        onConfirm();
+
+    } catch (err) {
+        setVerificationError(err instanceof Error ? err.message : 'PIN verification failed.');
+    } finally {
+        setIsVerifying(false);
+    }
   };
   
   const handleOpenChange = (isOpen: boolean) => {
-    if (!isProcessing) {
+    if (!isProcessing && !isVerifying) {
       form.reset();
       if(onClearError) onClearError();
+      setVerificationError(null);
       onOpenChange(isOpen);
     }
   }
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    form.setValue('pin', e.target.value);
-    if (form.formState.errors.pin) {
-        form.clearErrors('pin');
-    }
-     if (error && onClearError) {
-        onClearError();
-    }
-  };
 
   useEffect(() => {
     if(open) {
       form.reset();
       if(onClearError) onClearError();
+      setVerificationError(null);
     }
   }, [open, form, onClearError])
-
-  useEffect(() => {
-    if(error) {
-        form.setError("pin", {type: 'manual', message: error});
-    }
-  }, [error, form])
-
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -88,11 +102,11 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             {error && (
+             {(error || verificationError) && (
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Authorization Failed</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{error || verificationError}</AlertDescription>
                 </Alert>
             )}
             <FormField
@@ -106,7 +120,6 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
                       maxLength={4}
                       className="text-center text-2xl tracking-[0.5em]"
                       {...field}
-                       onChange={handleInputChange}
                     />
                   </FormControl>
                   <FormMessage />
@@ -114,8 +127,8 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={isProcessing}>
-                {isProcessing && <Loader2 className="animate-spin mr-2" />}
+              <Button type="submit" className="w-full" disabled={isProcessing || isVerifying}>
+                {(isProcessing || isVerifying) && <Loader2 className="animate-spin mr-2" />}
                 Authorize
               </Button>
             </DialogFooter>

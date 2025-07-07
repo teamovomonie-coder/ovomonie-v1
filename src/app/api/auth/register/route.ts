@@ -16,9 +16,9 @@ const generateReferralCode = (length: number = 6): string => {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, phone, loginPin, fullName } = body;
+        const { email, phone, loginPin, fullName, transactionPin } = body;
 
-        if (!email || !phone || !loginPin || !fullName) {
+        if (!email || !phone || !loginPin || !fullName || !transactionPin) {
             return NextResponse.json({ message: 'Missing required fields for registration.' }, { status: 400 });
         }
 

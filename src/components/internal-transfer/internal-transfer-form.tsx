@@ -337,8 +337,8 @@ export function InternalTransferForm() {
           </CardFooter>
         </Card>
         
-        <PinModal 
-          open={isPinModalOpen} 
+        <PinModal
+          open={isPinModalOpen}
           onOpenChange={setIsPinModalOpen}
           onConfirm={handleFinalSubmit}
           isProcessing={isProcessing}

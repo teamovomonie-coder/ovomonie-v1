@@ -115,7 +115,7 @@ export const performTransfer = async (
 
             // Log Debit for Sender
             const senderLog = {
-                userId: senderData.userId,
+                userId: senderDoc.id,
                 category: 'transfer',
                 type: 'debit',
                 amount: amountInKobo,
@@ -133,7 +133,7 @@ export const performTransfer = async (
             
             // Log Credit for Recipient
             const recipientLog = {
-                userId: recipientData.userId,
+                userId: recipientDoc.id,
                 category: 'transfer',
                 type: 'credit',
                 amount: amountInKobo,
