@@ -104,9 +104,11 @@ type ReceiptData = {
 function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<z.infer<typeof airtimeSchema> | null>(null);
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof airtimeSchema>>({
     resolver: zodResolver(airtimeSchema),
@@ -125,16 +127,17 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
     
-    const { id: toastId } = toast({
-      title: "Processing Purchase...",
-      description: `Buying ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
-    });
+    setIsSubmitting(true);
+    setApiError(null);
     
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+        
         const clientReference = `airtime-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 clientReference,
                 amount: purchaseData.amount,
@@ -149,7 +152,9 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.message || 'Airtime purchase failed.');
+            const error: any = new Error(result.message || 'Airtime purchase failed.');
+            error.response = response;
+            throw error;
         }
 
         updateBalance(result.newBalanceInKobo);
@@ -159,21 +164,24 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
             category: 'transaction',
         });
         toast({
-          id: toastId,
           title: "Purchase Successful!",
           description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
-          variant: "default",
         });
         onPurchase({ ...purchaseData, type: 'Airtime' });
         form.reset();
 
-    } catch(error) {
-        toast({
-          id: toastId,
-          title: "Purchase Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred.",
-          variant: "destructive",
-        });
+    } catch(error: any) {
+        let description = "An unknown error occurred.";
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+    } finally {
+        setIsSubmitting(false);
+        setIsPinModalOpen(false);
     }
   };
 
@@ -212,7 +220,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
               <FormMessage />
             </FormItem>
           )}/>
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             Buy Airtime
           </Button>
         </form>
@@ -220,10 +228,10 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
       <PinModal
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
-        onConfirm={() => {
-          setIsPinModalOpen(false);
-          handleConfirmPurchase();
-        }}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={isSubmitting}
+        error={apiError}
+        onClearError={() => setApiError(null)}
       />
     </>
   );
@@ -232,9 +240,11 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
 function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<{values: z.infer<typeof dataSchema>, plan: typeof dataPlans.mtn[0]} | null>(null);
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof dataSchema>>({
     resolver: zodResolver(dataSchema),
@@ -259,16 +269,17 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
   const handleConfirmPurchase = async () => {
     if (!purchaseData || balance === null) return;
     
-    const { id: toastId } = toast({
-      title: "Processing Purchase...",
-      description: `Buying ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
-    });
+    setIsSubmitting(true);
+    setApiError(null);
     
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+
         const clientReference = `data-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 clientReference,
                 amount: purchaseData.plan.price,
@@ -283,7 +294,9 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.message || 'Data purchase failed.');
+            const error: any = new Error(result.message || 'Data purchase failed.');
+            error.response = response;
+            throw error;
         }
 
         updateBalance(result.newBalanceInKobo);
@@ -293,20 +306,23 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
             category: 'transaction',
         });
         toast({
-          id: toastId,
           title: "Purchase Successful!",
           description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
-          variant: "default",
         });
         onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
         form.reset();
-    } catch (error) {
-        toast({
-          id: toastId,
-          title: "Purchase Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred.",
-          variant: "destructive",
-        });
+    } catch (error: any) {
+        let description = "An unknown error occurred.";
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+    } finally {
+        setIsSubmitting(false);
+        setIsPinModalOpen(false);
     }
   };
 
@@ -338,7 +354,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
                 Total: ₦{selectedPlan.price.toLocaleString()}
             </div>
         )}
-        <Button type="submit" className="w-full" disabled={!selectedPlan}>
+        <Button type="submit" className="w-full" disabled={!selectedPlan || isSubmitting}>
           Buy Data
         </Button>
       </form>
@@ -346,10 +362,10 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     <PinModal
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
-        onConfirm={() => {
-            setIsPinModalOpen(false);
-            handleConfirmPurchase();
-        }}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={isSubmitting}
+        error={apiError}
+        onClearError={() => setApiError(null)}
     />
     </>
   );

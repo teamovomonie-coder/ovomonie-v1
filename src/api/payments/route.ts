@@ -8,11 +8,29 @@ import {
     serverTimestamp,
     query,
     where,
+    getDoc,
 } from 'firebase/firestore';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { headers } from 'next/headers';
 
 export async function POST(request: Request) {
     try {
+        const headersList = headers();
+        const authorization = headersList.get('authorization');
+
+        if (!authorization || !authorization.startsWith('Bearer ')) {
+            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
+        }
+
+        const token = authorization.split(' ')[1];
+        if (!token.startsWith('fake-token-')) {
+             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+        }
+
+        const userId = token.split('-')[2];
+        if (!userId) {
+            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
+        }
+
         const { amount, category, party, narration, clientReference } = await request.json();
 
         if (!amount || typeof amount !== 'number' || amount <= 0 || !category || !party) {
@@ -31,17 +49,17 @@ export async function POST(request: Request) {
 
             if (!existingTxnSnapshot.empty) {
                 console.log(`Idempotent request for payment: ${clientReference} already processed.`);
+                const userRef = doc(db, "users", userId);
+                const userDoc = await transaction.get(userRef);
+                if (userDoc.exists()) {
+                    newBalance = userDoc.data().balance;
+                }
                 return;
-            }
-
-            const userAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-            if (!userAccount || !userAccount.id) {
-                throw new Error("User account not found or is missing an ID.");
             }
             
             const amountInKobo = Math.round(amount * 100);
             
-            const userRef = doc(db, "users", userAccount.id!);
+            const userRef = doc(db, "users", userId);
             const userDoc = await transaction.get(userRef);
 
             if (!userDoc.exists()) {
@@ -59,7 +77,7 @@ export async function POST(request: Request) {
 
             // Log the debit transaction
             const debitLog = {
-                userId: userAccount.id,
+                userId: userId,
                 category: category,
                 type: 'debit',
                 amount: amountInKobo,
@@ -73,8 +91,12 @@ export async function POST(request: Request) {
         });
 
         // Re-fetch the balance to return the most current state, even if the transaction was idempotent.
-        const finalUserAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        newBalance = finalUserAccount!.balance;
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+        if(userDoc.exists()){
+            newBalance = userDoc.data().balance
+        }
+
 
         return NextResponse.json({
             message: 'Payment successful!',
