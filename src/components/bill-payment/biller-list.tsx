@@ -182,7 +182,7 @@ export function BillerList() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
 
 
@@ -270,14 +270,17 @@ export function BillerList() {
     setApiError(null);
 
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+
         const clientReference = `bill-${crypto.randomUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 clientReference,
                 amount: paymentData.amount,
-                category: 'bill',
+                category: selectedBiller.category.toLowerCase().replace(' ', '-'),
                 narration: paymentData.description,
                 party: {
                     name: selectedBiller.name,
@@ -288,7 +291,9 @@ export function BillerList() {
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.message || 'Bill payment failed.');
+            const error: any = new Error(result.message || 'Bill payment failed.');
+            error.response = response;
+            throw error;
         }
 
         updateBalance(result.newBalanceInKobo);
@@ -306,13 +311,19 @@ export function BillerList() {
             verifiedName: verifiedName,
             bouquet,
         });
-        setSelectedBiller(null);
+        setIsPinModalOpen(false);
 
-    } catch (error) {
-         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
+    } catch (error: any) {
+        let description = "An unknown error occurred.";
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
     } finally {
         setIsSubmitting(false);
-        setIsPinModalOpen(false);
     }
   }
 
