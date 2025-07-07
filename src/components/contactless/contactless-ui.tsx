@@ -440,11 +440,18 @@ export function ContactlessUI() {
     try {
         const token = localStorage.getItem('ovo-auth-token');
         if (!token) throw new Error('Authentication token not found.');
+        
+        const clientReference = `contactless-${crypto.randomUUID()}`;
 
         const response = await fetch('/api/transfers/internal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ recipientAccountNumber: transactionData.accountNumber, amount: transactionData.amount, narration: transactionData.memo }),
+            body: JSON.stringify({ 
+                recipientAccountNumber: transactionData.accountNumber, 
+                amount: transactionData.amount, 
+                narration: transactionData.memo,
+                clientReference,
+            }),
         });
 
         const result = await response.json();
