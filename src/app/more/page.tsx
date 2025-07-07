@@ -43,7 +43,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Utility Payments", icon: Zap, href: "/bill-payment" },
       { label: "Bill Payments", icon: FileText, href: "/bill-payment" },
       { label: "Betting Payments", icon: Target, href: "/betting" },
-      { label: "Gaming", icon: Gamepad2, href: "#" },
+      { label: "Gaming", icon: Gamepad2, href: "/gaming" },
     ],
   },
   {
