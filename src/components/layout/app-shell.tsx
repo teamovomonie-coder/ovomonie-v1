@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
@@ -116,14 +116,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col min-h-screen bg-background">
             {showHeader && (
                 <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
-                     <div className="flex items-center gap-2">
-                        <span className="font-semibold text-lg hidden sm:inline">Hi, {firstName.toUpperCase()}</span>
+                     <div className="flex items-center gap-3">
                         <CustomLink href="/profile">
                             <Avatar className="h-9 w-9 border-2 border-primary/50">
                                 <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
                                 <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
                             </Avatar>
                         </CustomLink>
+                        <span className="font-semibold text-base">Hi, {firstName}</span>
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-4">
