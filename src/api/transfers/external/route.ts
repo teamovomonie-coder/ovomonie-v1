@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         // --- End Security Check ---
 
         const body = await request.json();
-        const { recipientName, bankCode, accountNumber, amount, narration, clientReference } = body;
+        const { recipientName, bankCode, accountNumber, amount, narration, clientReference, message, photo } = body;
 
         // 1. Validate input
         if (!recipientName || !bankCode || !accountNumber || !amount || typeof amount !== 'number' || amount <= 0) {
@@ -94,6 +94,8 @@ export async function POST(request: Request) {
                 },
                 timestamp: serverTimestamp(),
                 balanceAfter: newSenderBalance,
+                memoMessage: message || null,
+                memoImageUri: photo || null,
             };
             transaction.set(doc(financialTransactionsRef), debitLog);
         });

@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Sparkles } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Sparkles, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -206,6 +206,23 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     }
   };
 
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({ variant: 'destructive', title: 'Image Too Large', description: 'Please upload an image smaller than 2MB.'});
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+        form.setValue('photo', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+
   function onSubmit(data: FormData) {
     if (!recipientName) {
       setError('accountNumber', { type: 'manual', message: 'Please wait for account verification to complete.' });
@@ -250,6 +267,8 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           accountNumber: submittedData.accountNumber,
           amount: submittedData.amount,
           narration: submittedData.narration,
+          message: submittedData.message,
+          photo: submittedData.photo,
         }),
       });
 
@@ -492,24 +511,33 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         {isMemoTransfer && (
           <div className="space-y-4 pt-4 border-t">
             <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
-            <FormField
-              control={form.control}
-              name="imageTheme"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Image Theme</FormLabel>
-                  <div className="flex gap-2">
-                    <FormControl>
-                        <Input placeholder="e.g., Birthday celebration" {...field} />
-                    </FormControl>
-                    <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
-                        {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid md:grid-cols-2 gap-4 items-end">
+                 <FormField control={form.control} name="imageTheme" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Generate Image from Theme</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                            <Input placeholder="e.g., Birthday celebration" {...field} />
+                        </FormControl>
+                        <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
+                            {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <div className="relative text-center before:hidden md:before:absolute md:before:content-['OR'] md:before:-left-4 md:before:top-1/2 md:before:-translate-y-1/2 md:before:text-muted-foreground md:before:font-bold">
+                    <FormField control={form.control} name="photo" render={() => (
+                        <FormItem><FormLabel>Upload Your Photo</FormLabel>
+                            <FormControl>
+                                <Input id="photo-upload" type="file" accept="image/*" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-light-bg file:text-primary hover:file:bg-primary/20" onChange={handlePhotoUpload} />
+                            </FormControl>
+                        </FormItem>
+                    )} />
+                </div>
+            </div>
+
              {photoPreview && (
                 <div className="relative w-full h-32 rounded-lg overflow-hidden border">
                   <Image src={photoPreview} alt="Generated Preview" layout="fill" objectFit="cover" data-ai-hint="celebration" />
