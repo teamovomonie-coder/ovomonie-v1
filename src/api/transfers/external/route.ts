@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
 import { db } from '@/lib/firebase';
 import {
     collection,
@@ -27,6 +26,11 @@ export async function POST(request: Request) {
         if (!token.startsWith('fake-token-')) {
              return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
         }
+
+        const userId = token.split('-')[2];
+        if (!userId) {
+            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
+        }
         // --- End Security Check ---
 
         const body = await request.json();
@@ -38,11 +42,6 @@ export async function POST(request: Request) {
         }
         if (!clientReference) {
             return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
-        }
-
-        const senderAccountDetails = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        if (!senderAccountDetails || !senderAccountDetails.id) {
-            throw new Error("Sender account not found.");
         }
 
         const bank = nigerianBanks.find(b => b.code === bankCode);
@@ -61,14 +60,19 @@ export async function POST(request: Request) {
 
             if (!existingTxnSnapshot.empty) {
                 console.log(`Idempotent request for external transfer: ${clientReference} already processed.`);
+                const userRef = doc(db, "users", userId);
+                const userDoc = await transaction.get(userRef);
+                if (userDoc.exists()) {
+                    newSenderBalance = userDoc.data().balance;
+                }
                 return;
             }
 
-            const senderRef = doc(db, "users", senderAccountDetails.id!);
+            const senderRef = doc(db, "users", userId);
             const senderDoc = await transaction.get(senderRef);
             
             if (!senderDoc.exists()) {
-                throw new Error("Sender document does not exist.");
+                throw new Error("Sender account not found.");
             }
             
             const senderData = senderDoc.data();
@@ -81,7 +85,7 @@ export async function POST(request: Request) {
 
             // Log the debit transaction
             const debitLog = {
-                userId: senderAccountDetails.id,
+                userId: userId,
                 category: 'transfer',
                 type: 'debit',
                 amount: transferAmountInKobo,
@@ -101,8 +105,11 @@ export async function POST(request: Request) {
         });
         
         // Re-fetch balance to ensure the latest state is returned
-        const finalSenderAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        newSenderBalance = finalSenderAccount!.balance;
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+        if(userDoc.exists()) {
+            newSenderBalance = userDoc.data().balance;
+        }
 
         // 3. Return success response
         return NextResponse.json({
