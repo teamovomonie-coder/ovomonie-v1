@@ -138,11 +138,13 @@ type CardFormData = z.infer<typeof cardSchema>;
 
 function FundWithCard() {
     const { toast } = useToast();
-    const { updateBalance } = useAuth();
+    const { updateBalance, logout } = useAuth();
     const { addNotification } = useNotifications();
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [fundingData, setFundingData] = useState<CardFormData | null>(null);
     const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<CardFormData>({
         resolver: zodResolver(cardSchema),
@@ -157,16 +159,17 @@ function FundWithCard() {
     async function handleConfirmFunding() {
         if (!fundingData) return;
         
-        const { id: toastId } = toast({
-            title: "Processing Deposit...",
-            description: "Authorizing your card payment.",
-        });
+        setIsProcessing(true);
+        setApiError(null);
 
         try {
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error('Authentication token not found.');
+
             const clientReference = `card-deposit-${crypto.randomUUID()}`;
             const response = await fetch('/api/funding/card', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ 
                     amount: fundingData.amount,
                     clientReference: clientReference,
@@ -185,21 +188,15 @@ function FundWithCard() {
                 category: 'transaction',
             });
 
-            toast({
-                id: toastId,
-                title: "Deposit Successful",
-                description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
-                variant: 'default',
-            });
             setReceiptData({ amount: fundingData.amount });
+            setIsPinModalOpen(false);
 
         } catch (error) {
-             toast({
-                id: toastId,
-                title: "Deposit Failed",
-                description: error instanceof Error ? error.message : 'An unknown error occurred.',
-                variant: 'destructive',
-            });
+            let description = 'An unknown error occurred.';
+            if (error instanceof Error) description = error.message;
+            setApiError(description);
+        } finally {
+            setIsProcessing(false);
         }
     }
     
@@ -255,10 +252,10 @@ function FundWithCard() {
             <PinModal
                 open={isPinModalOpen}
                 onOpenChange={setIsPinModalOpen}
-                onConfirm={() => {
-                    setIsPinModalOpen(false);
-                    handleConfirmFunding();
-                }}
+                onConfirm={handleConfirmFunding}
+                isProcessing={isProcessing}
+                error={apiError}
+                onClearError={() => setApiError(null)}
                 title="Authorize Card Deposit"
                 description="Please enter your 4-digit PIN to authorize this deposit."
             />
@@ -412,9 +409,11 @@ function FundWithAgent() {
     const [fundingData, setFundingData] = useState<z.infer<typeof agentSchema> | null>(null);
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
-    const { balance, updateBalance } = useAuth();
+    const { updateBalance } = useAuth();
     const { addNotification } = useNotifications();
     const { toast } = useToast();
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
 
     const form = useForm<z.infer<typeof agentSchema>>({
         resolver: zodResolver(agentSchema),
@@ -454,33 +453,41 @@ function FundWithAgent() {
     const handleConfirmFunding = async () => {
         if (!fundingData) return;
 
-        const { id: toastId } = toast({
-            title: "Processing Deposit...",
-            description: "Confirming deposit with agent.",
-        });
+        setIsProcessing(true);
+        setApiError(null);
         
         try {
-            await new Promise(res => setTimeout(res, 1500));
-            updateBalance((balance || 0) + (fundingData.amount * 100));
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error('Authentication token not found.');
+            
+            const clientReference = `agent-deposit-${crypto.randomUUID()}`;
+            const response = await fetch('/api/funding/agent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ ...fundingData, clientReference }),
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || 'Agent deposit failed.');
+            }
+
+            updateBalance(result.newBalanceInKobo);
             addNotification({
                 title: 'Agent Deposit Successful',
                 description: `You deposited ₦${fundingData.amount.toLocaleString()} via an agent.`,
                 category: 'transaction',
             });
-             toast({
-                id: toastId,
-                title: "Deposit Successful",
-                description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
-                variant: 'default',
-            });
+            
             setReceiptData({ amount: fundingData.amount });
+            setIsPinModalOpen(false);
+
         } catch (error) {
-            toast({
-                id: toastId,
-                title: "Deposit Failed",
-                description: error instanceof Error ? error.message : "An unknown error occurred.",
-                variant: 'destructive',
-            });
+            let description = 'An unknown error occurred.';
+            if (error instanceof Error) description = error.message;
+            setApiError(description);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -545,10 +552,10 @@ function FundWithAgent() {
             <PinModal
                 open={isPinModalOpen}
                 onOpenChange={setIsPinModalOpen}
-                onConfirm={() => {
-                    setIsPinModalOpen(false);
-                    handleConfirmFunding();
-                }}
+                onConfirm={handleConfirmFunding}
+                isProcessing={isProcessing}
+                error={apiError}
+                onClearError={() => setApiError(null)}
                 title="Authorize Agent Deposit"
             />
         </>

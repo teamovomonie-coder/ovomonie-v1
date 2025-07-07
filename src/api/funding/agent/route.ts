@@ -31,13 +31,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
         }
 
-        const { amount, clientReference } = await request.json();
+        const { amount, agentId, clientReference } = await request.json();
 
         if (!amount || typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json({ message: 'A valid positive amount is required.' }, { status: 400 });
         }
+        if (!agentId) {
+            return NextResponse.json({ message: 'Agent ID is required.' }, { status: 400 });
+        }
         if (!clientReference) {
-            return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
+            return NextResponse.json({ message: 'Client reference ID is required.' }, { status: 400 });
         }
         
         let newBalance = 0;
@@ -48,20 +51,16 @@ export async function POST(request: Request) {
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for card funding: ${clientReference} already processed.`);
+                console.log(`Idempotent request for agent funding: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) {
-                    newBalance = userDoc.data().balance;
+                if(userDoc.exists()) {
+                     newBalance = userDoc.data().balance;
                 }
                 return;
             }
 
-            // In a real app, you would process the payment via a payment gateway (e.g., Paystack, Stripe) here.
-            // For this simulation, we'll assume the payment was successful.
-
             const amountInKobo = Math.round(amount * 100);
-
             const userRef = doc(db, "users", userId);
             const userDoc = await transaction.get(userRef);
 
@@ -74,15 +73,14 @@ export async function POST(request: Request) {
 
             transaction.update(userRef, { balance: newBalance });
 
-            // Log the credit transaction
             const creditLog = {
                 userId: userId,
                 category: 'deposit',
                 type: 'credit',
                 amount: amountInKobo,
                 reference: clientReference,
-                narration: 'Card deposit to wallet',
-                party: { name: 'Card Deposit' },
+                narration: `Agent deposit from ${agentId}`,
+                party: { name: `Agent ${agentId}` },
                 timestamp: serverTimestamp(),
                 balanceAfter: newBalance,
             };
@@ -90,12 +88,12 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({
-            message: 'Funding successful!',
+            message: 'Agent deposit successful!',
             newBalanceInKobo: newBalance,
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Card Funding Error:", error);
+        console.error("Agent Funding Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }
