@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, MoreHorizontal, MapPin, Monitor, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, MapPin, Monitor, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,15 +36,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Terminal {
   id: string;
@@ -55,14 +50,6 @@ interface Terminal {
   lastActivity: string;
   settlementAccount: string;
 }
-
-const mockTerminals: Terminal[] = [
-  { id: 'POS-001', serialNumber: 'SN-A987B1', status: 'Active', location: 'Lekki Phase 1', assignedTo: 'John Doe', lastActivity: '2 minutes ago', settlementAccount: '0123456789 - GTB' },
-  { id: 'POS-002', serialNumber: 'SN-C345D2', status: 'Inactive', location: 'Ikeja City Mall', assignedTo: 'Jane Smith', lastActivity: '3 hours ago', settlementAccount: '0987654321 - Access' },
-  { id: 'POS-003', serialNumber: 'SN-E678F3', status: 'Active', location: 'Lekki Phase 1', assignedTo: 'Femi Adebola', lastActivity: 'now', settlementAccount: '1122334455 - UBA' },
-  { id: 'POS-004', serialNumber: 'SN-G901H4', status: 'Faulty', location: 'Victoria Island', assignedTo: 'Unassigned', lastActivity: '2 days ago', settlementAccount: 'N/A' },
-  { id: 'POS-005', serialNumber: 'SN-J234K5', status: 'Inactive', location: 'Ikeja City Mall', assignedTo: 'Chioma Okoye', lastActivity: 'yesterday', settlementAccount: '5566778899 - First Bank' },
-];
 
 const posRequestSchema = z.object({
     businessName: z.string().min(3, { message: "Business name is required." }),
@@ -85,14 +72,37 @@ function RequestPosDialog() {
 
     const onSubmit = async (data: PosRequestData) => {
         setIsLoading(true);
-        await new Promise(res => setTimeout(res, 2000));
-        setIsLoading(false);
-        setOpen(false);
-        toast({
-            title: "Request Submitted!",
-            description: "Your POS terminal request is being processed. We will contact you shortly."
-        });
-        form.reset();
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error("Authentication failed.");
+
+            const response = await fetch('/api/agent/request-pos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ ...data, clientReference: `pos-req-${Date.now()}`})
+            });
+
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.message || "Failed to submit request.");
+            }
+
+            toast({
+                title: "Request Submitted!",
+                description: "Your POS terminal request is being processed. We will contact you shortly."
+            });
+            setOpen(false);
+            form.reset();
+
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: error instanceof Error ? error.message : "An unknown error occurred."
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -126,7 +136,7 @@ function RequestPosDialog() {
                                 </Select><FormMessage />
                             </FormItem>
                         )}/>
-                         <FormField control={form.control} name="documents" render={({ field }) => ( <FormItem><FormLabel>Upload Documents (CAC, ID, etc.)</FormLabel><FormControl><Input type="file" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                         <FormField control={form.control} name="documents" render={({ field }) => ( <FormItem><FormLabel>Upload Documents (CAC, ID, etc.)</FormLabel><FormControl><Input type="file" onChange={e => field.onChange(e.target.files)} /></FormControl><FormMessage /></FormItem> )} />
                          <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={isLoading}>
@@ -144,6 +154,34 @@ function RequestPosDialog() {
 
 export function TerminalManagement() {
     const { toast } = useToast();
+    const [terminals, setTerminals] = useState<Terminal[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTerminals = async () => {
+            setIsLoading(true);
+            try {
+                const token = localStorage.getItem('ovo-auth-token');
+                if (!token) throw new Error("Authentication failed.");
+
+                const response = await fetch('/api/agent/terminals', {
+                     headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error("Failed to fetch terminals.");
+                const data = await response.json();
+                setTerminals(data);
+            } catch (error) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: error instanceof Error ? error.message : "Could not load terminal data."
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchTerminals();
+    }, [toast]);
 
     const handleAction = (action: string, terminalId: string) => {
         toast({
@@ -152,8 +190,8 @@ export function TerminalManagement() {
         });
     }
 
-    const totalTerminals = mockTerminals.length;
-    const activeTerminals = mockTerminals.filter(t => t.status === 'Active').length;
+    const totalTerminals = terminals.length;
+    const activeTerminals = terminals.filter(t => t.status === 'Active').length;
     const inactiveTerminals = totalTerminals - activeTerminals;
 
   return (
@@ -167,21 +205,21 @@ export function TerminalManagement() {
                     <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
                     <Monitor className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{totalTerminals}</div></CardContent>
+                <CardContent>{isLoading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{totalTerminals}</div>}</CardContent>
             </Card>
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
                     <CheckCircle className="h-4 w-4 text-green-500" />
                 </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{activeTerminals}</div></CardContent>
+                <CardContent>{isLoading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{activeTerminals}</div>}</CardContent>
             </Card>
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Inactive/Faulty</CardTitle>
                     <XCircle className="h-4 w-4 text-red-500" />
                 </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{inactiveTerminals}</div></CardContent>
+                <CardContent>{isLoading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{inactiveTerminals}</div>}</CardContent>
             </Card>
         </div>
 
@@ -194,67 +232,73 @@ export function TerminalManagement() {
             <RequestPosDialog />
         </CardHeader>
         <CardContent>
-            <div className="overflow-x-auto">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Terminal ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Last Activity</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {mockTerminals.map((terminal) => (
-                    <TableRow key={terminal.id}>
-                        <TableCell className="font-medium">
-                            <div>{terminal.id}</div>
-                            <div className="text-xs text-muted-foreground">{terminal.serialNumber}</div>
-                        </TableCell>
-                        <TableCell>
-                            <Badge
-                                className={cn(
-                                    "capitalize border",
-                                    terminal.status === 'Active' && 'bg-green-100 text-green-800 border-green-200',
-                                    terminal.status === 'Inactive' && 'bg-gray-100 text-gray-800 border-gray-200',
-                                    terminal.status === 'Faulty' && 'bg-yellow-100 text-yellow-800 border-yellow-200',
-                                    terminal.status === 'Pending' && 'bg-blue-100 text-blue-800 border-blue-200',
-                                )}
-                            >
-                                {terminal.status}
-                            </Badge>
-                        </TableCell>
-                         <TableCell>
-                            <div>{terminal.assignedTo}</div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                               <MapPin className="h-3 w-3" /> {terminal.location}
-                            </div>
-                        </TableCell>
-                        <TableCell>{terminal.lastActivity}</TableCell>
-                        <TableCell className="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                        <span className="sr-only">Open menu</span>
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => handleAction('View Logs', terminal.id)}>View Terminal Logs</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAction('Reassign Agent', terminal.id)}>Reassign Agent</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-yellow-600" onClick={() => handleAction('Suspend Terminal', terminal.id)}>Suspend Terminal</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive" onClick={() => handleAction('Report Fault', terminal.id)}>Report Fault</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </div>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Terminal ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Assigned To</TableHead>
+                        <TableHead>Last Activity</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {terminals.map((terminal) => (
+                        <TableRow key={terminal.id}>
+                            <TableCell className="font-medium">
+                                <div>{terminal.id}</div>
+                                <div className="text-xs text-muted-foreground">{terminal.serialNumber}</div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge
+                                    className={cn(
+                                        "capitalize border",
+                                        terminal.status === 'Active' && 'bg-green-100 text-green-800 border-green-200',
+                                        terminal.status === 'Inactive' && 'bg-gray-100 text-gray-800 border-gray-200',
+                                        terminal.status === 'Faulty' && 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                                        terminal.status === 'Pending' && 'bg-blue-100 text-blue-800 border-blue-200',
+                                    )}
+                                >
+                                    {terminal.status}
+                                </Badge>
+                            </TableCell>
+                            <TableCell>
+                                <div>{terminal.assignedTo}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" /> {terminal.location}
+                                </div>
+                            </TableCell>
+                            <TableCell>{terminal.lastActivity}</TableCell>
+                            <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleAction('View Logs', terminal.id)}>View Terminal Logs</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAction('Reassign Agent', terminal.id)}>Reassign Agent</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-yellow-600" onClick={() => handleAction('Suspend Terminal', terminal.id)}>Suspend Terminal</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive" onClick={() => handleAction('Report Fault', terminal.id)}>Report Fault</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </div>
+            )}
         </CardContent>
         </Card>
     </div>

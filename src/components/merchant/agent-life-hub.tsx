@@ -13,25 +13,21 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { HandCoins, Monitor, CheckCircle, Award, TrendingUp, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
 
-// Mock data based on the API response structure
-const mockAgentData = {
-  points: 12500,
-  cashEquivalent: 12500,
+interface AgentHubData {
+  points: number;
+  cashEquivalent: number;
   progress: {
-    amount: 150000,
-    transactions: 15,
-    targetAmount: 300000,
-    targetTransactions: 20,
-  },
-  devices: [
-    { id: 'POS-001', serialNumber: 'SN-A987B1', status: 'Active', lastSync: '2 mins ago' },
-    { id: 'POS-003', serialNumber: 'SN-E678F3', status: 'Active', lastSync: '5 mins ago' },
-  ],
-  tier: 'Gold',
-};
+    amount: number;
+    transactions: number;
+    targetAmount: number;
+    targetTransactions: number;
+  };
+  tier: string;
+}
 
-function DailyProgress({ progress }: { progress: typeof mockAgentData.progress }) {
+function DailyProgress({ progress }: { progress: AgentHubData['progress'] }) {
   const amountPercent = Math.min(100, (progress.amount / progress.targetAmount) * 100);
   const txnPercent = Math.min(100, (progress.transactions / progress.targetTransactions) * 100);
   const isQualified = amountPercent >= 100 && txnPercent >= 100;
@@ -73,6 +69,7 @@ function LoanRequestModal({ cashEquivalent }: { cashEquivalent: number }) {
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleRequestLoan = async () => {
     const loanAmount = parseFloat(amount);
@@ -86,14 +83,37 @@ function LoanRequestModal({ cashEquivalent }: { cashEquivalent: number }) {
     }
 
     setIsLoading(true);
-    await new Promise(res => setTimeout(res, 1500));
-    setIsLoading(false);
-    setOpen(false);
-    setAmount('');
-    toast({
-      title: 'Loan Request Successful',
-      description: `Your loan of ₦${loanAmount.toLocaleString()} has been approved and disbursed. It will be deducted from your points.`,
-    });
+    try {
+        const response = await fetch('/api/loans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: loanAmount,
+                duration: 1, // Agent loans are 30 days / 1 month
+                purpose: 'Agent Float',
+                loanType: 'agent-loan',
+                clientReference: `agent-loan-${user?.userId}-${Date.now()}`
+            }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Loan request failed.');
+        }
+        toast({
+          title: 'Loan Request Successful',
+          description: `Your loan of ₦${loanAmount.toLocaleString()} has been approved and disbursed.`,
+        });
+        setOpen(false);
+        setAmount('');
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Loan Request Failed',
+            description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -137,16 +157,36 @@ function LoanRequestModal({ cashEquivalent }: { cashEquivalent: number }) {
 
 
 export function AgentLifeHub() {
-    const [data, setData] = useState<typeof mockAgentData | null>(null);
+    const [data, setData] = useState<AgentHubData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
-        // Simulate API fetch
-        setTimeout(() => {
-            setData(mockAgentData);
-            setIsLoading(false);
-        }, 1000);
-    }, []);
+        const fetchHubData = async () => {
+            setIsLoading(true);
+            try {
+                const token = localStorage.getItem('ovo-auth-token');
+                if (!token) throw new Error("Authentication failed.");
+
+                const response = await fetch('/api/agent/hub-data', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error("Failed to fetch agent data.");
+
+                const result = await response.json();
+                setData(result);
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: error instanceof Error ? error.message : "Could not load agent hub data."
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchHubData();
+    }, [toast]);
 
     if (isLoading || !data) {
         return (
@@ -205,33 +245,6 @@ export function AgentLifeHub() {
 
             <DailyProgress progress={data.progress} />
             
-             <Card>
-                <CardHeader>
-                    <CardTitle>My POS Devices</CardTitle>
-                    <CardDescription>List of POS terminals assigned to you.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Device ID</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Last Sync</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {data.devices.map(device => (
-                                <TableRow key={device.id}>
-                                    <TableCell className="font-medium">{device.serialNumber}</TableCell>
-                                    <TableCell><Badge className="bg-green-100 text-green-800">{device.status}</Badge></TableCell>
-                                    <TableCell>{device.lastSync}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
             <LoanRequestModal cashEquivalent={data.cashEquivalent} />
         </div>
     );

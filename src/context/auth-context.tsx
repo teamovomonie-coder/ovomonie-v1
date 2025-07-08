@@ -8,6 +8,7 @@ interface User {
   userId: string;
   fullName: string;
   accountNumber: string;
+  isAgent?: boolean;
 }
 
 interface AuthContextType {
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const account = await mockGetAccountByNumber(accountNumber);
       if (account) {
-        setUser({ userId, fullName: account.fullName, accountNumber: account.accountNumber });
+        setUser({ userId, fullName: account.fullName, accountNumber: account.accountNumber, isAgent: account.isAgent || false });
         setBalance(account.balance);
       } else {
         setUser(null);

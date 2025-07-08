@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 // Schema for the form
 const registrationSchema = z.object({
@@ -24,8 +25,9 @@ const registrationSchema = z.object({
 });
 
 // The registration form component, defined locally for this page
-function MerchantRegistration({ onRegister }: { onRegister: () => void }) {
+function MerchantRegistration({ onRegisterSuccess }: { onRegisterSuccess: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof registrationSchema>>({
     resolver: zodResolver(registrationSchema),
     defaultValues: { businessName: '', businessAddress: '', posSerialNumber: '' },
@@ -33,10 +35,36 @@ function MerchantRegistration({ onRegister }: { onRegister: () => void }) {
 
   const onSubmit = async (data: z.infer<typeof registrationSchema>) => {
     setIsLoading(true);
-    // Simulate API call for registration
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    onRegister();
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication failed. Please log in again.");
+
+        const response = await fetch('/api/agent/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || 'Registration failed.');
+        }
+
+        toast({
+            title: "Registration Successful!",
+            description: "Welcome to AgentLife. You can now access merchant services.",
+        });
+        onRegisterSuccess();
+        
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: "Registration Failed",
+            description: error instanceof Error ? error.message : "An unexpected error occurred."
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -96,21 +124,12 @@ function MerchantRegistration({ onRegister }: { onRegister: () => void }) {
 
 // The main page component that handles the view logic
 export default function AgentLifePage() {
-  const [isRegistered, setIsRegistered] = useState(false);
-  const { toast } = useToast();
-
-  const handleRegistration = () => {
-    toast({
-        title: "Registration Successful!",
-        description: "Welcome to AgentLife. You can now access merchant services.",
-    });
-    setIsRegistered(true);
-  }
+  const { user, fetchUserData } = useAuth();
 
   return (
     <AppShell>
       <AnimatePresence mode="wait">
-        {isRegistered ? (
+        {user?.isAgent ? (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0 }}
@@ -126,7 +145,7 @@ export default function AgentLifePage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <MerchantRegistration onRegister={handleRegistration} />
+            <MerchantRegistration onRegisterSuccess={fetchUserData} />
           </motion.div>
         )}
       </AnimatePresence>
