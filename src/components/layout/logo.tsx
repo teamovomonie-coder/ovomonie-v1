@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export const OvoLogo = ({ className, width = 48, height = 48 }: { className?: string, width?: number, height?: number }) => (
   <Image 
-    src="https://storage.googleapis.com/firebasestudio-hosting-prd.appspot.com/users/current/image.png" 
+    src="https://storage.googleapis.com/firebasestudio-hosting-prd.appspot.com/users/current/logo.png" 
     alt="OVOMONIE Logo" 
     width={width}
     height={height}
