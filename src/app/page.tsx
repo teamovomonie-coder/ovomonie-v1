@@ -65,7 +65,7 @@ export default function WelcomePage() {
                     >
                         <OvoLogo />
                         <h2 className="text-3xl font-bold mt-8 mb-4">Welcome to OVOMONIE</h2>
-                        <p className="text-primary-foreground/80 mb-12">Your partner in financial wellness. Register today to start enjoying modern banking solutions.</p>
+                        <p className="text-primary-foreground/80 mb-12">Innovative Banking...</p>
                         <div className="space-y-4">
                              <Button asChild size="lg" className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90">
                                 <CustomLink href="/register">Register Now</CustomLink>
