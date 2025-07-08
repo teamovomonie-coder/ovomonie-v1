@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 
 import { PlusCircle, Users, ChevronsUpDown, Check, Trash2, Loader2, Calendar, Repeat, FileDown, ArrowLeft, Info, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { PinModal } from '../auth/pin-modal';
 
 type View = 'dashboard' | 'editor' | 'summary' | 'receipt';
 
@@ -47,34 +48,12 @@ const payrollSchema = z.object({
 type Employee = z.infer<typeof employeeSchema>;
 type PayrollBatch = z.infer<typeof payrollSchema>;
 
-const mockPayrollBatches: PayrollBatch[] = [
-    {
-        id: 'PAY-2024-JUL',
-        groupName: 'Marketing Team',
-        period: 'July 2024',
-        status: 'Paid',
-        paymentDate: new Date('2024-07-25'),
-        employees: [
-            { id: 'emp-1', fullName: 'Jane Doe', bankCode: '058', accountNumber: '0123456789', salary: 250000, isVerified: true },
-            { id: 'emp-2', fullName: 'John Smith', bankCode: '044', accountNumber: '0987654321', salary: 220000, isVerified: true },
-        ]
-    },
-    {
-        id: 'PAY-2024-JUN',
-        groupName: 'Engineering Team',
-        period: 'June 2024',
-        status: 'Paid',
-        paymentDate: new Date('2024-06-25'),
-        employees: [
-            { id: 'emp-3', fullName: 'Adamu Ciroma', bankCode: '033', accountNumber: '1122334455', salary: 350000, isVerified: true },
-        ]
-    },
-];
-
 const getTotalSalary = (employees: Employee[]) => employees.reduce((acc, emp) => acc + (emp.salary || 0), 0);
 
-function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: PayrollBatch) => void; onBack: () => void; initialData: PayrollBatch }) {
+function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: PayrollBatch) => Promise<void>; onBack: () => void; initialData: PayrollBatch }) {
     const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+
     const form = useForm<PayrollBatch>({
         resolver: zodResolver(payrollSchema),
         defaultValues: initialData,
@@ -92,21 +71,24 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
         const employee = form.getValues(`employees.${index}`);
         if (employee.accountNumber.length !== 10 || !employee.bankCode) return;
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         // Mock verification logic
         const mockAccounts: {[key: string]: {[key: string]: string}} = {
             '058': { '0123456789': 'JANE DOE' }, '044': { '0987654321': 'JOHN SMITH' }, '033': { '1122334455': 'ADAMU CIROMA' }
         };
 
-        if (mockAccounts[employee.bankCode] && mockAccounts[employee.bankCode][employee.accountNumber]) {
+        if (mockAccounts[employee.bankCode]?.[employee.accountNumber]) {
             update(index, { ...employee, isVerified: true });
-            toast({ title: "Account Verified", description: `${employee.fullName}'s account has been verified.` });
+            toast({ title: "Account Verified" });
         } else {
             form.setError(`employees.${index}.accountNumber`, { type: 'manual', message: 'Verification failed.' });
         }
     };
+
+    const handleFormSubmit = async (data: PayrollBatch) => {
+        setIsSaving(true);
+        await onSave(data);
+        setIsSaving(false);
+    }
     
     return (
         <Card>
@@ -120,15 +102,13 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
                 <CardDescription>Add your employees and their salary details. You can import from a CSV file for bulk uploads.</CardDescription>
             </CardHeader>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSave)}>
+                <form onSubmit={form.handleSubmit(handleFormSubmit)}>
                     <CardContent className="space-y-6">
                         <div className="grid md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="groupName" render={({ field }) => (<FormItem><FormLabel>Payroll Group Name</FormLabel><FormControl><Input placeholder="e.g., Marketing Team" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="period" render={({ field }) => (<FormItem><FormLabel>Payment Period</FormLabel><FormControl><Input placeholder="e.g., August 2024" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
-
                         <Separator />
-
                         <div>
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold">Employee List</h3>
@@ -141,9 +121,7 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
                             </div>
                              <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={() => append({ fullName: '', bankCode: '', accountNumber: '', salary: 0, isVerified: false })}><PlusCircle className="mr-2 h-4 w-4" /> Add Employee</Button>
                         </div>
-                        
                         <Separator />
-
                         <div className="flex justify-end">
                             <div className="w-full max-w-xs space-y-2">
                                 <div className="flex justify-between font-semibold">
@@ -155,8 +133,11 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
                         </div>
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
-                         <Button type="button" variant="outline" onClick={onBack}>Cancel</Button>
-                         <Button type="submit">Proceed to Summary</Button>
+                         <Button type="button" variant="outline" onClick={onBack} disabled={isSaving}>Cancel</Button>
+                         <Button type="submit" disabled={isSaving}>
+                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                             Proceed to Summary
+                         </Button>
                     </CardFooter>
                 </form>
             </Form>
@@ -166,10 +147,7 @@ function PayrollEditor({ onSave, onBack, initialData }: { onSave: (data: Payroll
 
 function EmployeeFormRow({ index, control, onRemove, onVerify }: { index: number, control: any, onRemove: (index: number) => void, onVerify: (index: number) => void }) {
     const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
-    const isVerified = useWatch({
-        control,
-        name: `employees.${index}.isVerified`,
-    });
+    const isVerified = useWatch({ control, name: `employees.${index}.isVerified` });
     
     return (
         <div className="p-4 border rounded-lg space-y-4 relative bg-background">
@@ -199,10 +177,31 @@ function EmployeeFormRow({ index, control, onRemove, onVerify }: { index: number
 
 export function PayrollDashboard() {
   const [view, setView] = useState<View>('dashboard');
-  const [batches, setBatches] = useState<PayrollBatch[]>(mockPayrollBatches);
+  const [batches, setBatches] = useState<PayrollBatch[]>([]);
   const [activeBatch, setActiveBatch] = useState<PayrollBatch | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const fetchBatches = async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch('/api/payroll');
+        if (!response.ok) throw new Error('Failed to fetch payroll batches');
+        const data = await response.json();
+        setBatches(data);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
 
   const handleCreateNew = () => {
     setActiveBatch({
@@ -223,28 +222,53 @@ export function PayrollDashboard() {
       }
   };
   
-  const handleSave = (data: PayrollBatch) => {
-      setActiveBatch(data);
-      setView('summary');
+  const handleSave = async (data: PayrollBatch) => {
+    const isNew = data.id?.startsWith('DRAFT');
+    const url = isNew ? '/api/payroll' : `/api/payroll/${data.id}`;
+    const method = isNew ? 'POST' : 'PUT';
+    
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        const savedBatch = await response.json();
+        if (!response.ok) throw new Error(savedBatch.message || 'Failed to save batch.');
+        
+        setActiveBatch(savedBatch);
+        setView('summary');
+        fetchBatches(); // Refresh list in the background
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: (error as Error).message });
+    }
   };
 
   const handleConfirmPayment = () => {
-      if (!activeBatch) return;
-      setIsProcessing(true);
-      setTimeout(() => {
-          const finalBatch = { ...activeBatch, status: 'Paid' as const, id: activeBatch.id?.startsWith('DRAFT') ? `PAY-${Date.now()}` : activeBatch.id, paymentDate: new Date() };
-          setBatches(prev => {
-              const existing = prev.find(b => b.id === finalBatch.id);
-              if (existing) {
-                  return prev.map(b => b.id === finalBatch.id ? finalBatch : b);
-              }
-              return [...prev, finalBatch];
-          });
-          setActiveBatch(finalBatch);
-          setIsProcessing(false);
-          setView('receipt');
-      }, 2000);
-  }
+    if (!activeBatch) return;
+    setIsPinModalOpen(true);
+  };
+
+  const executePayment = async () => {
+    if (!activeBatch || !activeBatch.id) return;
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+        const response = await fetch(`/api/payroll/${activeBatch.id}/execute`, { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Payment execution failed.');
+        
+        const finalBatch = { ...activeBatch, status: 'Paid' as const, paymentDate: new Date() };
+        setActiveBatch(finalBatch);
+        setIsProcessing(false);
+        setView('receipt');
+        fetchBatches(); // Refresh list
+    } catch (error) {
+        setApiError((error as Error).message);
+    } finally {
+        setIsProcessing(false);
+    }
+  };
 
   const reset = () => {
       setView('dashboard');
@@ -252,6 +276,10 @@ export function PayrollDashboard() {
   }
 
   const renderContent = () => {
+    if (isLoading) {
+        return <div className="flex items-center justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+
     switch (view) {
       case 'editor':
         return <PayrollEditor onSave={handleSave} onBack={reset} initialData={activeBatch!} />;
@@ -276,8 +304,8 @@ export function PayrollDashboard() {
                          <Table>
                             <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Bank</TableHead><TableHead>Account Number</TableHead><TableHead className="text-right">Salary (₦)</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {activeBatch?.employees.map(emp => (
-                                    <TableRow key={emp.id}><TableCell>{emp.fullName}</TableCell><TableCell>{nigerianBanks.find(b => b.code === emp.bankCode)?.name}</TableCell><TableCell>{emp.accountNumber}</TableCell><TableCell className="text-right font-medium">{emp.salary.toLocaleString()}</TableCell></TableRow>
+                                {activeBatch?.employees.map((emp, i) => (
+                                    <TableRow key={emp.id || i}><TableCell>{emp.fullName}</TableCell><TableCell>{nigerianBanks.find(b => b.code === emp.bankCode)?.name}</TableCell><TableCell>{emp.accountNumber}</TableCell><TableCell className="text-right font-medium">{emp.salary.toLocaleString()}</TableCell></TableRow>
                                 ))}
                             </TableBody>
                         </Table>
@@ -336,7 +364,7 @@ export function PayrollDashboard() {
                             <TableBody>
                                 {batches.map(batch => (
                                     <TableRow key={batch.id}>
-                                        <TableCell><div className="font-medium">{batch.period}</div><div className="text-sm text-muted-foreground hidden md:block">{batch.paymentDate ? format(batch.paymentDate, 'PPP') : 'N/A'}</div></TableCell>
+                                        <TableCell><div className="font-medium">{batch.period}</div><div className="text-sm text-muted-foreground hidden md:block">{batch.paymentDate ? format(new Date(batch.paymentDate), 'PPP') : 'N/A'}</div></TableCell>
                                         <TableCell>{batch.groupName}</TableCell>
                                         <TableCell><Badge variant={batch.status === 'Paid' ? 'default' : 'secondary'} className={batch.status === 'Paid' ? 'bg-green-100 text-green-800' : ''}>{batch.status}</Badge></TableCell>
                                         <TableCell>{batch.employees.length}</TableCell>
@@ -357,8 +385,19 @@ export function PayrollDashboard() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-      {renderContent()}
-    </div>
+    <>
+      <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
+        {renderContent()}
+      </div>
+      <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={executePayment}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Authorize Payroll"
+      />
+    </>
   );
 }
