@@ -4,18 +4,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Crown } from 'lucide-react';
+import { RotateCcw, Crown, X, Settings, User as UserIcon, Bot } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+
 
 // --- TYPES & CONSTANTS ---
 type PlayerColor = 'red' | 'green' | 'yellow' | 'blue';
 type TokenState = { id: number; position: number; state: 'home' | 'active' | 'finished' };
 
-const PLAYER_COLORS: { [key in PlayerColor]: string } = {
-  red: 'bg-red-500',
-  green: 'bg-green-500',
-  yellow: 'bg-yellow-400',
-  blue: 'bg-blue-500',
+const PLAYER_COLORS: { [key in PlayerColor]: { base: string, path: string } } = {
+  red:    { base: 'bg-red-500',    path: 'bg-red-300' },
+  green:  { base: 'bg-green-500',  path: 'bg-green-300' },
+  yellow: { base: 'bg-yellow-400', path: 'bg-yellow-200' },
+  blue:   { base: 'bg-blue-500',   path: 'bg-blue-300' },
 };
 
 const PATH: { [key in PlayerColor]: number[] } = {
@@ -151,24 +154,27 @@ const LudoGameLogic = () => {
 
 // --- UI COMPONENTS ---
 const Dice = ({ value, isRolling }: { value: number | null, isRolling: boolean }) => (
-    <div className="w-16 h-16 sm:w-20 sm:h-20 perspective-800">
+    <div className="w-12 h-12 perspective-800">
         <div className={`relative w-full h-full preserve-3d transition-transform duration-1000 ${isRolling ? 'animate-roll' : ''}`} style={{ transform: `rotateX(${value === 1 ? '0' : value === 2 ? '-90' : value === 3 ? '0' : value === 4 ? '180' : value === 5 ? '90' : '0'}deg) rotateY(${value === 3 ? '90' : value === 4 ? '0' : value === 5 ? '0' : value === 6 ? '-90' : '0'}deg)` }}>
             {[1, 2, 3, 4, 5, 6].map(side => (
-                <div key={side} className={`absolute w-full h-full bg-white border border-gray-300 flex items-center justify-center text-3xl font-bold ${
-                    side === 1 ? 'transform translate-z-8 sm:translate-z-10' :
-                    side === 2 ? 'transform rotate-x-90 translate-z-8 sm:translate-z-10' :
-                    side === 3 ? 'transform rotate-y-90 translate-z-8 sm:translate-z-10' :
-                    side === 4 ? 'transform rotate-x-180 translate-z-8 sm:translate-z-10' :
-                    side === 5 ? 'transform rotate-x-270 translate-z-8 sm:translate-z-10' :
-                    'transform rotate-y-270 translate-z-8 sm:translate-z-10'
-                }`}>{side}</div>
+                <div key={side} className={`absolute w-full h-full bg-white border border-gray-300 rounded-md flex items-center justify-center text-3xl font-bold p-2 ${
+                    side === 1 ? 'transform translate-z-6' :
+                    side === 2 ? 'transform rotate-x-90 translate-z-6' :
+                    side === 3 ? 'transform rotate-y-90 translate-z-6' :
+                    side === 4 ? 'transform rotate-x-180 translate-z-6' :
+                    side === 5 ? 'transform rotate-x-270 translate-z-6' :
+                    'transform rotate-y-270 translate-z-6'
+                }`}>
+                    <div className="flex flex-wrap justify-center items-center w-full h-full">
+                        {Array.from({length: side}).map((_, i) => <div key={i} className="w-2 h-2 bg-red-500 rounded-full m-0.5"></div>)}
+                    </div>
+                </div>
             ))}
         </div>
         <style jsx>{`
             .perspective-800 { perspective: 800px; }
             .preserve-3d { transform-style: preserve-3d; }
-            .translate-z-8 { transform: translateZ(2rem); }
-            @media (min-width: 640px) { .sm\\:translate-z-10 { transform: translateZ(2.5rem); } }
+            .translate-z-6 { transform: translateZ(1.5rem); }
             @keyframes roll {
                 0% { transform: rotateX(0deg) rotateY(0deg); }
                 100% { transform: rotateX(1440deg) rotateY(1440deg); }
@@ -179,125 +185,72 @@ const Dice = ({ value, isRolling }: { value: number | null, isRolling: boolean }
 );
 
 const LudoBoard = ({ players, onTokenClick, currentPlayer, diceValue }: { players: Record<PlayerColor, TokenState[]>, onTokenClick: (color: PlayerColor, id: number) => void, currentPlayer: PlayerColor, diceValue: number | null }) => {
-    // A simplified grid-based layout for the Ludo board
-    const getTilePosition = (index: number): { row: number, col: number } => {
-        const boardSize = 13;
-        if (index >= 1 && index <= 5) return { row: 6, col: index }; // Red start path
-        if (index === 6) return { row: 5, col: 0 };
-        if (index >= 7 && index <= 12) return { row: 5 - (index - 6), col: 0 };
-        if (index === 13) return { row: 0, col: 1 };
-        if (index >= 14 && index <= 18) return { row: 0, col: 1 + (index - 13) }; // Green start path
-        if (index === 19) return { row: 0, col: 6 };
-        if (index >= 20 && index <= 25) return { row: index - 19, col: 6 };
-        if (index === 26) return { row: 6, col: 7 };
-        if (index >= 27 && index <= 31) return { row: 6, col: 7 + (index - 26) }; // Yellow start path
-        if (index === 32) return { row: 7, col: 12 };
-        if (index >= 33 && index <= 38) return { row: 7 + (index - 32), col: 12 };
-        if (index === 39) return { row: 12, col: 11 };
-        if (index >= 40 && index <= 44) return { row: 12, col: 11 - (index - 39) }; // Blue start path
-        if (index === 45) return { row: 12, col: 6 };
-        if (index >= 46 && index <= 51) return { row: 12 - (index - 45), col: 6 };
-        if (index === 52) return { row: 6, col: 5 };
-        
-        // Home paths
-        if (index >= 101 && index <= 106) return { row: 6, col: 1 + (index - 101) };
-        if (index >= 201 && index <= 206) return { row: 1 + (index - 201), col: 6 };
-        if (index >= 301 && index <= 306) return { row: 6, col: 11 - (index - 301) };
-        if (index >= 401 && index <= 406) return { row: 11 - (index - 401), col: 6 };
-        
-        return { row: -1, col: -1 }; // Should not happen
-    };
-    
+    // This is a complex visual component. A simplified grid-based layout for demonstration.
+    // The visual logic here is illustrative and can be expanded with more detailed CSS/SVG for a richer look.
     return (
-        <div className="relative w-[300px] h-[300px] sm:w-[450px] sm:h-[450px] bg-white border-2 border-black grid grid-cols-13 grid-rows-13">
+        <div className="relative w-[325px] h-[325px] sm:w-[455px] sm:h-[455px] bg-gray-100 p-[10px] grid grid-cols-15 grid-rows-15">
             {/* Base areas */}
-            <div className="absolute top-0 left-0 w-6/13 h-6/13 bg-red-300"></div>
-            <div className="absolute top-0 right-0 w-6/13 h-6/13 bg-green-300"></div>
-            <div className="absolute bottom-0 left-0 w-6/13 h-6/13 bg-yellow-300"></div>
-            <div className="absolute bottom-0 right-0 w-6/13 h-6/13 bg-blue-300"></div>
-
-            {/* Path */}
-            <div className="absolute top-6/13 left-0 w-full h-1/13 bg-gray-200"></div>
-            <div className="absolute top-0 left-6/13 w-1/13 h-full bg-gray-200"></div>
-
-            {/* Home Path Colors */}
-            <div className="absolute top-6/13 left-1/13 w-5/13 h-1/13 bg-red-300"></div>
-            <div className="absolute top-1/13 left-6/13 w-1/13 h-5/13 bg-green-300"></div>
-            <div className="absolute top-6/13 right-1/13 w-5/13 h-1/13 bg-yellow-300"></div>
-            <div className="absolute bottom-1/13 left-6/13 w-1/13 h-5/13 bg-blue-300"></div>
+            {[...Array(6)].map((_, r) => [...Array(6)].map((_, c) => <div key={`r${r}c${c}`} className="col-start-[1] row-start-[1] bg-red-500" style={{gridColumn: c+1, gridRow: r+1}}></div>))}
+            {[...Array(6)].map((_, r) => [...Array(6)].map((_, c) => <div key={`g${r}c${c}`} className="col-start-[10] row-start-[1] bg-green-500" style={{gridColumn: c+10, gridRow: r+1}}></div>))}
+            {[...Array(6)].map((_, r) => [...Array(6)].map((_, c) => <div key={`y${r}c${c}`} className="col-start-[1] row-start-[10] bg-yellow-400" style={{gridColumn: c+1, gridRow: r+10}}></div>))}
+            {[...Array(6)].map((_, r) => [...Array(6)].map((_, c) => <div key={`b${r}c${c}`} className="col-start-[10] row-start-[10] bg-blue-500" style={{gridColumn: c+10, gridRow: r+10}}></div>))}
+            
+            {/* White paths */}
+            {[...Array(3)].map((_, r) => [...Array(15)].map((_, c) => <div key={`hpath${r}c${c}`} className="col-start-[1] row-start-[7] bg-white" style={{gridColumn: c+1, gridRow: r+7}}></div>))}
+            {[...Array(15)].map((_, r) => [...Array(3)].map((_, c) => <div key={`vpath${r}c${c}`} className="col-start-[7] row-start-[1] bg-white" style={{gridColumn: c+7, gridRow: r+1}}></div>))}
             
             {/* Center Home */}
-            <div className="absolute top-6/13 left-6/13 w-1/13 h-1/13 bg-white">
-                <div className="w-full h-full relative">
-                    <div className="absolute top-0 left-0 w-0 h-0 border-l-[50%] border-r-[50%] border-b-[100%] border-l-transparent border-r-transparent border-b-red-300 transform -rotate-45 scale-150"></div>
-                    <div className="absolute top-0 right-0 w-0 h-0 border-l-[50%] border-r-[50%] border-b-[100%] border-l-transparent border-r-transparent border-b-green-300 transform rotate-45 scale-150"></div>
-                    <div className="absolute bottom-0 left-0 w-0 h-0 border-l-[50%] border-r-[50%] border-t-[100%] border-l-transparent border-r-transparent border-t-yellow-300 transform -rotate-45 scale-150"></div>
-                    <div className="absolute bottom-0 right-0 w-0 h-0 border-l-[50%] border-r-[50%] border-t-[100%] border-l-transparent border-r-transparent border-t-blue-300 transform rotate-45 scale-150"></div>
+            <div className="col-start-[7] row-start-[7] col-span-3 row-span-3 bg-white flex items-center justify-center">
+                <div className="w-full h-full relative transform rotate-45">
+                    <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-green-500"></div>
+                    <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-yellow-400"></div>
+                    <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-red-500"></div>
+                    <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-blue-500"></div>
                 </div>
             </div>
-
-            {/* Render Tokens */}
-            {Object.entries(players).map(([color, tokens]) =>
-                tokens.map(token => {
-                    const isMovable = currentPlayer === color && diceValue && (token.state === 'home' ? diceValue === 6 : token.state === 'active');
-                    const pos = getTilePosition(token.position);
-                    return (
-                        <div key={`${color}-${token.id}`}
-                            onClick={() => onTokenClick(color as PlayerColor, token.id)}
-                            className={`absolute w-1/13 h-1/13 rounded-full flex items-center justify-center cursor-pointer transition-all ${PLAYER_COLORS[color as PlayerColor]}`}
-                            style={{
-                                top: token.state === 'home' ? `calc(${['red', 'green'].includes(color) ? '12%' : '75%'} + ${token.id % 2 === 0 ? 0 : '18%'})` : `calc(${pos.row} / 13 * 100%)`,
-                                left: token.state === 'home' ? `calc(${['red', 'yellow'].includes(color) ? '12%' : '75%'} + ${token.id < 2 ? 0 : '18%'})` : `calc(${pos.col} / 13 * 100%)`,
-                            }}
-                        >
-                            <div className={`w-3/5 h-3/5 rounded-full bg-white/50 ${isMovable ? 'animate-pulse' : ''}`}></div>
-                        </div>
-                    );
-                })
-            )}
             
             <style jsx>{`
-                .grid-cols-13 { grid-template-columns: repeat(13, minmax(0, 1fr)); }
-                .grid-rows-13 { grid-template-rows: repeat(13, minmax(0, 1fr)); }
-                .w-1\\/13 { width: ${100 / 13}%; } .h-1\\/13 { height: ${100 / 13}%; }
-                .w-5\\/13 { width: ${500 / 13}%; } .h-5\\/13 { height: ${500 / 13}%; }
-                .w-6\\/13 { width: ${600 / 13}%; } .h-6\\/13 { height: ${600 / 13}%; }
-                .top-1\\/13 { top: ${100 / 13}%; } .bottom-1\\/13 { bottom: ${100 / 13}%; }
-                .left-1\\/13 { left: ${100 / 13}%; } .right-1\\/13 { right: ${100 / 13}%; }
-                .top-6\\/13 { top: ${600 / 13}%; } .left-6\\/13 { left: ${600 / 13}%; }
+                .grid-cols-15 { grid-template-columns: repeat(15, minmax(0, 1fr)); }
+                .grid-rows-15 { grid-template-rows: repeat(15, minmax(0, 1fr)); }
             `}</style>
+             <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-4xl font-black text-white mix-blend-overlay">LUDO</p>
         </div>
     );
 };
 
+const PlayerInfo = ({ name, avatar, isCurrent }: { name: string, avatar: React.ReactNode, isCurrent: boolean }) => (
+    <div className={cn("flex flex-col items-center gap-2 transition-all", isCurrent ? 'scale-110' : 'opacity-60')}>
+        {avatar}
+        <p className={cn("font-bold text-white", isCurrent && "text-yellow-300")}>{name}</p>
+    </div>
+);
 
 export function LudoGame() {
     const { players, currentPlayer, diceValue, isRolling, winner, message, rollDice, moveToken, initializeGame } = LudoGameLogic();
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Ludo Classic</CardTitle>
-                <CardDescription>The classic board game you love. Get all your tokens home to win!</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-8">
-                <div className="order-2 md:order-1 flex flex-col items-center gap-4">
-                    <p className="font-bold text-lg h-12 text-center">{message}</p>
-                    <Dice value={diceValue} isRolling={isRolling} />
-                    <Button onClick={rollDice} disabled={isRolling || diceValue !== null || !!winner}>
-                        Roll Dice
-                    </Button>
+        <Card className="bg-gradient-to-br from-purple-800 to-indigo-900 border-purple-700 text-white">
+            <CardHeader className="flex flex-row justify-between items-center">
+                <div className="flex gap-2">
+                    <Button variant="secondary" size="icon"><X/></Button>
+                    <Button variant="secondary" size="icon"><Settings/></Button>
                 </div>
-                <div className="order-1 md:order-2">
-                    <LudoBoard players={players} onTokenClick={(color, id) => moveToken(id)} currentPlayer={currentPlayer} diceValue={diceValue}/>
+                <CardTitle>Ludo Classic</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center gap-4 sm:gap-8">
+                <LudoBoard players={players} onTokenClick={(color, id) => moveToken(id)} currentPlayer={currentPlayer} diceValue={diceValue}/>
+                <div className="text-center">
+                    <h3 className="text-2xl font-bold text-yellow-300">{message}</h3>
+                </div>
+                <div className="flex w-full justify-between items-center px-4">
+                     <PlayerInfo name="You" avatar={<Avatar><AvatarImage src="https://placehold.co/40x40.png" data-ai-hint="person avatar"/><AvatarFallback>U</AvatarFallback></Avatar>} isCurrent={currentPlayer === 'red'} />
+                     <div className="flex flex-col items-center gap-2">
+                        <Dice value={diceValue} isRolling={isRolling} />
+                        <Button onClick={rollDice} disabled={isRolling || diceValue !== null || !!winner} variant="secondary">Roll Dice</Button>
+                     </div>
+                     <PlayerInfo name="Computer" avatar={<Avatar><AvatarFallback><Bot/></AvatarFallback></Avatar>} isCurrent={currentPlayer !== 'red'} />
                 </div>
             </CardContent>
-            <CardFooter>
-                 <Button onClick={initializeGame} className="w-full">
-                    <RotateCcw className="mr-2"/>
-                    New Game
-                </Button>
-            </CardFooter>
             <AnimatePresence>
                 {winner && (
                     <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-10">
