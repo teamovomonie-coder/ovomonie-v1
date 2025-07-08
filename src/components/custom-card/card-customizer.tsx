@@ -12,10 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet } from 'lucide-react';
+import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { generateCardDesign } from '@/ai/flows/generate-card-design-flow';
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 // --- Card Customization Data ---
 const templates = {
@@ -25,12 +29,6 @@ const templates = {
     { name: 'Sunset Orange', value: 'bg-gradient-to-br from-yellow-400 to-orange-600' },
     { name: 'Royal Purple', value: 'bg-gradient-to-br from-purple-500 to-indigo-600' },
   ],
-  patterns: [
-    { name: 'Abstract Lines', value: 'https://placehold.co/600x400.png', hint: 'abstract lines' },
-    { name: 'Floral', value: 'https://placehold.co/600x400.png', hint: 'floral pattern' },
-    { name: 'Geometric', value: 'https://placehold.co/600x400.png', hint: 'geometric pattern' },
-    { name: 'Carbon Fiber', value: 'https://placehold.co/600x400.png', hint: 'carbon fiber' },
-  ]
 };
 
 interface CardDesign {
@@ -95,6 +93,7 @@ const cardDetailsSchema = z.object({
     type: z.enum(['color', 'pattern', 'upload']),
     value: z.string().min(1, "A design must be selected."),
   }),
+  imageTheme: z.string().optional(),
 });
 
 const shippingSchema = z.object({
@@ -113,13 +112,21 @@ type View = 'customize' | 'review' | 'success';
 export function CardCustomizer() {
   const [view, setView] = useState<View>('customize');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { toast } = useToast();
+  const { balance, updateBalance, logout } = useAuth();
+  const { addNotification } = useNotifications();
+
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const cardDetailsForm = useForm<CardDetailsForm>({
     resolver: zodResolver(cardDetailsSchema),
     defaultValues: {
       nameOnCard: "",
       design: { type: 'color', value: templates.colors[0].value },
+      imageTheme: '',
     },
   });
   
@@ -130,6 +137,24 @@ export function CardCustomizer() {
 
   const cardDesign = cardDetailsForm.watch('design');
   const nameOnCard = cardDetailsForm.watch('nameOnCard');
+
+  const handleGenerateImage = async () => {
+    const theme = cardDetailsForm.getValues('imageTheme');
+    if (!theme) {
+        toast({ variant: 'destructive', title: 'Theme required', description: 'Please enter a theme for the image.'});
+        return;
+    }
+    setIsGeneratingImage(true);
+    try {
+        const result = await generateCardDesign({ prompt: theme });
+        cardDetailsForm.setValue('design', { type: 'pattern', value: result.imageDataUri });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Image Generation Failed', description: 'Could not generate image. Please try again.' });
+    } finally {
+        setIsGeneratingImage(false);
+    }
+  };
+
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -150,18 +175,74 @@ export function CardCustomizer() {
   };
 
   const handleCustomizationSubmit = () => {
-    setView('review');
+    const cardDataValid = cardDetailsForm.trigger();
+    if (cardDataValid) {
+        setView('review');
+    }
   };
 
   const handleOrderSubmit = async () => {
-    setIsLoading(true);
-    await new Promise(res => setTimeout(res, 2000));
-    setIsLoading(false);
-    setView('success');
-    toast({
-        title: "Card Ordered!",
-        description: "Your custom card design has been submitted.",
-    });
+    const isValid = await shippingForm.trigger();
+    if (!isValid) return;
+
+    if (balance === null || balance < 1500_00) {
+        toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦1,500 to order a custom card.' });
+        return;
+    }
+    setIsPinModalOpen(true);
+  };
+  
+  const handleConfirmOrder = async () => {
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+        
+        const cardData = cardDetailsForm.getValues();
+        const shippingData = shippingForm.getValues();
+
+        const response = await fetch('/api/cards/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                nameOnCard: cardData.nameOnCard,
+                designType: cardData.design.type,
+                designValue: cardData.design.value,
+                shippingInfo: shippingData,
+                clientReference: `card-order-${crypto.randomUUID()}`,
+            }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+             const error: any = new Error(result.message || 'Card order failed.');
+             error.response = response;
+             throw error;
+        }
+
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Custom Card Ordered!',
+            description: 'Your new card is being processed and will be shipped soon.',
+            category: 'transaction',
+        });
+        toast({ title: "Card Ordered!", description: "Your custom card design has been submitted." });
+        setView('success');
+
+    } catch (error: any) {
+        let description = 'An unknown error occurred.';
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+    } finally {
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    }
   };
 
   const resetFlow = () => {
@@ -195,7 +276,7 @@ export function CardCustomizer() {
               <div className="space-y-4">
                  <h3 className="text-lg font-semibold">Shipping Information</h3>
                  <Form {...shippingForm}>
-                    <form id="shipping-form" onSubmit={shippingForm.handleSubmit(handleOrderSubmit)} className="space-y-3">
+                    <form id="shipping-form" onSubmit={(e) => { e.preventDefault(); handleOrderSubmit(); }} className="space-y-3">
                          <FormField control={shippingForm.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                          <FormField control={shippingForm.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Delivery Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                          <div className="grid grid-cols-2 gap-4">
@@ -278,24 +359,22 @@ export function CardCustomizer() {
                             ))}
                           </div>
                         </div>
-
+                        
                         <div className="space-y-3">
-                          <Label>2. Or Choose a Pattern</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {templates.patterns.map(pattern => (
-                               <button
-                                key={pattern.name}
-                                type="button"
-                                onClick={() => cardDetailsForm.setValue('design', { type: 'pattern', value: pattern.value })}
-                                className={cn(
-                                    "w-full aspect-video rounded-md border-2 overflow-hidden relative",
-                                    cardDesign.type === 'pattern' && cardDesign.value === pattern.value ? 'border-primary' : 'border-transparent'
-                                )}
-                              >
-                                <Image src={pattern.value} alt={pattern.name} layout="fill" objectFit="cover" data-ai-hint={pattern.hint} />
-                              </button>
-                            ))}
-                          </div>
+                            <Label>2. Or Generate an AI Pattern</Label>
+                             <FormField control={cardDetailsForm.control} name="imageTheme" render={({ field }) => (
+                                <FormItem>
+                                <div className="flex gap-2">
+                                    <FormControl>
+                                        <Input placeholder="e.g., galaxy stars, blue waves" {...field} />
+                                    </FormControl>
+                                    <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
+                                        {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                    </Button>
+                                </div>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
                         </div>
                         
                          <FormField control={cardDetailsForm.control} name="design" render={() => (
@@ -332,10 +411,22 @@ export function CardCustomizer() {
   };
 
   return (
+    <>
     <Card className="max-w-4xl mx-auto">
       <AnimatePresence mode="wait">
         {renderContent()}
       </AnimatePresence>
     </Card>
+     <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmOrder}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Confirm Card Order"
+        description="A fee of ₦1,500 will be deducted from your wallet for the custom card."
+      />
+    </>
   );
 }
