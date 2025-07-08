@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Download, Share2, CreditCard, Mail, MessageCircle, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Download, Share2, CreditCard, Mail, MessageCircle, Link as LinkIcon, Loader2 } from 'lucide-react';
 import type { Invoice } from './invoicing-dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -17,14 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useState } from 'react';
 
 interface InvoiceViewProps {
   invoice: Invoice;
   onBack: () => void;
+  onInvoiceUpdated: () => void;
 }
 
-export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
+export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewProps) {
   const { toast } = useToast();
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const subtotal = invoice.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   const tax = subtotal * 0.075;
@@ -57,14 +60,8 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
   }
 
   const handlePay = async () => {
-    toast({
-        title: "Processing Payment...",
-        description: "Please wait while we confirm the transaction.",
-    });
-
+    setIsProcessingPayment(true);
     try {
-        // Fetch all products to map descriptions to product IDs
-        // In a real-world app, line items would already have product IDs.
         const productsRes = await fetch('/api/inventory/products');
         if (!productsRes.ok) throw new Error('Could not fetch products for inventory update.');
         const allProducts: { id: string; name: string }[] = await productsRes.json();
@@ -75,7 +72,7 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                 productId: product?.id,
                 quantity: item.quantity
             };
-        }).filter((item): item is { productId: string; quantity: number } => !!item.productId); // Filter out items not found and type guard
+        }).filter((item): item is { productId: string; quantity: number } => !!item.productId);
 
         if (saleLineItems.length > 0) {
              const saleRes = await fetch('/api/inventory/stock/sale', {
@@ -86,28 +83,38 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                     referenceId: invoice.invoiceNumber
                 })
             });
-
-            if (!saleRes.ok) {
-                throw new Error('Failed to update inventory stock.');
-            }
+            if (!saleRes.ok) throw new Error('Failed to update inventory stock.');
         }
+
+        // Now, update the invoice status to Paid
+        const updateRes = await fetch(`/api/invoicing/${invoice.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...invoice, status: 'Paid' }),
+        });
+        if (!updateRes.ok) throw new Error('Failed to update invoice status.');
         
         toast({
             title: "Payment Successful & Inventory Updated!",
-            description: `Stock for ${saleLineItems.length} item(s) has been updated.`,
+            description: `Stock for ${saleLineItems.length} item(s) has been updated and invoice marked as paid.`,
         });
 
+        onInvoiceUpdated();
+        onBack();
+
     } catch (error) {
-        console.error("Failed to update inventory:", error);
-        let description = "There was an error updating stock levels.";
+        console.error("Failed to process payment:", error);
+        let description = "There was an error processing this payment.";
         if (error instanceof Error) {
             description = error.message;
         }
         toast({
             variant: 'destructive',
-            title: "Inventory Update Failed",
+            title: "Payment Failed",
             description: description,
         });
+    } finally {
+        setIsProcessingPayment(false);
     }
   }
   
@@ -239,8 +246,9 @@ export function InvoiceView({ invoice, onBack }: InvoiceViewProps) {
                     <p>Powered by Ovomonie</p>
                 </div>
                 {invoice.status !== 'Paid' && (
-                    <Button size="lg" className="w-full sm:w-auto" onClick={handlePay}>
-                        <CreditCard className="mr-2" /> Pay Now
+                    <Button size="lg" className="w-full sm:w-auto" onClick={handlePay} disabled={isProcessingPayment}>
+                        {isProcessingPayment && <Loader2 className="mr-2 animate-spin" />}
+                        <CreditCard className="mr-2" /> Mark as Paid & Update Stock
                     </Button>
                 )}
             </CardFooter>

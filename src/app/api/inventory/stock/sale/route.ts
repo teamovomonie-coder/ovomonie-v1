@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, collection, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
                 await runTransaction(db, async (transaction) => {
                     const productDoc = await transaction.get(productRef);
                     if (!productDoc.exists()) {
-                         // We are logging a warning but not stopping other items from being processed.
-                        console.warn(`Product with ID ${item.productId} not found for sale ${referenceId}. Skipping.`);
+                         console.warn(`Product with ID ${item.productId} not found for sale ${referenceId}. Skipping.`);
                         return;
                     }
 
@@ -36,15 +36,15 @@ export async function POST(request: Request) {
                         
                         transaction.update(productRef, { stockByLocation: newStockByLocation });
 
-                        // Log this specific transaction after successful update
                         await addDoc(collection(db, "inventoryTransactions"), {
                             productId: productDoc.id,
                             locationId: firstLocationWithStock.locationId,
                             type: 'sale',
-                            quantity: -item.quantity, // Negative because it's a deduction
+                            quantity: -item.quantity, 
                             previousStock,
                             newStock,
-                            referenceId: `Invoice ${referenceId}`,
+                            notes: `Sale from Invoice ${referenceId}`,
+                            referenceId,
                             date: serverTimestamp(),
                         });
                     } else {
@@ -53,7 +53,6 @@ export async function POST(request: Request) {
                 });
             } catch (error) {
                  console.error(`Transaction failed for product ${item.productId}:`, error);
-                 // Decide if one failure should stop the whole process. For now, we continue.
             }
         }
 
