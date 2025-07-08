@@ -5,7 +5,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Trophy, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/context/notification-context';
+import { PinModal } from '@/components/auth/pin-modal';
 
 const TILE_COLORS: { [key: number]: string } = {
   2: 'bg-gray-200 text-gray-800', 4: 'bg-orange-200 text-gray-800',
@@ -83,24 +88,108 @@ const isGameOver = (grid: (number | null)[][]) => {
     return true;
 }
 
+const CHALLENGE = {
+    gameId: '2048-challenge-1',
+    target: 512, // The tile to reach
+    entryFee: 100, // in Naira
+    prize: 500, // in Naira
+};
+
 export function Game2048() {
   const [grid, setGrid] = useState<(number | null)[][]>([]);
   const [gameOver, setGameOver] = useState(false);
+  const [challengeActive, setChallengeActive] = useState(false);
+  const [challengeWon, setChallengeWon] = useState(false);
 
-  const initializeGrid = useCallback(() => {
+  const { toast } = useToast();
+  const { updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const initializeGrid = useCallback((startChallenge = false) => {
     let newGrid = Array.from({ length: 4 }, () => Array(4).fill(null));
     newGrid = addRandomTile(newGrid);
     newGrid = addRandomTile(newGrid);
     setGrid(newGrid);
     setGameOver(false);
+    setChallengeActive(startChallenge);
+    setChallengeWon(false);
   }, []);
 
   useEffect(() => {
     initializeGrid();
   }, [initializeGrid]);
 
+  const handleStartChallenge = async () => {
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await fetch('/api/gaming/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+            gameId: CHALLENGE.gameId,
+            entryFee: CHALLENGE.entryFee,
+            clientReference: `challenge-entry-${crypto.randomUUID()}`
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to start challenge.');
+
+      updateBalance(result.newBalanceInKobo);
+      addNotification({
+          category: 'transaction',
+          title: 'Challenge Started!',
+          description: `An entry fee of ₦${CHALLENGE.entryFee} has been deducted.`
+      });
+      toast({ title: 'Challenge Accepted!', description: 'Good luck!'});
+      initializeGrid(true);
+      setIsPinModalOpen(false);
+
+    } catch(err) {
+        setApiError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+        setIsProcessing(false);
+    }
+  }
+  
+  const handleClaimPrize = useCallback(async () => {
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+        
+        const response = await fetch('/api/gaming/challenge', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                gameId: CHALLENGE.gameId,
+                prize: CHALLENGE.prize,
+                clientReference: `challenge-win-${crypto.randomUUID()}`
+            }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Failed to claim prize.');
+        
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            category: 'transaction',
+            title: 'Prize Claimed!',
+            description: `You won ₦${CHALLENGE.prize} from the 2048 challenge!`
+        });
+        toast({ title: `You Won ₦${CHALLENGE.prize}!`, description: 'Your wallet has been credited.' });
+
+    } catch (err) {
+        toast({ variant: 'destructive', title: 'Prize Claim Failed', description: err instanceof Error ? err.message : 'Please contact support.' });
+    }
+  }, [updateBalance, addNotification, toast]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (gameOver) return;
+    if (gameOver || challengeWon) return;
     
     let newGrid = JSON.parse(JSON.stringify(grid));
     let moved = false;
@@ -131,10 +220,20 @@ export function Game2048() {
       newGrid = addRandomTile(newGrid);
       if (isGameOver(newGrid)) {
         setGameOver(true);
+        if (challengeActive) {
+            toast({ variant: 'destructive', title: 'Challenge Failed', description: 'Better luck next time!' });
+        }
       }
       setGrid(newGrid);
+
+      // Check for win condition
+      const isWinner = newGrid.flat().includes(CHALLENGE.target);
+      if (challengeActive && isWinner && !challengeWon) {
+          setChallengeWon(true);
+          handleClaimPrize();
+      }
     }
-  }, [grid, gameOver]);
+  }, [grid, gameOver, challengeActive, challengeWon, handleClaimPrize, toast]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -146,13 +245,23 @@ export function Game2048() {
   if (grid.length === 0) return null;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>2048</CardTitle>
         <CardDescription>Use arrow keys to merge tiles and reach 2048!</CardDescription>
+        {challengeActive && (
+             <div className="p-2 text-center rounded-md bg-primary/10 text-primary font-semibold">
+                Challenge Mode: Reach the {CHALLENGE.target} tile to win ₦{CHALLENGE.prize}!
+            </div>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col items-center">
-        {gameOver && <div className="text-xl font-bold text-destructive mb-4">Game Over!</div>}
+        {(gameOver || challengeWon) && (
+            <div className={`text-xl font-bold mb-4 ${challengeWon ? 'text-green-500' : 'text-destructive'}`}>
+                {challengeWon ? `You reached ${CHALLENGE.target}!` : 'Game Over!'}
+            </div>
+        )}
         <div className="bg-gray-400 p-2 sm:p-4 rounded-lg">
           {grid.map((row, i) => (
             <div key={i} className="flex gap-2 sm:gap-4 mb-2 sm:mb-4 last:mb-0">
@@ -165,12 +274,48 @@ export function Game2048() {
           ))}
         </div>
       </CardContent>
-       <CardFooter>
-        <Button onClick={initializeGrid} className="w-full">
+       <CardFooter className="flex-col sm:flex-row gap-2">
+        <Button onClick={() => initializeGrid()} className="w-full sm:w-auto">
             <RotateCcw className="mr-2"/>
             New Game
         </Button>
+        <Dialog>
+            <DialogTrigger asChild>
+                 <Button variant="secondary" className="w-full sm:w-auto flex-1">
+                    <Trophy className="mr-2"/>
+                    Daily Challenge
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>2048 Daily Challenge</DialogTitle>
+                    <DialogDescription>
+                        Think you have what it takes? Enter the challenge to win a prize.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 text-center space-y-4">
+                    <Trophy className="w-16 h-16 text-yellow-400 mx-auto" />
+                    <p>Reach the <span className="font-bold text-primary">{CHALLENGE.target} tile</span></p>
+                    <p>Entry Fee: <span className="font-bold">₦{CHALLENGE.entryFee.toLocaleString()}</span></p>
+                    <p>Prize: <span className="font-bold">₦{CHALLENGE.prize.toLocaleString()}</span></p>
+                </div>
+                <DialogFooter>
+                    <Button onClick={() => setIsPinModalOpen(true)}>Accept Challenge</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
+    <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleStartChallenge}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Confirm Challenge Entry"
+        description={`An entry fee of ₦${CHALLENGE.entryFee} will be deducted from your wallet.`}
+    />
+    </>
   );
 }

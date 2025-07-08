@@ -7,18 +7,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trophy } from 'lucide-react';
 import { TicTacToeGame } from '@/components/gaming/tic-tac-toe-game';
 import { Game2048 } from '@/components/gaming/2048-game';
 import { LudoGame } from '@/components/gaming/ludo-game';
 import { WhotGame } from '@/components/gaming/whot-game';
+import { Badge } from '../ui/badge';
 
 type GameId = 'tic-tac-toe' | '2048' | 'ludo' | 'whot' | null;
 
 const games = [
     { id: 'ludo', title: 'Ludo Classic', component: LudoGame, category: 'Board & Card', image: 'https://placehold.co/600x400.png', hint: 'ludo board' },
     { id: 'whot', title: 'Whot!', component: WhotGame, category: 'Board & Card', image: 'https://placehold.co/600x400.png', hint: 'whot cards' },
-    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'number puzzle' },
+    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'number puzzle', hasChallenge: true },
     { id: 'tic-tac-toe', title: 'Tic-Tac-Toe', component: TicTacToeGame, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'tic tac toe' },
 ];
 
@@ -38,6 +39,12 @@ function GameSelectionScreen({ onSelectGame }: { onSelectGame: (id: GameId) => v
                                     <CardContent className="p-0">
                                         <div className="relative h-24 w-full">
                                             <Image src={game.image} alt={game.title} layout="fill" objectFit="cover" className="rounded-t-lg group-hover:scale-105 transition-transform" data-ai-hint={game.hint} />
+                                             {game.hasChallenge && (
+                                                <Badge className="absolute top-2 left-2 bg-yellow-400 text-black hover:bg-yellow-500">
+                                                    <Trophy className="w-3 h-3 mr-1" />
+                                                    Challenge
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="p-3">
                                             <h4 className="font-semibold text-sm">{game.title}</h4>
