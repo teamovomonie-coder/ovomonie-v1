@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 // --- CARD & DECK DEFINITIONS ---
 
 type Suit = 'Circle' | 'Triangle' | 'Cross' | 'Square' | 'Star' | 'Whot';
-type Card = { suit: Suit; number: number };
+type CardData = { suit: Suit; number: number };
 
 const SUITS: Suit[] = ['Circle', 'Triangle', 'Cross', 'Square', 'Star'];
 const NUMBERS: { [key in Suit]?: number[] } = {
@@ -22,20 +22,21 @@ const NUMBERS: { [key in Suit]?: number[] } = {
   Whot: [20, 20, 20, 20, 20],
 };
 
-const createDeck = (): Card[] => {
-  const deck: Card[] = [];
+const createDeck = (): CardData[] => {
+  const deck: CardData[] = [];
   SUITS.forEach(suit => {
     NUMBERS[suit]?.forEach(number => {
       deck.push({ suit, number });
     });
   });
+  // Add Whot cards
   NUMBERS['Whot']?.forEach(number => {
-    deck.push({ suit, number });
+      deck.push({ suit: 'Whot', number });
   });
   return deck;
 };
 
-const shuffleDeck = (deck: Card[]): Card[] => {
+const shuffleDeck = (deck: CardData[]): CardData[] => {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -57,11 +58,11 @@ const SuitIcon = ({ suit, className }: { suit: Suit, className?: string }) => {
 }
 
 // --- GAME COMPONENTS ---
-const WhotCard = ({ card, isPlayable, onClick }: { card: Card, isPlayable?: boolean, onClick?: () => void }) => {
+const WhotCard = ({ card, isPlayable, onClick, className }: { card: CardData, isPlayable?: boolean, onClick?: () => void, className?: string }) => {
     const baseStyle = "w-16 h-24 sm:w-20 sm:h-28 bg-white border-2 rounded-lg flex flex-col items-center justify-center p-1 relative shadow-md transition-all";
     const playableStyle = "cursor-pointer hover:border-primary hover:-translate-y-2 hover:shadow-xl";
     return (
-        <div className={`${baseStyle} ${isPlayable && onClick ? playableStyle : ''}`} onClick={onClick}>
+        <div className={`${baseStyle} ${isPlayable && onClick ? playableStyle : ''} ${className}`} onClick={onClick}>
             <span className="absolute top-1 left-2 font-bold text-lg">{card.number === 20 ? '' : card.number}</span>
             <SuitIcon suit={card.suit} className="w-10 h-10" />
             <span className="absolute bottom-1 right-2 font-bold text-lg">{card.number === 20 ? '' : card.number}</span>
@@ -86,10 +87,10 @@ const GameMessage = ({ message, winner }: { message: string, winner: string | nu
 
 // --- MAIN GAME COMPONENT ---
 export function WhotGame() {
-    const [playerHand, setPlayerHand] = useState<Card[]>([]);
-    const [opponentHand, setOpponentHand] = useState<Card[]>([]);
-    const [drawPile, setDrawPile] = useState<Card[]>([]);
-    const [discardPile, setDiscardPile] = useState<Card[]>([]);
+    const [playerHand, setPlayerHand] = useState<CardData[]>([]);
+    const [opponentHand, setOpponentHand] = useState<CardData[]>([]);
+    const [drawPile, setDrawPile] = useState<CardData[]>([]);
+    const [discardPile, setDiscardPile] = useState<CardData[]>([]);
     const [isPlayerTurn, setIsPlayerTurn] = useState(true);
     const [message, setMessage] = useState('');
     const [winner, setWinner] = useState<string | null>(null);
@@ -98,15 +99,16 @@ export function WhotGame() {
         const deck = shuffleDeck(createDeck());
         setPlayerHand(deck.slice(0, 5));
         setOpponentHand(deck.slice(5, 10));
-        let firstCard = deck[10];
+        let firstCardIndex = 10;
         // Ensure first card is not a special card
-        while ([2, 14, 20].includes(firstCard.number)) {
-            deck.push(firstCard);
-            deck.splice(10, 1);
-            firstCard = deck[10];
+        while ([1, 2, 14, 20].includes(deck[firstCardIndex].number)) {
+            firstCardIndex++;
         }
+        const firstCard = deck[firstCardIndex];
+        deck.splice(firstCardIndex, 1);
+
         setDiscardPile([firstCard]);
-        setDrawPile(deck.slice(11));
+        setDrawPile(deck.slice(10));
         setIsPlayerTurn(true);
         setWinner(null);
         setMessage('Your turn to play.');
@@ -116,12 +118,12 @@ export function WhotGame() {
         startGame();
     }, [startGame]);
 
-    const isCardPlayable = (card: Card, topCard: Card) => {
+    const isCardPlayable = (card: CardData, topCard: CardData) => {
         if (!topCard) return true; // First card
         return card.suit === topCard.suit || card.number === topCard.number || card.suit === 'Whot';
     };
 
-    const handlePlayerPlay = (card: Card, index: number) => {
+    const handlePlayerPlay = (card: CardData, index: number) => {
         if (!isPlayerTurn || winner) return;
         const topCard = discardPile[discardPile.length - 1];
         if (!isCardPlayable(card, topCard)) return;

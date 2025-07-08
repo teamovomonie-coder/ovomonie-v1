@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 // --- TYPES & CONSTANTS ---
 type PlayerColor = 'red' | 'green' | 'yellow' | 'blue';
-type TokenState = { id: number; position: number; state: 'home' | 'active' | 'safe' | 'finished' };
+type TokenState = { id: number; position: number; state: 'home' | 'active' | 'finished' };
 
 const PLAYER_COLORS: { [key in PlayerColor]: string } = {
   red: 'bg-red-500',
