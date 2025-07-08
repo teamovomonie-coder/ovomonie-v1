@@ -216,7 +216,7 @@ export function WhotGame() {
             }, 1500); // Simulate thinking time
             return () => clearTimeout(timer);
         }
-    }, [isPlayerTurn, winner, discardPile, opponentHand, playerHand, drawPile]);
+    }, [isPlayerTurn, winner, discardPile, opponentHand, playerHand, drawPile, startGame]);
 
     const topCard = discardPile[discardPile.length - 1];
 
@@ -271,4 +271,3 @@ export function WhotGame() {
         </Card>
     );
 }
-`
