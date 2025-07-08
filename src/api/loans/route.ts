@@ -14,22 +14,25 @@ import {
     limit,
     orderBy,
 } from 'firebase/firestore';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
 import { add } from 'date-fns';
+import { headers } from 'next/headers';
 
-// Helper to get the user ID for the mock user
-async function getUserId() {
-    const user = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-    if (!user || !user.id) {
-        throw new Error("User not found or user ID is missing.");
-    }
-    return user.id;
+async function getUserIdFromToken() {
+    const headersList = headers();
+    const authorization = headersList.get('authorization');
+    if (!authorization || !authorization.startsWith('Bearer ')) return null;
+    const token = authorization.split(' ')[1];
+    if (!token.startsWith('fake-token-')) return null;
+    return token.split('-')[2] || null;
 }
 
 export async function GET() {
     try {
-        const userId = await getUserId();
-        // Get the most recent active loan
+        const userId = await getUserIdFromToken();
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        
         const q = query(
             collection(db, "loans"),
             where("userId", "==", userId),
@@ -41,20 +44,19 @@ export async function GET() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            return NextResponse.json(null);
+            return NextResponse.json(null, { status: 200 });
         }
         
         const loanDoc = querySnapshot.docs[0];
         const data = loanDoc.data();
 
-        // Convert Timestamps to ISO strings for JSON serialization
         const loan = {
             id: loanDoc.id,
             ...data,
-            startDate: (data.startDate as Timestamp).toDate().toISOString(),
+            startDate: (data.startDate as Timestamp)?.toDate().toISOString(),
             repayments: data.repayments.map((r: any) => ({
                 ...r,
-                dueDate: (r.dueDate as Timestamp).toDate().toISOString(),
+                dueDate: (r.dueDate as Timestamp)?.toDate().toISOString(),
             })),
         };
 
@@ -69,16 +71,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserId();
-        const userAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        if (!userAccount || !userAccount.id) throw new Error("User account not found");
+        const userId = await getUserIdFromToken();
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
 
         const { amount, duration, purpose, loanType, clientReference } = await request.json();
         
         if (!amount || !duration || !purpose || !loanType) {
             return NextResponse.json({ message: 'Missing required loan application fields.' }, { status: 400 });
         }
-         if (!clientReference) {
+        if (!clientReference) {
             return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
         }
         
@@ -92,7 +95,7 @@ export async function POST(request: Request) {
         const startDate = new Date();
 
         const newLoanRef = doc(collection(db, "loans"));
-        const userDocRef = doc(db, "users", userAccount.id);
+        const userDocRef = doc(db, "users", userId);
 
         await runTransaction(db, async (transaction) => {
             const financialTransactionsRef = collection(db, 'financialTransactions');
@@ -101,6 +104,8 @@ export async function POST(request: Request) {
 
             if (!existingTxnSnapshot.empty) {
                 console.log(`Idempotent request for new loan: ${clientReference} already processed.`);
+                const userDoc = await transaction.get(userDocRef);
+                if (userDoc.exists()) newBalance = userDoc.data().balance;
                 return;
             }
 
@@ -129,7 +134,6 @@ export async function POST(request: Request) {
             };
             transaction.set(newLoanRef, newLoan);
 
-            // Log the credit transaction
             const creditLog = {
                 userId,
                 category: 'loan',
@@ -146,7 +150,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             message: "Loan disbursed successfully!",
-            newBalance: newBalance,
+            newBalance,
             loanId: newLoanRef.id,
         }, { status: 201 });
 

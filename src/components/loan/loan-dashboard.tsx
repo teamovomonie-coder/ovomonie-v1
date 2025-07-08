@@ -124,9 +124,7 @@ function RepaymentDialog({ open, onOpenChange, loan, onRepay }: { open: boolean,
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Repayment Amount (₦)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" {...field} />
-                                    </FormControl>
+                                    <FormControl><Input type="number" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -153,7 +151,7 @@ export function LoanDashboard() {
   const [repaymentAmount, setRepaymentAmount] = useState<number | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { user, balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -167,7 +165,11 @@ export function LoanDashboard() {
   const fetchActiveLoan = useCallback(async () => {
       setIsLoading(true);
       try {
-          const response = await fetch('/api/loans');
+          const token = localStorage.getItem('ovo-auth-token');
+          if (!token) throw new Error("Authentication required.");
+          const response = await fetch('/api/loans', {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
           if (!response.ok) throw new Error('Failed to fetch loan status.');
           const data = await response.json();
           setActiveLoan(data);
@@ -200,32 +202,36 @@ export function LoanDashboard() {
   };
   
   const handleAcceptOffer = async () => {
-      if (!applicationData) return;
-      setIsProcessing(true);
-      try {
-        const clientReference = `loan-disburse-${crypto.randomUUID()}`;
-        const response = await fetch('/api/loans', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({...applicationData, clientReference}),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Loan disbursement failed.');
-        
-        updateBalance(result.newBalance);
-        addNotification({
-            title: 'Loan Disbursed!',
-            description: `A loan of ₦${applicationData.amount.toLocaleString()} has been credited to your wallet.`,
-            category: 'transaction'
-        });
-        
-        await fetchActiveLoan();
-        setView('success');
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not disburse loan.'})
-      } finally {
-          setIsProcessing(false);
-      }
+    if (!applicationData) return;
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error("Authentication required.");
+
+      const clientReference = `loan-disburse-${crypto.randomUUID()}`;
+      const response = await fetch('/api/loans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({...applicationData, clientReference}),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Loan disbursement failed.');
+      
+      updateBalance(result.newBalance);
+      addNotification({
+          title: 'Loan Disbursed!',
+          description: `A loan of ₦${applicationData.amount.toLocaleString()} has been credited to your wallet.`,
+          category: 'transaction'
+      });
+      
+      await fetchActiveLoan();
+      setView('success');
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not disburse loan.'})
+    } finally {
+        setIsProcessing(false);
+    }
   }
 
   const handleRepaymentRequest = (amount: number) => {
@@ -243,10 +249,13 @@ export function LoanDashboard() {
       setIsProcessing(true);
       setApiError(null);
       try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication required.");
+
         const clientReference = `loan-repay-${crypto.randomUUID()}`;
         const response = await fetch('/api/loans/repay', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ loanId: activeLoan.id, amount: repaymentAmount, clientReference }),
         });
         const result = await response.json();
@@ -406,7 +415,6 @@ export function LoanDashboard() {
       )
   }
 
-  // Dashboard view
   return (
     <>
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
