@@ -25,6 +25,7 @@ import { useNotifications } from '@/context/notification-context';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type View = 'dashboard' | 'apply' | 'offer' | 'success';
+type PinAction = 'accept_loan' | 'repay_loan' | null;
 
 interface Repayment {
     dueDate: string; // ISO string
@@ -150,6 +151,7 @@ export function LoanDashboard() {
   const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
   const [repaymentAmount, setRepaymentAmount] = useState<number | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinAction, setPinAction] = useState<PinAction>(null);
   const { toast } = useToast();
   const { user, balance, updateBalance } = useAuth();
   const { addNotification } = useNotifications();
@@ -181,8 +183,10 @@ export function LoanDashboard() {
   }, [toast]);
 
   useEffect(() => {
-      fetchActiveLoan();
-  }, [fetchActiveLoan]);
+      if (view === 'dashboard') {
+        fetchActiveLoan();
+      }
+  }, [fetchActiveLoan, view]);
 
   const { totalRepayable, monthlyPayment } = useMemo(() => {
     if (!applicationData) return { totalRepayable: 0, monthlyPayment: 0 };
@@ -201,7 +205,23 @@ export function LoanDashboard() {
     }, 1500);
   };
   
-  const handleAcceptOffer = async () => {
+  const handleAcceptOffer = () => {
+    if (!applicationData) return;
+    setPinAction('accept_loan');
+    setIsPinModalOpen(true);
+  }
+
+  const handleRepaymentRequest = (amount: number) => {
+      if (balance === null || (amount * 100) > balance) {
+          toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this repayment.' });
+          return;
+      }
+      setRepaymentAmount(amount);
+      setPinAction('repay_loan');
+      setIsPinModalOpen(true);
+  };
+
+  const executeLoanDisbursement = async () => {
     if (!applicationData) return;
     setIsProcessing(true);
     setApiError(null);
@@ -225,25 +245,15 @@ export function LoanDashboard() {
           category: 'transaction'
       });
       
-      await fetchActiveLoan();
       setView('success');
     } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Could not disburse loan.'})
+        setApiError(error instanceof Error ? error.message : 'Could not disburse loan.');
     } finally {
         setIsProcessing(false);
     }
   }
 
-  const handleRepaymentRequest = (amount: number) => {
-      if (balance === null || (amount * 100) > balance) {
-          toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this repayment.' });
-          return;
-      }
-      setRepaymentAmount(amount);
-      setIsPinModalOpen(true);
-  };
-
-  const handleConfirmRepayment = async () => {
+  const executeRepayment = async () => {
       if (!repaymentAmount || !activeLoan) return;
 
       setIsProcessing(true);
@@ -268,8 +278,7 @@ export function LoanDashboard() {
             category: 'transaction'
         });
         toast({ title: 'Repayment Successful' });
-        await fetchActiveLoan();
-        setIsPinModalOpen(false);
+        await fetchActiveLoan(); // Refresh loan data
       } catch (error) {
         setApiError(error instanceof Error ? error.message : 'Could not process repayment.');
       } finally {
@@ -278,6 +287,16 @@ export function LoanDashboard() {
           setIsRepayDialogOpen(false);
       }
   }
+
+  const handlePinConfirm = () => {
+      setIsPinModalOpen(false);
+      if (pinAction === 'accept_loan') {
+          executeLoanDisbursement();
+      } else if (pinAction === 'repay_loan') {
+          executeRepayment();
+      }
+  };
+
 
   const reset = () => {
     setView('dashboard');
@@ -507,9 +526,9 @@ export function LoanDashboard() {
     <PinModal
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
-        onConfirm={handleConfirmRepayment}
+        onConfirm={handlePinConfirm}
         isProcessing={isProcessing}
-        title="Confirm Loan Repayment"
+        title={pinAction === 'accept_loan' ? "Authorize Loan Disbursement" : "Confirm Loan Repayment"}
         error={apiError}
         onClearError={() => setApiError(null)}
     />
