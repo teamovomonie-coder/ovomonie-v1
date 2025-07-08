@@ -30,7 +30,7 @@ const createDeck = (): Card[] => {
     });
   });
   NUMBERS['Whot']?.forEach(number => {
-    deck.push({ suit: 'Whot', number });
+    deck.push({ suit, number });
   });
   return deck;
 };

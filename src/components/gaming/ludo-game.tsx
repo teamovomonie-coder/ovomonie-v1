@@ -180,12 +180,6 @@ const Dice = ({ value, isRolling }: { value: number | null, isRolling: boolean }
 
 const LudoBoard = ({ players, onTokenClick, currentPlayer, diceValue }: { players: Record<PlayerColor, TokenState[]>, onTokenClick: (color: PlayerColor, id: number) => void, currentPlayer: PlayerColor, diceValue: number | null }) => {
     // A simplified grid-based layout for the Ludo board
-    const gridTemplate = [
-        "RR.HHH.GG", "RR.H.H.GG", "RR.....GG",
-        "HHH. .HHH", "H. . . .H", "HHH. .HHH",
-        "YY.....BB", "YY.H.H.BB", "YY.HHH.BB",
-    ];
-
     const getTilePosition = (index: number): { row: number, col: number } => {
         const boardSize = 13;
         if (index >= 1 && index <= 5) return { row: 6, col: index }; // Red start path

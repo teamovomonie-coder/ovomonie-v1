@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -154,7 +155,7 @@ export function Game2048() {
         {gameOver && <div className="text-xl font-bold text-destructive mb-4">Game Over!</div>}
         <div className="bg-gray-400 p-2 sm:p-4 rounded-lg">
           {grid.map((row, i) => (
-            <div key={i} className="flex gap-2 sm:gap-4">
+            <div key={i} className="flex gap-2 sm:gap-4 mb-2 sm:mb-4 last:mb-0">
               {row.map((val, j) => (
                 <div key={j} className={cn("w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center text-xl sm:text-2xl font-bold rounded-md", getTileColor(val || 0))}>
                   {val}

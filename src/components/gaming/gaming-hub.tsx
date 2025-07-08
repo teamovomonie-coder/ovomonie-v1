@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -6,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Gamepad2, Puzzle, Check, Circle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { TicTacToeGame } from '@/components/gaming/tic-tac-toe-game';
 import { Game2048 } from '@/components/gaming/2048-game';
 import { LudoGame } from '@/components/gaming/ludo-game';
@@ -15,10 +16,10 @@ import { WhotGame } from '@/components/gaming/whot-game';
 type GameId = 'tic-tac-toe' | '2048' | 'ludo' | 'whot' | null;
 
 const games = [
-    { id: 'tic-tac-toe', title: 'Tic-Tac-Toe', component: TicTacToeGame, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'tic tac toe' },
-    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'number puzzle' },
     { id: 'ludo', title: 'Ludo Classic', component: LudoGame, category: 'Board & Card', image: 'https://placehold.co/600x400.png', hint: 'ludo board' },
     { id: 'whot', title: 'Whot!', component: WhotGame, category: 'Board & Card', image: 'https://placehold.co/600x400.png', hint: 'whot cards' },
+    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'number puzzle' },
+    { id: 'tic-tac-toe', title: 'Tic-Tac-Toe', component: TicTacToeGame, category: 'Puzzle & Strategy', image: 'https://placehold.co/600x400.png', hint: 'tic tac toe' },
 ];
 
 function GameSelectionScreen({ onSelectGame }: { onSelectGame: (id: GameId) => void }) {
