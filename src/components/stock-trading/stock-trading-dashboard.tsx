@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -54,7 +55,7 @@ function TradeDialog({ stock, onTrade }: { stock: Stock, onTrade: (data: any) =>
     
     const form = useForm<TradeFormData>({
         resolver: zodResolver(tradeSchema),
-        defaultValues: { orderType: 'Market', quantity: 0 },
+        defaultValues: { orderType: 'Market', quantity: 0, limitPrice: 0 },
     });
     
     const watchedOrderType = form.watch('orderType');
@@ -91,8 +92,8 @@ function TradeDialog({ stock, onTrade }: { stock: Stock, onTrade: (data: any) =>
                                     </FormItem>
                                 )}/>
                                  <div className="grid grid-cols-2 gap-4">
-                                     <FormField control={form.control} name="quantity" render={({ field }) => (<FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                      {watchedOrderType === 'Limit' && (<FormField control={form.control} name="limitPrice" render={({ field }) => (<FormItem><FormLabel>Limit Price (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 215.00" {...field} /></FormControl><FormMessage /></FormItem>)}/>)}
+                                     <FormField control={form.control} name="quantity" render={({ field }) => (<FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" placeholder="e.g., 10" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}/></FormControl><FormMessage /></FormItem>)}/>
+                                      {watchedOrderType === 'Limit' && (<FormField control={form.control} name="limitPrice" render={({ field }) => (<FormItem><FormLabel>Limit Price (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 215.00" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}/></FormControl><FormMessage /></FormItem>)}/>)}
                                  </div>
                                  <Card className="bg-muted"><CardContent className="p-3 text-center"><p className="text-sm text-muted-foreground">Estimated Cost</p><p className="text-lg font-bold">₦{estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p></CardContent></Card>
                                  <DialogFooter><Button type="submit" className="w-full">Place Buy Order</Button></DialogFooter>
