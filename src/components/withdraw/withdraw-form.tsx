@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Hash, Code, Store, QrCode } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Hash, Code, Store, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -141,7 +141,7 @@ function BankTransferWithdrawal() {
     setStep('summary');
   };
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = useCallback(async () => {
     if (!submittedData || !recipientName) return;
     
     setIsProcessing(true);
@@ -184,14 +184,14 @@ function BankTransferWithdrawal() {
     } finally {
         setIsProcessing(false);
     }
-  };
+  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setStep('form');
     setSubmittedData(null);
     setRecipientName(null);
     form.reset();
-  };
+  }, [form]);
 
   if (step === 'receipt' && submittedData && recipientName) {
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';

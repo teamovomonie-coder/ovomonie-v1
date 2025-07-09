@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Sparkles, Upload } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -128,7 +128,6 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
   
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { bankCode: '', accountNumber: '', amount: 0, narration: '', message: '', imageTheme: '' },
@@ -235,7 +234,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     setStep('summary');
   }
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = useCallback(async () => {
     if (!submittedData || !recipientName) return;
 
     setApiError(null);
@@ -305,17 +304,17 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
 
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setStep('form');
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
     setIsMemoTransfer(defaultMemo);
     form.reset();
-  };
+  }, [defaultMemo, form]);
 
   if (step === 'receipt' && submittedData && recipientName) {
     return <MemoReceipt data={submittedData} recipientName={recipientName} onReset={resetForm} />;

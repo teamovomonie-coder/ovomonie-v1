@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -201,7 +201,7 @@ export function InternalTransferForm() {
     setStep('summary');
   }
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = useCallback(async () => {
     if (!submittedData || !recipientName) return;
 
     setIsProcessing(true);
@@ -266,16 +266,16 @@ export function InternalTransferForm() {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setStep('form');
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
     setIsMemoTransfer(false);
     form.reset();
-  };
+  }, [form]);
 
   if (step === 'receipt' && submittedData && recipientName) {
     return <MemoReceipt data={submittedData} recipientName={recipientName} onReset={resetForm} />;
