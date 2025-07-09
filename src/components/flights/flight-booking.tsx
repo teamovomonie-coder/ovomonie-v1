@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { addDays, format } from 'date-fns';
+import { addDays, format, differenceInDays } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -18,13 +19,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { PinModal } from '@/components/auth/pin-modal';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
-import { Plane, ArrowLeft, ArrowRight, CalendarIcon, Users, User, Trash2, Wallet, CheckCircle, Info, Loader2, Download, Minus, Plus } from 'lucide-react';
-
-// --- Mock Data & Schemas ---
+import { Plane, ArrowLeft, CalendarIcon, Users, Wallet, CheckCircle, Loader2, Download, Minus, Plus } from 'lucide-react';
 
 const airports = [
     { code: 'LOS', name: 'Murtala Muhammed International Airport', city: 'Lagos' },
@@ -34,14 +35,7 @@ const airports = [
     { code: 'ENU', name: 'Akanu Ibiam International Airport', city: 'Enugu' },
 ];
 
-const airlines = [
-    { code: 'P4', name: 'Air Peace' },
-    { code: '9J', name: 'Dana Air' },
-    { code: 'W3', name: 'Arik Air' },
-    { code: 'Q9', name: 'Ibom Air' },
-];
-
-interface Flight {
+export interface Flight {
     id: string;
     airline: { code: string; name: string };
     departure: { airport: string; time: string };
@@ -80,13 +74,13 @@ const bookingSchema = z.object({
 
 type SearchFormData = z.infer<typeof searchSchema>;
 type BookingFormData = z.infer<typeof bookingSchema>;
+type View = 'search' | 'results' | 'details' | 'payment' | 'confirmation';
 
-// --- Sub-components for each step of the flow ---
 
 function FlightSearchForm({ onSearch, isSearching }: { onSearch: (data: SearchFormData) => void; isSearching: boolean; }) {
     const form = useForm<SearchFormData>({
         resolver: zodResolver(searchSchema),
-        defaultValues: { tripType: 'oneWay', from: '', to: '', passengers: 1, travelClass: 'Economy' },
+        defaultValues: { tripType: 'oneWay', from: '', to: '', passengers: 1, travelClass: 'Economy', departureDate: new Date() },
     });
     const tripType = form.watch('tripType');
 
@@ -133,6 +127,7 @@ function FlightResultsView({ searchData, flights, onSelectFlight, onBack }: { se
     
     return (
         <div className="space-y-4">
+            <Button variant="ghost" onClick={onBack}><ArrowLeft className="mr-2"/>New Search</Button>
              <div className="text-center">
                 <h3 className="text-xl font-bold">Flights from {fromAirport} to {toAirport}</h3>
                 <p className="text-muted-foreground">{format(searchData.departureDate, 'PPP')} | {searchData.passengers} Passenger(s)</p>
@@ -175,12 +170,13 @@ function PassengerDetailsView({ flight, searchData, onBook, onBack }: { flight: 
             passengers: Array.from({ length: searchData.passengers }, () => ({ fullName: '', email: '', phone: '' })),
         }
     });
-    const { fields } = useFieldArray({ control: form.control, name: "passengers" });
+    const { fields } = form.control;
     const totalAmount = flight.price * searchData.passengers;
 
     return (
         <Card>
             <CardHeader>
+                 <Button variant="ghost" onClick={onBack} className="-ml-4"><ArrowLeft className="mr-2"/>Back to Flights</Button>
                 <CardTitle>Passenger Details</CardTitle>
                 <CardDescription>Enter details for all passengers. The e-ticket will be sent to the first passenger's email.</CardDescription>
             </CardHeader>
@@ -210,59 +206,20 @@ function PassengerDetailsView({ flight, searchData, onBook, onBack }: { flight: 
     );
 }
 
-function PaymentView({ flight, searchData, bookingData, onPay, onBack }: { flight: Flight, searchData: SearchFormData, bookingData: BookingFormData, onPay: () => void, onBack: () => void }) {
-    const totalAmount = flight.price * searchData.passengers;
-    const walletBalance = 1250345;
-    const hasSufficientFunds = walletBalance >= totalAmount;
-
-    return (
-        <Card className="max-w-md mx-auto">
-            <CardHeader>
-                <CardTitle>Confirm Payment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg space-y-2">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Flight</span><span className="font-semibold">{flight.airline.name}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Route</span><span className="font-semibold">{flight.departure.airport} &rarr; {flight.arrival.airport}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-semibold">{flight.departure.time} - {flight.arrival.time}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Passengers</span><span className="font-semibold">{searchData.passengers}</span></div>
-                </div>
-                <div className="flex justify-between items-center font-bold text-2xl"><p>Total:</p><p>₦{totalAmount.toLocaleString()}</p></div>
-                 <Alert variant={hasSufficientFunds ? "default" : "destructive"}>
-                    <Wallet className="h-4 w-4" />
-                    <AlertTitle>Pay with Ovomonie Wallet</AlertTitle>
-                    <AlertDescription>
-                        {hasSufficientFunds ? (
-                            `Your balance of ₦${walletBalance.toLocaleString()} is sufficient. The total amount will be deducted.`
-                        ) : (
-                             `Your balance of ₦${walletBalance.toLocaleString()} is insufficient.`
-                        )}
-                    </AlertDescription>
-                </Alert>
-            </CardContent>
-            <CardFooter>
-                 <Button className="w-full" onClick={onPay} disabled={!hasSufficientFunds}>
-                    {hasSufficientFunds ? 'Pay Now' : 'Insufficient Funds'}
-                 </Button>
-            </CardFooter>
-        </Card>
-    );
-}
-
-function ConfirmationView({ flight, searchData, bookingData, onReset }: { flight: Flight, searchData: SearchFormData, bookingData: BookingFormData, onReset: () => void }) {
+function ConfirmationView({ booking, onReset }: { booking: any, onReset: () => void }) {
     const { toast } = useToast();
     return (
         <Card className="max-w-md mx-auto text-center">
             <CardHeader className="items-center">
                 <CheckCircle className="w-16 h-16 text-green-500" />
-                <CardTitle className="mt-4 text-2xl">Booking Successful!</CardTitle>
-                <CardDescription>Your e-ticket has been sent to {bookingData.passengers[0].email}.</CardDescription>
+                <CardTitle className="mt-4 text-2xl">Booking Confirmed!</CardTitle>
+                <CardDescription>Your e-ticket has been sent to {booking.passengers[0].email}.</CardDescription>
             </CardHeader>
             <CardContent className="text-left bg-muted p-4 rounded-lg space-y-2">
-                 <div className="flex justify-between"><span className="text-muted-foreground">Booking Ref.</span><span className="font-semibold font-mono">XYZ-12345</span></div>
-                 <div className="flex justify-between"><span className="text-muted-foreground">Route</span><span className="font-semibold">{searchData.from} &rarr; {searchData.to}</span></div>
-                 <div className="flex justify-between"><span className="text-muted-foreground">Flight Time</span><span className="font-semibold">{flight.departure.time} - {flight.arrival.time}</span></div>
-                 <div className="flex justify-between"><span className="text-muted-foreground">Passengers</span><span className="font-semibold">{bookingData.passengers.map(p => p.fullName).join(', ')}</span></div>
+                 <div className="flex justify-between"><span className="text-muted-foreground">Booking Ref.</span><span className="font-semibold font-mono">{booking.bookingReference}</span></div>
+                 <div className="flex justify-between"><span className="text-muted-foreground">Route</span><span className="font-semibold">{booking.flight.departure.airport} &rarr; {booking.flight.arrival.airport}</span></div>
+                 <div className="flex justify-between"><span className="text-muted-foreground">Flight Time</span><span className="font-semibold">{booking.flight.departure.time} - {booking.flight.arrival.time}</span></div>
+                 <div className="flex justify-between"><span className="text-muted-foreground">Passengers</span><span className="font-semibold">{booking.passengers.length}</span></div>
             </CardContent>
             <CardFooter className="flex-col gap-2 pt-4">
                  <Button className="w-full" onClick={() => toast({ title: "E-Ticket Downloaded" })}><Download className="mr-2" /> Download E-Ticket</Button>
@@ -275,37 +232,12 @@ function ConfirmationView({ flight, searchData, bookingData, onReset }: { flight
 function BookingHistory() {
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>My Bookings</CardTitle>
-                <CardDescription>A list of your past and upcoming flights.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>My Bookings</CardTitle><CardDescription>A list of your past and upcoming flights.</CardDescription></CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Route</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
+                    <TableHeader><TableRow><TableHead>Route</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                     <TableBody>
-                        <TableRow>
-                            <TableCell>Lagos (LOS) &rarr; Abuja (ABV)</TableCell>
-                            <TableCell>2024-08-15</TableCell>
-                            <TableCell><Badge>Upcoming</Badge></TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
-                            </TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>Kano (KAN) &rarr; Lagos (LOS)</TableCell>
-                            <TableCell>2024-06-01</TableCell>
-                            <TableCell><Badge variant="secondary">Completed</Badge></TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
-                            </TableCell>
-                        </TableRow>
+                        <TableRow><TableCell>Lagos (LOS) &rarr; Abuja (ABV)</TableCell><TableCell>{format(new Date(), 'PP')}</TableCell><TableCell><Badge>Upcoming</Badge></TableCell><TableCell className="text-right"><Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button></TableCell></TableRow>
                     </TableBody>
                 </Table>
             </CardContent>
@@ -315,27 +247,38 @@ function BookingHistory() {
 
 
 export function FlightBooking() {
-  const [view, setView] = useState<'search' | 'results' | 'details' | 'payment' | 'confirmation'>('search');
+  const [view, setView] = useState<View>('search');
   const [searchData, setSearchData] = useState<SearchFormData | null>(null);
-  const [mockFlights, setMockFlights] = useState<Flight[]>([]);
+  const [flights, setFlights] = useState<Flight[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [bookingData, setBookingData] = useState<BookingFormData | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  const handleSearch = (data: SearchFormData) => {
-    setIsSearching(true);
-    setTimeout(() => {
-        setSearchData(data);
-        const generatedFlights: Flight[] = [
-            { id: 'flight-1', airline: airlines[0], departure: { airport: data.from, time: '08:00' }, arrival: { airport: data.to, time: '09:15' }, duration: '1h 15m', price: 45500 },
-            { id: 'flight-2', airline: airlines[3], departure: { airport: data.from, time: '10:30' }, arrival: { airport: data.to, time: '11:45' }, duration: '1h 15m', price: 48000 },
-            { id: 'flight-3', airline: airlines[2], departure: { airport: data.from, time: '14:00' }, arrival: { airport: data.to, time: '15:15' }, duration: '1h 15m', price: 52000 },
-        ];
-        setMockFlights(generatedFlights);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
+  
+  const handleSearch = async (data: SearchFormData) => {
+    setIsProcessing(true);
+    setSearchData(data);
+    try {
+        const query = new URLSearchParams({
+            from: data.from,
+            to: data.to,
+            departureDate: data.departureDate.toISOString(),
+        }).toString();
+        const response = await fetch(`/api/flights/search?${query}`);
+        if (!response.ok) throw new Error("Could not fetch flights.");
+        const results = await response.json();
+        setFlights(results);
         setView('results');
-        setIsSearching(false);
-    }, 1500);
+    } catch(err) {
+        toast({ variant: 'destructive', title: 'Search Failed', description: (err as Error).message });
+    } finally {
+        setIsProcessing(false);
+    }
   };
   
   const handleSelectFlight = (flight: Flight) => {
@@ -345,21 +288,53 @@ export function FlightBooking() {
 
   const handleBook = (data: BookingFormData) => {
       setBookingData(data);
-      setView('payment');
+      setIsPinModalOpen(true);
   };
   
-  const handlePay = () => {
-      setIsBooking(true);
-      setTimeout(() => {
-          setView('confirmation');
-          setIsBooking(false);
-      }, 1500);
+  const handlePay = async () => {
+    if (!selectedFlight || !bookingData || !searchData) return;
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication failed.");
+
+        const response = await fetch('/api/flights/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                flight: selectedFlight,
+                passengers: bookingData.passengers,
+                searchData,
+                clientReference: `flight-book-${crypto.randomUUID()}`
+            })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || "Booking failed.");
+        
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: "Flight Booked!",
+            description: `Your flight to ${airports.find(a=>a.code === selectedFlight.arrival.airport)?.city} is confirmed.`,
+            category: 'transaction',
+        });
+        toast({ title: "Booking Successful!" });
+        setBookingData(prev => ({...prev!, bookingReference: result.bookingReference}));
+        setView('confirmation');
+
+    } catch (err) {
+        setApiError((err as Error).message);
+    } finally {
+        setIsProcessing(false);
+        setIsPinModalOpen(false);
+    }
   };
 
   const reset = () => {
       setView('search');
       setSearchData(null);
-      setMockFlights([]);
+      setFlights([]);
       setSelectedFlight(null);
       setBookingData(null);
   };
@@ -367,33 +342,40 @@ export function FlightBooking() {
   const renderContent = () => {
     switch(view) {
         case 'results':
-            return <FlightResultsView searchData={searchData!} flights={mockFlights} onSelectFlight={handleSelectFlight} onBack={reset} />;
+            return <FlightResultsView searchData={searchData!} flights={flights} onSelectFlight={handleSelectFlight} onBack={reset} />;
         case 'details':
             return <PassengerDetailsView flight={selectedFlight!} searchData={searchData!} onBook={handleBook} onBack={() => setView('results')} />;
-        case 'payment':
-            return <PaymentView flight={selectedFlight!} searchData={searchData!} bookingData={bookingData!} onPay={handlePay} onBack={() => setView('details')} />;
         case 'confirmation':
-            return <ConfirmationView flight={selectedFlight!} searchData={searchData!} bookingData={bookingData!} onReset={reset} />;
+            return <ConfirmationView booking={{...bookingData, flight: selectedFlight}} onReset={reset} />;
         case 'search':
         default:
-            return <FlightSearchForm onSearch={handleSearch} isSearching={isSearching}/>;
+            return <FlightSearchForm onSearch={handleSearch} isSearching={isProcessing}/>;
     }
   }
 
   return (
+    <>
     <Tabs defaultValue="search_flight" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="search_flight">Book a Flight</TabsTrigger>
         <TabsTrigger value="history">My Bookings</TabsTrigger>
       </TabsList>
       <TabsContent value="search_flight" className="pt-6">
-        {isBooking ? (
-             <Card className="flex items-center justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></Card>
-        ) : renderContent()}
+        {renderContent()}
       </TabsContent>
       <TabsContent value="history" className="pt-6">
         <BookingHistory />
       </TabsContent>
     </Tabs>
+     <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handlePay}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Authorize Flight Booking"
+      />
+    </>
   );
 }
