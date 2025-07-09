@@ -263,7 +263,7 @@ export function WealthDashboard() {
   const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   
   const [pendingInvestment, setPendingInvestment] = useState<InvestmentFormData | null>(null);
@@ -276,7 +276,12 @@ export function WealthDashboard() {
   const fetchInvestments = useCallback(async () => {
     setIsLoading(true);
     try {
-        const response = await fetch('/api/wealth/investments');
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication required.");
+
+        const response = await fetch('/api/wealth/investments', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!response.ok) throw new Error('Failed to fetch investments');
         const data = await response.json();
         setUserInvestments(data);
@@ -321,17 +326,24 @@ export function WealthDashboard() {
     const estimatedReturn = (pendingInvestment.amount * annualRate / 365) * parseInt(pendingInvestment.duration);
     
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication required.");
+
         const clientReference = `investment-${crypto.randomUUID()}`;
         const response = await fetch('/api/wealth/investments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ ...pendingInvestment, estimatedReturn, clientReference }),
         });
         
         const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Failed to create investment.');
+        if (!response.ok) {
+            const error: any = new Error(result.message || 'An error occurred.');
+            error.response = response;
+            throw error;
+        }
 
-        updateBalance(result.newBalance);
+        updateBalance(result.newBalanceInKobo);
         addNotification({
             title: 'Investment Successful!',
             description: `You invested ₦${pendingInvestment.amount.toLocaleString()} in ${pendingInvestment.productId}.`,
@@ -341,8 +353,15 @@ export function WealthDashboard() {
         setReceiptData({ amount: pendingInvestment.amount, plan: pendingInvestment.productId });
         setIsPinModalOpen(false);
 
-    } catch (error) {
-         setApiError(error instanceof Error ? error.message : 'An unknown error occurred.');
+    } catch (error: any) {
+         let description = 'An unknown error occurred.';
+         if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+         setApiError(description);
     } finally {
         setIsProcessing(false);
         setPendingInvestment(null);
@@ -450,7 +469,7 @@ export function WealthDashboard() {
                                         <Skeleton className="h-10 w-full" />
                                         <Skeleton className="h-10 w-full" />
                                     </div>
-                                ) : (
+                                ) : userInvestments.length > 0 ? (
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -476,6 +495,10 @@ export function WealthDashboard() {
                                             ))}
                                         </TableBody>
                                     </Table>
+                                ) : (
+                                    <div className="text-center py-10 text-muted-foreground">
+                                        <p>You have no active investments.</p>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>

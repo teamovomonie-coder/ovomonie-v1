@@ -12,33 +12,34 @@ import {
     doc,
     Timestamp
 } from 'firebase/firestore';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { headers } from 'next/headers';
 
-// This function assumes we are operating for a single, mocked user.
-// In a real app, you would get the user ID from a verified session/token.
-async function getUserId() {
-    const user = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-    if (!user || !user.id) {
-        throw new Error("User not found or user ID is missing.");
-    }
-    return user.id;
+async function getUserIdFromToken() {
+    const headersList = headers();
+    const authorization = headersList.get('authorization');
+    if (!authorization || !authorization.startsWith('Bearer ')) return null;
+    const token = authorization.split(' ')[1];
+    if (!token.startsWith('fake-token-')) return null;
+    return token.split('-')[2] || null;
 }
-
 
 export async function GET() {
     try {
-        const userId = await getUserId();
+        const userId = await getUserIdFromToken();
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
         const q = query(collection(db, "investments"), where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
         
         const investments = querySnapshot.docs.map(doc => {
             const data = doc.data();
-            // Convert Firestore Timestamps to ISO strings for JSON serialization
             return {
                 id: doc.id,
                 ...data,
-                startDate: (data.startDate as Timestamp).toDate().toISOString(),
-                maturityDate: (data.maturityDate as Timestamp).toDate().toISOString(),
+                startDate: (data.startDate as Timestamp)?.toDate().toISOString(),
+                maturityDate: (data.maturityDate as Timestamp)?.toDate().toISOString(),
             };
         });
 
@@ -52,10 +53,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserId();
-        const userAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        if (!userAccount || !userAccount.id) throw new Error("User account not found");
-
+        const userId = await getUserIdFromToken();
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        
         const { productId, amount, duration, estimatedReturn, clientReference } = await request.json();
 
         if (!productId || !amount || !duration || amount <= 0) {
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
         let newBalance = 0;
 
         const investmentRef = doc(collection(db, "investments"));
-        const userDocRef = doc(db, "users", userAccount.id);
+        const userDocRef = doc(db, "users", userId);
 
         await runTransaction(db, async (transaction) => {
             const financialTransactionsRef = collection(db, 'financialTransactions');
@@ -78,6 +80,8 @@ export async function POST(request: Request) {
 
             if (!existingTxnSnapshot.empty) {
                 console.log(`Idempotent request for investment: ${clientReference} already processed.`);
+                const userDoc = await transaction.get(userDocRef);
+                if (userDoc.exists()) newBalance = userDoc.data().balance;
                 return;
             }
 
@@ -103,12 +107,11 @@ export async function POST(request: Request) {
                 principal: amountInKobo,
                 returns: Math.round(estimatedReturn * 100), // Store in kobo
                 status: 'Active',
-                startDate: serverTimestamp(),
+                startDate: Timestamp.fromDate(new Date()),
                 maturityDate: Timestamp.fromDate(maturityDate),
             };
             transaction.set(investmentRef, newInvestment);
 
-            // Log the debit transaction
             const debitLog = {
                 userId,
                 category: 'investment',
@@ -123,13 +126,14 @@ export async function POST(request: Request) {
             transaction.set(doc(financialTransactionsRef), debitLog);
         });
         
-        // Re-fetch balance to ensure latest state is returned
-        const finalUserAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        newBalance = finalUserAccount!.balance;
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            newBalance = userDoc.data().balance;
+        }
 
         return NextResponse.json({
             message: "Investment successful!",
-            newBalance: newBalance,
+            newBalanceInKobo: newBalance,
             investmentId: investmentRef.id,
         }, { status: 201 });
 
