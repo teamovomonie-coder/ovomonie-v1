@@ -55,15 +55,15 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
   }
 
   return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
+    <Card className="w-full max-w-sm mx-auto shadow-lg border-none bg-transparent">
       <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
-        <h2 className="text-lg font-bold">Transfer Successful!</h2>
-        <Landmark className="w-6 h-6" />
+        <h2 className="text-lg font-bold">MemoTransfer Receipt</h2>
+        <Wallet className="w-6 h-6" />
       </div>
       <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
           {data.photo && (
-            <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
+            <div className="relative w-full aspect-video mb-4 rounded-lg overflow-hidden">
               <Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" />
             </div>
           )}
@@ -370,10 +370,12 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
             </AlertDescription>
           </Alert>
           
-        <div className="flex items-center space-x-2 justify-end">
-          <Label htmlFor="memo-switch">Use MemoTransfer</Label>
-          <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
-        </div>
+        {!defaultMemo && (
+            <div className="flex items-center space-x-2 justify-end">
+                <Label htmlFor="memo-switch">Use MemoTransfer</Label>
+                <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
+            </div>
+        )}
 
         <FormField
           control={form.control}

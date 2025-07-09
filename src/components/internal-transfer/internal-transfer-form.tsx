@@ -20,18 +20,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Info, Check } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Info, Check, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
   amount: z.coerce.number().positive('Amount must be positive.'),
   narration: z.string().max(50, "Narration can't exceed 50 characters.").optional(),
   message: z.string().max(150, 'Message is too long.').optional(),
+  imageTheme: z.string().optional(),
   photo: z.any().optional(),
 });
 
@@ -48,15 +50,15 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
   }
 
   return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
+    <Card className="w-full max-w-sm mx-auto shadow-lg border-none bg-transparent">
       <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
-        <h2 className="text-lg font-bold">Transfer Successful!</h2>
+        <h2 className="text-lg font-bold">MemoTransfer Receipt</h2>
         <Wallet className="w-6 h-6" />
       </div>
       <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
           {data.photo && (
-            <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
+            <div className="relative w-full aspect-video mb-4 rounded-lg overflow-hidden">
               <Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" />
             </div>
           )}
@@ -114,6 +116,7 @@ export function InternalTransferForm() {
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -169,9 +172,32 @@ export function InternalTransferForm() {
     }
   }, [watchedAccountNumber, clearErrors, setError]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  const handleGenerateImage = async () => {
+    const theme = form.getValues('imageTheme');
+    if (!theme) {
+        toast({ variant: 'destructive', title: 'Theme required', description: 'Please enter a theme for the image.'});
+        return;
+    }
+    setIsGeneratingImage(true);
+    setPhotoPreview(null);
+    try {
+        const result = await generateReceiptImage({ prompt: theme });
+        setPhotoPreview(result.imageDataUri);
+        form.setValue('photo', result.imageDataUri);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Image Generation Failed', description: 'Could not generate image. Please try again.' });
+    } finally {
+        setIsGeneratingImage(false);
+    }
+  };
+
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({ variant: "destructive", title: "Image Too Large", description: "Please upload an image smaller than 2MB."});
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
@@ -180,6 +206,7 @@ export function InternalTransferForm() {
       reader.readAsDataURL(file);
     }
   };
+
 
   function onSubmit(data: FormData) {
     if (!recipientName) {
@@ -384,7 +411,7 @@ export function InternalTransferForm() {
                   )}
               </div>
               {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-50 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
                      <Check className="h-4 w-4" /> {recipientName}
                   </div>
               )}
@@ -424,31 +451,38 @@ export function InternalTransferForm() {
         {isMemoTransfer && (
           <div className="space-y-4 pt-4 border-t">
             <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
-            <FormField
-              control={form.control}
-              name="photo"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Add a Photo</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} className="absolute h-full w-full opacity-0 cursor-pointer" />
-                      <label htmlFor="photo-upload" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
-                        {photoPreview ? (
-                          <Image src={photoPreview} alt="Preview" width={100} height={100} className="object-contain h-full" data-ai-hint="person" />
-                        ) : (
-                          <div className="text-center text-muted-foreground">
-                            <Upload className="mx-auto h-8 w-8" />
-                            <p>Click to upload</p>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid md:grid-cols-2 gap-4 items-end">
+                 <FormField control={form.control} name="imageTheme" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Generate Image from Theme</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                            <Input placeholder="e.g., Birthday celebration" {...field} />
+                        </FormControl>
+                        <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
+                            {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <div className="relative text-center before:hidden md:before:absolute md:before:content-['OR'] md:before:-left-4 md:before:top-1/2 md:before:-translate-y-1/2 md:before:text-muted-foreground md:before:font-bold">
+                    <FormField control={form.control} name="photo" render={() => (
+                        <FormItem><FormLabel>Upload Your Photo</FormLabel>
+                            <FormControl>
+                                <Input id="photo-upload" type="file" accept="image/*" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-light-bg file:text-primary hover:file:bg-primary/20" onChange={handlePhotoUpload} />
+                            </FormControl>
+                        </FormItem>
+                    )} />
+                </div>
+            </div>
+
+             {photoPreview && (
+                <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                  <Image src={photoPreview} alt="Generated Preview" layout="fill" objectFit="cover" data-ai-hint="celebration" />
+                </div>
+            )}
             <FormField
               control={form.control}
               name="message"
