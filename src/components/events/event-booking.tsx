@@ -460,7 +460,7 @@ function DetailsView({ event, onBook, onBack }: { event: Event, onBook: (details
                 await navigator.share({
                     title: event.name,
                     text: `${event.description}\n\nVenue: ${event.venue}, ${event.city}`,
-                    url: window.location.href, // This will be the current page URL
+                    url: window.location.href,
                 });
                 toast({ title: 'Event Shared!' });
             } catch (error) {
@@ -675,5 +675,3 @@ function BookingHistoryView() {
         </>
     );
 }
-
-    
