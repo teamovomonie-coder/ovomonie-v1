@@ -10,7 +10,8 @@ import {
     getDocs,
     runTransaction,
     doc,
-    Timestamp
+    Timestamp,
+    getDoc
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
 
