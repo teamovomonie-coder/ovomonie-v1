@@ -1,3 +1,4 @@
+
 import { AppShell } from "@/components/layout/app-shell";
 import { HotelBooking } from "@/components/hotel-booking/hotel-booking";
 
