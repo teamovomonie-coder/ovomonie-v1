@@ -20,12 +20,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Sparkles, Upload } from 'lucide-react';
+import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Sparkles, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
@@ -127,8 +126,6 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
   
-  const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
-  const [bankSearchQuery, setBankSearchQuery] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
 
@@ -140,9 +137,6 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
   const { watch, clearErrors, setError } = form;
   const watchedAccountNumber = watch('accountNumber');
   const watchedBankCode = watch('bankCode');
-
-  const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
 
   useEffect(() => {
     setRecipientName(null);
@@ -210,7 +204,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({ variant: 'destructive', title: 'Image Too Large', description: 'Please upload an image smaller than 2MB.'});
+        toast({ variant: "destructive", title: "Image Too Large", description: "Please upload an image smaller than 2MB."});
         return;
       }
       const reader = new FileReader();
@@ -388,69 +382,32 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           render={({ field }) => (
             <FormItem>
               <FormLabel>Recipient's Bank</FormLabel>
-                <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
-                  <PopoverTrigger asChild>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
-                      >
-                        {field.value ? nigerianBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a bank" />
+                        </SelectTrigger>
                     </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Search for a bank..."
-                        value={bankSearchQuery}
-                        onValueChange={setBankSearchQuery}
-                       />
-                      <CommandList>
-                        <CommandEmpty>No bank found.</CommandEmpty>
-                        {filteredTopBanks.length > 0 && (
-                          <CommandGroup heading="Top Banks">
-                            {filteredTopBanks.map(bank => (
-                              <CommandItem
-                                key={bank.code}
-                                value={bank.name}
-                                onSelect={() => {
-                                  form.setValue("bankCode", bank.code)
-                                  setIsBankPopoverOpen(false);
-                                  setBankSearchQuery("");
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />
-                                {bank.name}
-                              </CommandItem>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Top Banks</SelectLabel>
+                            {topBanks.map(bank => (
+                                <SelectItem key={bank.code} value={bank.code}>
+                                    {bank.name}
+                                </SelectItem>
                             ))}
-                          </CommandGroup>
-                        )}
-                         {(filteredTopBanks.length > 0 && filteredOtherBanks.length > 0) && <CommandSeparator />}
-                        {filteredOtherBanks.length > 0 && (
-                           <CommandGroup heading="All Banks">
-                            {filteredOtherBanks.map(bank => (
-                              <CommandItem
-                                key={bank.code}
-                                value={bank.name}
-                                onSelect={() => {
-                                  form.setValue("bankCode", bank.code)
-                                  setIsBankPopoverOpen(false);
-                                  setBankSearchQuery("");
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />
-                                {bank.name}
-                              </CommandItem>
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                            <SelectLabel>All Banks</SelectLabel>
+                             {otherBanks.map(bank => (
+                                <SelectItem key={bank.code} value={bank.code}>
+                                    {bank.name}
+                                </SelectItem>
                             ))}
-                          </CommandGroup>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
               <FormMessage />
             </FormItem>
           )}
