@@ -17,7 +17,7 @@ export const faqData: FaqCategory[] = [
     {
         category: "Login & Security",
         questions: [
-            { question: "I forgot my password. How can I reset it?", answer: "On the login screen, tap 'Forgot Password' and follow the on-screen instructions. You will need access to your registered email or phone number to receive a verification code." },
+            { question: "I forgot my password. How can I reset it?", answer: "On the login screen, tap 'Forgot PIN?' and follow the on-screen instructions. You will need access to your registered email or phone number to receive a verification code." },
             { question: "How do I change my transaction PIN?", answer: "Go to the 'Security' section in the app settings. You will find an option to change your transaction PIN. You'll need to enter your old PIN to set a new one." },
         ]
     },
