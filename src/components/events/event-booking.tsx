@@ -26,7 +26,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PinModal } from '@/components/auth/pin-modal';
 
-import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Trash2, Wallet, CheckCircle, Loader2, Download, QrCode, Users, PlusCircle, Share2, Church, Moon, FileText } from 'lucide-react';
+import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Trash2, Wallet, CheckCircle, Loader2, Download, QrCode, Users, PlusCircle, Share2, Church, Moon, FileText, Upload } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 
