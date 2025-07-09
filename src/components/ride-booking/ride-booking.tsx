@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,9 +19,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { PinModal } from '@/components/auth/pin-modal';
 
 // Icons
 import { MapPin, ArrowLeft, Bike, Car, Gem, Star, Phone, Shield, Share2, Wallet, X, CheckCircle, Loader2 } from 'lucide-react';
+
+// Auth and Notifications
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
+
 
 // Types
 type View = 'search' | 'selection' | 'tracking' | 'rating' | 'receipt';
@@ -55,6 +61,12 @@ const searchSchema = z.object({
     destination: z.string().min(3, 'Please enter a valid destination.'),
 });
 
+interface ReceiptData {
+    ride: RideType;
+    searchDetails: { pickup: string; destination: string };
+    bookingReference: string;
+}
+
 // Main Component
 export function RideBooking() {
     const [view, setView] = useState<View>('search');
@@ -62,7 +74,15 @@ export function RideBooking() {
     const [selectedRide, setSelectedRide] = useState<RideType | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     
+    const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
+
     const { toast } = useToast();
+    const { balance, updateBalance } = useAuth();
+    const { addNotification } = useNotifications();
+
 
     const handleSearch = (data: z.infer<typeof searchSchema>) => {
         setIsSearching(true);
@@ -74,27 +94,71 @@ export function RideBooking() {
     };
 
     const handleSelectRide = (ride: RideType) => {
-        const walletBalance = 5000; // Mock wallet balance
-        if (ride.price > walletBalance) {
+        if (balance === null) return;
+        if (ride.price * 100 > balance) {
             toast({
                 variant: 'destructive',
                 title: 'Insufficient Funds',
-                description: 'Please top up your wallet to book this ride.',
+                description: 'Your wallet balance may not be enough for this ride. Please top up.',
             });
-            return;
         }
         setSelectedRide(ride);
         setView('tracking');
     };
 
-    const handleEndRide = () => {
-        if (!selectedRide) return;
-        toast({
-            title: 'Payment Successful',
-            description: `₦${selectedRide.price.toLocaleString()} has been deducted from your wallet.`,
-        });
-        setView('rating');
+    const handleRequestPayment = () => {
+        if (!selectedRide || balance === null) return;
+        if (selectedRide.price * 100 > balance) {
+            toast({
+                variant: 'destructive',
+                title: 'Insufficient Funds',
+                description: 'Cannot process payment. Please top up your wallet.',
+            });
+            return;
+        }
+        setIsPinModalOpen(true);
     };
+
+    const handleConfirmPayment = async () => {
+        if (!selectedRide) return;
+        setIsProcessing(true);
+        setApiError(null);
+        
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error("Authentication failed.");
+
+            const response = await fetch('/api/rides/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    ride: selectedRide,
+                    searchDetails,
+                    clientReference: `ride-book-${crypto.randomUUID()}`
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || "Ride payment failed.");
+
+            updateBalance(result.newBalanceInKobo);
+            addNotification({
+                title: 'Ride Payment Successful',
+                description: `Paid ₦${selectedRide.price.toLocaleString()} for your ride.`,
+                category: 'transaction',
+            });
+            toast({ title: 'Payment Successful!' });
+            setReceiptData({ ride: selectedRide, searchDetails, bookingReference: result.bookingReference });
+            setView('rating');
+
+        } catch (error) {
+            setApiError(error instanceof Error ? error.message : "An unknown error occurred.");
+        } finally {
+            setIsProcessing(false);
+            setIsPinModalOpen(false);
+        }
+    };
+
 
     const handleRatingSubmit = () => {
         toast({ title: 'Feedback Submitted', description: 'Thank you for rating your driver!' });
@@ -105,6 +169,7 @@ export function RideBooking() {
         setView('search');
         setSearchDetails({ pickup: '', destination: '' });
         setSelectedRide(null);
+        setReceiptData(null);
     };
 
     const renderView = () => {
@@ -114,11 +179,11 @@ export function RideBooking() {
             case 'selection':
                 return <RideSelectionScreen onSelectRide={handleSelectRide} onBack={() => setView('search')} searchDetails={searchDetails} />;
             case 'tracking':
-                return <TrackingScreen onEndRide={handleEndRide} ride={selectedRide!} searchDetails={searchDetails} />;
+                return <TrackingScreen onEndRide={handleRequestPayment} ride={selectedRide!} searchDetails={searchDetails} />;
             case 'rating':
                 return <RatingScreen onSubmit={handleRatingSubmit} ride={selectedRide!} />;
             case 'receipt':
-                return <ReceiptScreen onDone={reset} ride={selectedRide!} searchDetails={searchDetails} />;
+                return <ReceiptScreen onDone={reset} receiptData={receiptData!} />;
             default:
                 return <SearchScreen onSearch={handleSearch} isSearching={isSearching} />;
         }
@@ -138,6 +203,15 @@ export function RideBooking() {
                     {renderView()}
                 </motion.div>
             </AnimatePresence>
+            <PinModal
+                open={isPinModalOpen}
+                onOpenChange={setIsPinModalOpen}
+                onConfirm={handleConfirmPayment}
+                isProcessing={isProcessing}
+                error={apiError}
+                onClearError={() => setApiError(null)}
+                title="Authorize Ride Payment"
+            />
         </div>
     );
 }
@@ -316,7 +390,7 @@ function RatingScreen({ onSubmit, ride }: { onSubmit: () => void, ride: RideType
     );
 }
 
-function ReceiptScreen({ onDone, ride, searchDetails }: { onDone: () => void, ride: RideType, searchDetails: any }) {
+function ReceiptScreen({ onDone, receiptData }: { onDone: () => void, receiptData: ReceiptData }) {
     return (
         <div className="flex-1 flex items-center justify-center bg-gray-100 p-4">
             <Card className="w-full max-w-sm text-center">
@@ -326,12 +400,13 @@ function ReceiptScreen({ onDone, ride, searchDetails }: { onDone: () => void, ri
                     <CardDescription>Here is a summary of your trip.</CardDescription>
                 </CardHeader>
                 <CardContent className="text-left bg-muted p-4 rounded-lg space-y-2">
-                     <div className="flex justify-between"><span className="text-muted-foreground">From</span><span className="font-semibold">{searchDetails.pickup}</span></div>
-                     <div className="flex justify-between"><span className="text-muted-foreground">To</span><span className="font-semibold">{searchDetails.destination}</span></div>
+                     <div className="flex justify-between"><span className="text-muted-foreground">Booking Ref.</span><span className="font-semibold font-mono text-xs">{receiptData.bookingReference}</span></div>
+                     <div className="flex justify-between"><span className="text-muted-foreground">From</span><span className="font-semibold">{receiptData.searchDetails.pickup}</span></div>
+                     <div className="flex justify-between"><span className="text-muted-foreground">To</span><span className="font-semibold">{receiptData.searchDetails.destination}</span></div>
                      <Separator />
                      <div className="flex justify-between"><span className="text-muted-foreground">Driver</span><span className="font-semibold">{mockDriver.name}</span></div>
-                     <div className="flex justify-between"><span className="text-muted-foreground">Ride Type</span><span className="font-semibold">{ride.name}</span></div>
-                     <div className="flex justify-between text-lg font-bold"><span >Total Paid</span><span>₦{ride.price.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span className="text-muted-foreground">Ride Type</span><span className="font-semibold">{receiptData.ride.name}</span></div>
+                     <div className="flex justify-between text-lg font-bold"><span >Total Paid</span><span>₦{receiptData.ride.price.toLocaleString()}</span></div>
                 </CardContent>
                 <CardFooter>
                      <Button className="w-full" onClick={onDone}>Done</Button>
