@@ -94,7 +94,7 @@ function BankTransferWithdrawal() {
   const watchedBankCode = watch('bankCode');
 
   const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(b.code));
+  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(bank.code));
 
   useEffect(() => {
     setRecipientName(null);
