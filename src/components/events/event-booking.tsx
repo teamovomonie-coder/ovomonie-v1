@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PinModal } from '@/components/auth/pin-modal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Trash2, Wallet, CheckCircle, Loader2, Download, QrCode, Users, PlusCircle, Share2, Church, Moon, FileText, Upload } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
