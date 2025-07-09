@@ -4,6 +4,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
 
 // UI components
 import { Button } from '@/components/ui/button';
@@ -17,9 +21,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
 
 // Icons
-import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode } from 'lucide-react';
+import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode, Users, TrendingUp } from 'lucide-react';
 
 // Types & Mock Data
 type View = 'discovery' | 'details' | 'payment' | 'confirmation';
@@ -76,6 +82,91 @@ const mockUserBookings: UserBooking[] = [
     { id: 'book-2', eventName: 'TechCrunch Lagos', date: new Date('2024-06-01'), venue: 'Civic Centre', status: 'Completed' },
 ];
 
+function OrganizerView() {
+    const interestFormSchema = z.object({
+        organizerName: z.string().min(3, "Please enter your name or company name."),
+        email: z.string().email("Please enter a valid email address."),
+        phone: z.string().min(10, "A valid phone number is required."),
+        eventName: z.string().min(5, "Tell us the name of your event."),
+        eventDescription: z.string().min(20, "Please provide a brief description of your event.").max(500, "Description is too long."),
+    });
+
+    const form = useForm<z.infer<typeof interestFormSchema>>({
+        resolver: zodResolver(interestFormSchema),
+        defaultValues: {
+            organizerName: "",
+            email: "",
+            phone: "",
+            eventName: "",
+            eventDescription: "",
+        },
+    });
+    
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
+    const onSubmit = async () => {
+        setIsLoading(true);
+        await new Promise(res => setTimeout(res, 1500));
+        setIsLoading(false);
+        setIsSubmitted(true);
+        form.reset();
+        toast({ title: "Thank you!", description: "Your interest has been recorded. Our team will contact you shortly." });
+    };
+
+    if (isSubmitted) {
+        return (
+             <Card className="text-center py-20">
+                <CardHeader className="items-center">
+                    <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
+                    <CardTitle>Submission Received!</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Thank you for your interest in hosting with Ovomonie. We will review your submission and get back to you within 2-3 business days.</p>
+                </CardContent>
+                <CardFooter>
+                     <Button className="w-full" onClick={() => setIsSubmitted(false)}>Submit Another Event</Button>
+                </CardFooter>
+            </Card>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Host Your Event with Ovomonie</CardTitle>
+                <CardDescription>Reach millions of users and manage your ticket sales seamlessly. Fill out the form below to get started.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-lg">Why Partner with Ovomonie?</h3>
+                        <ul className="space-y-3">
+                            <li className="flex gap-3"><Ticket className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Seamless Ticketing:</strong> Sell tickets directly within the app your audience already trusts.</p></li>
+                            <li className="flex gap-3"><Users className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Vast Audience:</strong> Reach our large and engaged user base across Nigeria.</p></li>
+                            <li className="flex gap-3"><Wallet className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Secure Payments:</strong> Instant and secure payment processing directly to your account.</p></li>
+                            <li className="flex gap-3"><TrendingUp className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Real-time Analytics:</strong> Track sales and monitor your event's performance from your dashboard.</p></li>
+                        </ul>
+                    </div>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField control={form.control} name="organizerName" render={({ field }) => <FormItem><FormLabel>Your Name / Company</FormLabel><FormControl><Input placeholder="e.g., Starboy Fest Inc." {...field} /></FormControl><FormMessage /></FormItem>} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="email" render={({ field }) => <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" placeholder="you@company.com" {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField control={form.control} name="phone" render={({ field }) => <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="080..." {...field} /></FormControl><FormMessage /></FormItem>} />
+                            </div>
+                            <FormField control={form.control} name="eventName" render={({ field }) => <FormItem><FormLabel>Event Name</FormLabel><FormControl><Input placeholder="e.g., Lagos Food Festival" {...field} /></FormControl><FormMessage /></FormItem>} />
+                            <FormField control={form.control} name="eventDescription" render={({ field }) => <FormItem><FormLabel>Brief Event Description</FormLabel><FormControl><Textarea placeholder="Tell us about your event..." {...field} /></FormControl><FormMessage /></FormItem>} />
+                            <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Interest</Button>
+                        </form>
+                    </Form>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 // Main Component
 export function EventBooking() {
     const [view, setView] = useState<View>('discovery');
@@ -108,7 +199,7 @@ export function EventBooking() {
         setBookingDetails(null);
     };
 
-    const renderView = () => {
+    const renderDiscoveryFlow = () => {
         switch (view) {
             case 'details': return <DetailsView event={selectedEvent!} onBook={handleBook} onBack={reset} />;
             case 'payment': return <PaymentView bookingDetails={bookingDetails!} onConfirm={handleConfirmPayment} onBack={() => setView('details')} isProcessing={isProcessing} />;
@@ -122,9 +213,10 @@ export function EventBooking() {
         <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight">Event Tickets</h2>
             <Tabs defaultValue="discover" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="discover">Discover Events</TabsTrigger>
                     <TabsTrigger value="history">My Tickets</TabsTrigger>
+                    <TabsTrigger value="organize">Host an Event</TabsTrigger>
                 </TabsList>
                 <TabsContent value="discover" className="pt-4">
                     <AnimatePresence mode="wait">
@@ -135,12 +227,15 @@ export function EventBooking() {
                             exit={{ opacity: 0, x: -50 }}
                             transition={{ duration: 0.3 }}
                         >
-                            {renderView()}
+                            {renderDiscoveryFlow()}
                         </motion.div>
                     </AnimatePresence>
                 </TabsContent>
                 <TabsContent value="history" className="pt-4">
                     <BookingHistoryView />
+                </TabsContent>
+                <TabsContent value="organize" className="pt-4">
+                    <OrganizerView />
                 </TabsContent>
             </Tabs>
         </div>
