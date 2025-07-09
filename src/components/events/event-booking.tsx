@@ -23,14 +23,16 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 
 // Icons
-import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode, Users, TrendingUp, Upload, Trash2, PlusCircle, BarChart } from 'lucide-react';
+import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode, Users, TrendingUp, Upload, Trash2, PlusCircle, BarChart, Church, Moon, Share2 } from 'lucide-react';
 
 // Types & Mock Data
 type View = 'discovery' | 'details' | 'payment' | 'confirmation';
 type OrganizerView = 'dashboard' | 'form' | 'payment' | 'event_details';
-type EventCategory = 'All' | 'Music' | 'Comedy' | 'Sports' | 'Conference';
+type EventCategory = 'All' | 'Music' | 'Comedy' | 'Sports' | 'Conference' | 'Church' | 'Islamic';
 
 interface Event {
     id: string;
@@ -71,6 +73,8 @@ const mockEvents: Event[] = [
     { id: 'evt-2', name: 'Basketmouth: Uncensored', category: 'Comedy', date: new Date('2024-11-10'), venue: 'Eko Hotel & Suites', city: 'Lagos', image: 'https://placehold.co/600x400.png', description: 'A night of raw, unfiltered comedy with the legendary Basketmouth.', hint: 'comedy show' },
     { id: 'evt-3', name: 'Nigeria vs Ghana AFCON Qualifier', category: 'Sports', date: new Date('2024-10-05'), venue: 'Godswill Akpabio Stadium', city: 'Uyo', image: 'https://placehold.co/600x400.png', description: 'The West African derby returns! Witness the clash of titans.', hint: 'soccer stadium' },
     { id: 'evt-4', name: 'Fintech Nigeria Summit', category: 'Conference', date: new Date('2024-09-20'), venue: 'Landmark Centre', city: 'Lagos', image: 'https://placehold.co/600x400.png', description: 'The biggest gathering of financial technology experts in West Africa.', hint: 'conference room' },
+    { id: 'evt-5', name: 'Annual Shiloh Gathering', category: 'Church', date: new Date('2024-12-08'), venue: 'Faith Tabernacle', city: 'Ota', image: 'https://placehold.co/600x400.png', description: 'Join thousands for a life-changing spiritual encounter.', hint: 'church cross' },
+    { id: 'evt-6', name: 'Eid al-Fitr Celebration', category: 'Islamic', date: new Date('2025-03-30'), venue: 'National Mosque', city: 'Abuja', image: 'https://placehold.co/600x400.png', description: 'Celebrate the end of Ramadan with prayers, food, and community.', hint: 'mosque dome' },
 ];
 
 const mockTickets: Record<string, TicketType[]> = {
@@ -78,6 +82,8 @@ const mockTickets: Record<string, TicketType[]> = {
     'evt-2': [{ id: 'tix-2a', name: 'Regular', price: 10000 }, { id: 'tix-2b', name: 'Table of 10', price: 500000 }],
     'evt-3': [{ id: 'tix-3a', name: 'Regular', price: 5000 }, { id: 'tix-3b', name: 'VIP', price: 20000 }],
     'evt-4': [{ id: 'tix-4a', name: 'Delegate Pass', price: 25000 }, { id: 'tix-4b', name: 'Exhibitor Pass', price: 100000 }],
+    'evt-5': [{ id: 'tix-5a', name: 'General Access', price: 0 }],
+    'evt-6': [{ id: 'tix-6a', name: 'General Access', price: 0 }],
 };
 
 const mockUserBookings: UserBooking[] = [
@@ -399,6 +405,8 @@ function DiscoveryView({ onSelectEvent }: { onSelectEvent: (event: Event) => voi
         { name: 'Comedy', icon: Mic },
         { name: 'Sports', icon: Dumbbell },
         { name: 'Conference', icon: Wallet },
+        { name: 'Church', icon: Church },
+        { name: 'Islamic', icon: Moon },
     ];
     
     return (
@@ -443,6 +451,28 @@ function DiscoveryView({ onSelectEvent }: { onSelectEvent: (event: Event) => voi
 function DetailsView({ event, onBook, onBack }: { event: Event, onBook: (details: Omit<BookingDetails, 'event'>) => void, onBack: () => void }) {
     const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
     const eventTickets = mockTickets[event.id] || [];
+    const { toast } = useToast();
+
+    const handleShare = async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: event.name,
+                    text: `${event.description}\n\nVenue: ${event.venue}, ${event.city}`,
+                    url: window.location.href, // This will be the current page URL
+                });
+                toast({ title: 'Event Shared!' });
+            } catch (error) {
+                if (!(error instanceof Error && error.name === 'AbortError')) {
+                    console.error('Share failed:', error);
+                    toast({ variant: 'destructive', title: 'Could not share event.' });
+                }
+            }
+        } else {
+            navigator.clipboard.writeText(`${event.name}: ${window.location.href}`);
+            toast({ title: 'Link Copied!', description: 'Sharing is not supported on your browser. Event link copied to clipboard.' });
+        }
+    };
 
     const handleQuantityChange = (ticketTypeId: string, change: number) => {
         setTicketQuantities(prev => ({
@@ -468,12 +498,15 @@ function DetailsView({ event, onBook, onBack }: { event: Event, onBook: (details
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
-                    <div>
-                        <CardTitle className="text-2xl">{event.name}</CardTitle>
-                        <CardDescription>{format(event.date, 'PPPP')} at {event.venue}</CardDescription>
+                 <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
+                        <div>
+                            <CardTitle className="text-2xl">{event.name}</CardTitle>
+                            <CardDescription>{format(event.date, 'PPPP')} at {event.venue}</CardDescription>
+                        </div>
                     </div>
+                    <Button variant="outline" size="icon" onClick={handleShare}><Share2 /></Button>
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -575,37 +608,69 @@ function ConfirmationView({ bookingDetails, onDone }: { bookingDetails: BookingD
     );
 }
 
-function BookingHistoryView() {
+function TicketViewDialog({ booking, open, onOpenChange }: { booking: UserBooking | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+    if (!booking) return null;
+    
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>My Tickets</CardTitle>
-                <CardDescription>A list of your past and upcoming event bookings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {mockUserBookings.map(b => (
-                            <TableRow key={b.id}>
-                                <TableCell className="font-medium">{b.eventName}</TableCell>
-                                <TableCell>{format(b.date, 'PPP')}</TableCell>
-                                <TableCell><Badge variant={b.status === 'Completed' ? 'secondary' : 'default'}>{b.status}</Badge></TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">View Ticket</Button>
-                                </TableCell>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader className="text-center items-center">
+                    <Ticket className="w-16 h-16 text-primary mb-2" />
+                    <DialogTitle className="text-2xl">{booking.eventName}</DialogTitle>
+                    <DialogDescription>Present this ticket at the event entrance.</DialogDescription>
+                </DialogHeader>
+                <div className="p-4 bg-white border rounded-lg flex flex-col items-center">
+                    <QrCode className="w-32 h-32" />
+                    <p className="font-mono text-sm mt-2">REF: {booking.id.toUpperCase()}</p>
+                </div>
+                <div className="text-sm space-y-1 mt-4">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span className="font-semibold">{format(booking.date, 'PPP')}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Venue:</span><span className="font-semibold">{booking.venue}</span></div>
+                </div>
+                <DialogFooter className="mt-4">
+                    <Button className="w-full" onClick={() => onOpenChange(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BookingHistoryView() {
+    const [viewingTicket, setViewingTicket] = useState<UserBooking | null>(null);
+
+    return (
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>My Tickets</CardTitle>
+                    <CardDescription>A list of your past and upcoming event bookings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Event</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {mockUserBookings.map(b => (
+                                <TableRow key={b.id}>
+                                    <TableCell className="font-medium">{b.eventName}</TableCell>
+                                    <TableCell>{format(b.date, 'PPP')}</TableCell>
+                                    <TableCell><Badge variant={b.status === 'Completed' ? 'secondary' : 'default'}>{b.status}</Badge></TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => setViewingTicket(b)}>View Ticket</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            <TicketViewDialog booking={viewingTicket} open={!!viewingTicket} onOpenChange={() => setViewingTicket(null)} />
+        </>
     );
 }
