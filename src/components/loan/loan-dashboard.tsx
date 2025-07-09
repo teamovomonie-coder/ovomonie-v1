@@ -192,7 +192,7 @@ export function LoanDashboard() {
     if (!applicationData) return { totalRepayable: 0, monthlyPayment: 0 };
     const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
     const totalRepayable = applicationData.amount + interest;
-    const monthlyPayment = totalRepayable / applicationData.duration;
+    const monthlyPayment = totalRepayable / duration;
     return { totalRepayable, monthlyPayment };
   }, [applicationData]);
 
@@ -205,13 +205,13 @@ export function LoanDashboard() {
     }, 1500);
   };
   
-  const handleAcceptOffer = () => {
+  const handleAcceptOffer = useCallback(() => {
     if (!applicationData) return;
     setPinAction('accept_loan');
     setIsPinModalOpen(true);
-  }
+  }, [applicationData]);
 
-  const handleRepaymentRequest = (amount: number) => {
+  const handleRepaymentRequest = useCallback((amount: number) => {
       if (balance === null || (amount * 100) > balance) {
           toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this repayment.' });
           return;
@@ -219,9 +219,9 @@ export function LoanDashboard() {
       setRepaymentAmount(amount);
       setPinAction('repay_loan');
       setIsPinModalOpen(true);
-  };
+  }, [balance, toast]);
 
-  const executeLoanDisbursement = async () => {
+  const executeLoanDisbursement = useCallback(async () => {
     if (!applicationData) return;
     setIsProcessing(true);
     setApiError(null);
@@ -251,9 +251,9 @@ export function LoanDashboard() {
     } finally {
         setIsProcessing(false);
     }
-  }
+  }, [applicationData, updateBalance, addNotification]);
 
-  const executeRepayment = async () => {
+  const executeRepayment = useCallback(async () => {
       if (!repaymentAmount || !activeLoan) return;
 
       setIsProcessing(true);
@@ -286,17 +286,18 @@ export function LoanDashboard() {
           setRepaymentAmount(null);
           setIsRepayDialogOpen(false);
       }
-  }
-
-  const handlePinConfirm = () => {
+  }, [repaymentAmount, activeLoan, updateBalance, addNotification, toast, fetchActiveLoan]);
+  
+  const handlePinConfirm = useCallback(() => {
       setIsPinModalOpen(false);
       if (pinAction === 'accept_loan') {
           executeLoanDisbursement();
       } else if (pinAction === 'repay_loan') {
           executeRepayment();
       }
-  };
-
+  }, [pinAction, executeLoanDisbursement, executeRepayment]);
+  
+  const clearApiError = useCallback(() => setApiError(null), []);
 
   const reset = () => {
     setView('dashboard');
@@ -530,8 +531,9 @@ export function LoanDashboard() {
         isProcessing={isProcessing}
         title={pinAction === 'accept_loan' ? "Authorize Loan Disbursement" : "Confirm Loan Repayment"}
         error={apiError}
-        onClearError={() => setApiError(null)}
+        onClearError={clearApiError}
     />
     </>
   );
 }
+
