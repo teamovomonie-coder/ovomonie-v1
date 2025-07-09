@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -25,10 +25,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 
 // Icons
-import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode, Users, TrendingUp } from 'lucide-react';
+import { Ticket, Search, MapPin, Music, Mic, Dumbbell, ArrowLeft, Plus, Minus, Wallet, CheckCircle, Loader2, Download, QrCode, Users, TrendingUp, Upload, Trash2, PlusCircle, BarChart } from 'lucide-react';
 
 // Types & Mock Data
 type View = 'discovery' | 'details' | 'payment' | 'confirmation';
+type OrganizerView = 'dashboard' | 'form' | 'payment' | 'event_details';
 type EventCategory = 'All' | 'Music' | 'Comedy' | 'Sports' | 'Conference';
 
 interface Event {
@@ -38,7 +39,8 @@ interface Event {
     date: Date;
     venue: string;
     city: string;
-    image: string;
+    image: string; // fallback image
+    flyerImage?: string; // uploaded flyer
     description: string;
     hint: string;
 }
@@ -47,6 +49,7 @@ interface TicketType {
     id: string;
     name: string;
     price: number;
+    quantity?: number; // for hosts
 }
 
 interface UserBooking {
@@ -82,90 +85,223 @@ const mockUserBookings: UserBooking[] = [
     { id: 'book-2', eventName: 'TechCrunch Lagos', date: new Date('2024-06-01'), venue: 'Civic Centre', status: 'Completed' },
 ];
 
+interface HostEvent extends Event {
+    ticketTypes: TicketType[];
+    ticketsSold: number;
+    revenue: number;
+}
+
+const ticketTypeSchema = z.object({
+  name: z.string().min(1, "Ticket name is required"),
+  price: z.coerce.number().positive("Price must be positive"),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+});
+
+const eventCreationSchema = z.object({
+    name: z.string().min(5, "Event name is too short."),
+    description: z.string().min(20, "Please provide more details."),
+    date: z.date({required_error: "Please select a date."}),
+    venue: z.string().min(3, "Venue is required."),
+    city: z.string().min(1, "Please select a city."),
+    flyerImage: z.any().optional(),
+    ticketTypes: z.array(ticketTypeSchema).min(1, "At least one ticket type is required."),
+});
+
+type EventCreationData = z.infer<typeof eventCreationSchema>;
+
 function OrganizerView() {
-    const interestFormSchema = z.object({
-        organizerName: z.string().min(3, "Please enter your name or company name."),
-        email: z.string().email("Please enter a valid email address."),
-        phone: z.string().min(10, "A valid phone number is required."),
-        eventName: z.string().min(5, "Tell us the name of your event."),
-        eventDescription: z.string().min(20, "Please provide a brief description of your event.").max(500, "Description is too long."),
-    });
-
-    const form = useForm<z.infer<typeof interestFormSchema>>({
-        resolver: zodResolver(interestFormSchema),
-        defaultValues: {
-            organizerName: "",
-            email: "",
-            phone: "",
-            eventName: "",
-            eventDescription: "",
-        },
-    });
-    
     const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [view, setView] = useState<OrganizerView>('dashboard');
+    const [hostedEvents, setHostedEvents] = useState<HostEvent[]>([]);
+    const [activeEvent, setActiveEvent] = useState<HostEvent | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const onSubmit = async () => {
-        setIsLoading(true);
-        await new Promise(res => setTimeout(res, 1500));
-        setIsLoading(false);
-        setIsSubmitted(true);
-        form.reset();
-        toast({ title: "Thank you!", description: "Your interest has been recorded. Our team will contact you shortly." });
+    const handleCreateEvent = (data: EventCreationData) => {
+        const newEvent: HostEvent = {
+            id: `host-${Date.now()}`,
+            category: 'Music', // Default category for now
+            hint: 'concert stage',
+            image: 'https://placehold.co/600x400.png',
+            ...data,
+            // Mocked stats
+            ticketsSold: 0,
+            revenue: 0,
+        };
+        setActiveEvent(newEvent);
+        setView('payment');
     };
-
-    if (isSubmitted) {
+    
+    const handlePayListingFee = () => {
+        if (!activeEvent) return;
+        setIsProcessing(true);
+        setTimeout(() => {
+            setHostedEvents(prev => [...prev, activeEvent]);
+            toast({ title: "Event Listed!", description: `${activeEvent.name} is now live on Ovomonie.` });
+            setView('event_details');
+            setIsProcessing(false);
+        }, 1500);
+    }
+    
+    if (view === 'form' || (view === 'dashboard' && hostedEvents.length === 0)) {
+        return <EventCreationForm onSave={handleCreateEvent} />;
+    }
+    
+    if (view === 'payment') {
         return (
-             <Card className="text-center py-20">
-                <CardHeader className="items-center">
-                    <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
-                    <CardTitle>Submission Received!</CardTitle>
+            <Card className="text-center">
+                <CardHeader>
+                    <CardTitle>Pay Listing Fee</CardTitle>
+                    <CardDescription>A non-refundable fee is required to list your event.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Thank you for your interest in hosting with Ovomonie. We will review your submission and get back to you within 2-3 business days.</p>
+                    <p className="text-4xl font-bold">₦20,000</p>
+                    <p className="text-muted-foreground mt-2">This covers platform access and promotional support.</p>
                 </CardContent>
-                <CardFooter>
-                     <Button className="w-full" onClick={() => setIsSubmitted(false)}>Submit Another Event</Button>
+                <CardFooter className="flex-col gap-2">
+                    <Button className="w-full" onClick={handlePayListingFee} disabled={isProcessing}>
+                        {isProcessing && <Loader2 className="animate-spin mr-2"/>} Pay & List Event
+                    </Button>
+                    <Button variant="ghost" onClick={() => setView('form')}>Back to Edit</Button>
                 </CardFooter>
             </Card>
-        )
+        );
     }
-
+    
+    if (view === 'event_details' && activeEvent) {
+        return <HostEventDetails event={activeEvent} onBack={() => setView('dashboard')} />
+    }
+    
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Host Your Event with Ovomonie</CardTitle>
-                <CardDescription>Reach millions of users and manage your ticket sales seamlessly. Fill out the form below to get started.</CardDescription>
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                    <CardTitle>My Events Dashboard</CardTitle>
+                    <CardDescription>Track the performance of your listed events.</CardDescription>
+                </div>
+                <Button onClick={() => setView('form')}><PlusCircle className="mr-2" /> List New Event</Button>
             </CardHeader>
             <CardContent>
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Why Partner with Ovomonie?</h3>
-                        <ul className="space-y-3">
-                            <li className="flex gap-3"><Ticket className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Seamless Ticketing:</strong> Sell tickets directly within the app your audience already trusts.</p></li>
-                            <li className="flex gap-3"><Users className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Vast Audience:</strong> Reach our large and engaged user base across Nigeria.</p></li>
-                            <li className="flex gap-3"><Wallet className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Secure Payments:</strong> Instant and secure payment processing directly to your account.</p></li>
-                            <li className="flex gap-3"><TrendingUp className="h-6 w-6 text-primary flex-shrink-0"/><p><strong>Real-time Analytics:</strong> Track sales and monitor your event's performance from your dashboard.</p></li>
-                        </ul>
-                    </div>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField control={form.control} name="organizerName" render={({ field }) => <FormItem><FormLabel>Your Name / Company</FormLabel><FormControl><Input placeholder="e.g., Starboy Fest Inc." {...field} /></FormControl><FormMessage /></FormItem>} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="email" render={({ field }) => <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" placeholder="you@company.com" {...field} /></FormControl><FormMessage /></FormItem>} />
-                                <FormField control={form.control} name="phone" render={({ field }) => <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="080..." {...field} /></FormControl><FormMessage /></FormItem>} />
+                {hostedEvents.map(event => (
+                    <Card key={event.id} className="mb-4">
+                        <CardHeader className="flex-row justify-between items-start">
+                            <div>
+                                <p className="font-bold">{event.name}</p>
+                                <p className="text-sm text-muted-foreground">{format(event.date, 'PPP')}</p>
                             </div>
-                            <FormField control={form.control} name="eventName" render={({ field }) => <FormItem><FormLabel>Event Name</FormLabel><FormControl><Input placeholder="e.g., Lagos Food Festival" {...field} /></FormControl><FormMessage /></FormItem>} />
-                            <FormField control={form.control} name="eventDescription" render={({ field }) => <FormItem><FormLabel>Brief Event Description</FormLabel><FormControl><Textarea placeholder="Tell us about your event..." {...field} /></FormControl><FormMessage /></FormItem>} />
-                            <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Interest</Button>
-                        </form>
-                    </Form>
-                </div>
+                            <Button size="sm" onClick={() => { setActiveEvent(event); setView('event_details'); }}>View Details</Button>
+                        </CardHeader>
+                    </Card>
+                ))}
             </CardContent>
         </Card>
     );
 }
+
+function HostEventDetails({ event, onBack }: { event: HostEvent, onBack: () => void }) {
+    const totalRevenue = 565000; // Mock data
+    const commission = totalRevenue * 0.05;
+    const netPayout = totalRevenue - commission;
+    const ticketsSold = { Regular: 25, VIP: 5 }; // Mock data
+
+    return (
+        <Card>
+             <CardHeader>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft/></Button>
+                    <CardTitle>{event.name}</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <h3 className="font-semibold">Performance Summary</h3>
+                    <Card>
+                        <CardContent className="pt-6 grid grid-cols-2 gap-4 text-center">
+                            <div><p className="text-sm text-muted-foreground">Tickets Sold</p><p className="text-2xl font-bold">30</p></div>
+                            <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">₦{totalRevenue.toLocaleString()}</p></div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                         <CardContent className="pt-6 space-y-2">
+                             <div className="flex justify-between"><p>Gross Revenue</p><p>₦{totalRevenue.toLocaleString()}</p></div>
+                             <div className="flex justify-between text-destructive"><p>Ovomonie Commission (5%)</p><p>- ₦{commission.toLocaleString()}</p></div>
+                             <Separator />
+                             <div className="flex justify-between font-bold text-lg"><p>Net Payout</p><p>₦{netPayout.toLocaleString()}</p></div>
+                         </CardContent>
+                    </Card>
+                </div>
+                 <div>
+                    <h3 className="font-semibold">Ticket Sales Breakdown</h3>
+                     <Table><TableHeader><TableRow><TableHead>Ticket Type</TableHead><TableHead className="text-right">Sold</TableHead></TableRow></TableHeader><TableBody><TableRow><TableCell>Regular</TableCell><TableCell className="text-right">25</TableCell></TableRow><TableRow><TableCell>VIP</TableCell><TableCell className="text-right">5</TableCell></TableRow></TableBody></Table>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function EventCreationForm({ onSave }: { onSave: (data: EventCreationData) => void }) {
+    const form = useForm<EventCreationData>({
+        resolver: zodResolver(eventCreationSchema),
+        defaultValues: { name: "", description: "", venue: "", city: "", ticketTypes: [{ name: 'Regular', price: 0, quantity: 100 }] }
+    });
+    
+    const { fields, append, remove } = useFieldArray({ control: form.control, name: "ticketTypes" });
+    const [flyerPreview, setFlyerPreview] = useState<string | null>(null);
+
+    const handleFlyerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFlyerPreview(reader.result as string);
+                form.setValue('flyerImage', reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="flyerImage" render={() => (
+                        <FormItem>
+                            <FormLabel>Event Flyer</FormLabel>
+                             <div className="relative w-full aspect-[3/4] border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted cursor-pointer">
+                                <Input id="flyer-upload" type="file" accept="image/*" onChange={handleFlyerUpload} className="absolute h-full w-full opacity-0 cursor-pointer" />
+                                {flyerPreview ? (<Image src={flyerPreview} alt="Flyer Preview" layout="fill" objectFit="contain" className="p-2" data-ai-hint="event poster"/>) : (<div className="text-center"><Upload className="mx-auto h-8 w-8" /><p className="text-xs mt-1">Upload Flyer</p></div>)}
+                            </div>
+                        </FormItem>
+                    )} />
+                    <div className="space-y-4">
+                        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Event Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Event Description</FormLabel><FormControl><Textarea {...field} rows={5}/></FormControl><FormMessage /></FormItem>)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="date" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} onChange={e => field.onChange(new Date(e.target.value))} value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="city" render={({ field }) => (<FormItem><FormLabel>City</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        <FormField control={form.control} name="venue" render={({ field }) => (<FormItem><FormLabel>Venue</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-2">Ticket Types</h3>
+                    <div className="space-y-3">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="flex items-end gap-2 p-2 border rounded-md">
+                            <FormField control={form.control} name={`ticketTypes.${index}.name`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Name</FormLabel><FormControl><Input {...field} placeholder="e.g. VIP"/></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name={`ticketTypes.${index}.price`} render={({ field }) => (<FormItem><FormLabel>Price (₦)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name={`ticketTypes.${index}.quantity`} render={({ field }) => (<FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="text-destructive"/></Button>
+                        </div>
+                    ))}
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ name: '', price: 0, quantity: 0 })}><PlusCircle className="mr-2" />Add Ticket Type</Button>
+                </div>
+                 <Button type="submit" className="w-full">Continue to Payment</Button>
+            </form>
+        </Form>
+    );
+}
+
 
 // Main Component
 export function EventBooking() {
@@ -284,7 +420,7 @@ function DiscoveryView({ onSelectEvent }: { onSelectEvent: (event: Event) => voi
                 {filteredEvents.map(event => (
                     <Card key={event.id} className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden" onClick={() => onSelectEvent(event)}>
                         <div className="relative h-40 w-full">
-                            <Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} />
+                            <Image src={event.flyerImage || event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} />
                             <Badge className="absolute top-2 right-2">{event.category}</Badge>
                         </div>
                         <CardHeader>
@@ -295,7 +431,7 @@ function DiscoveryView({ onSelectEvent }: { onSelectEvent: (event: Event) => voi
                             <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-4 w-4" /> {event.venue}, {event.city}</p>
                         </CardContent>
                          <CardFooter>
-                            <p className="text-lg font-bold">From ₦{mockTickets[event.id][0].price.toLocaleString()}</p>
+                            <p className="text-lg font-bold">From ₦{mockTickets[event.id]?.[0]?.price.toLocaleString() || 'N/A'}</p>
                         </CardFooter>
                     </Card>
                 ))}
@@ -341,7 +477,7 @@ function DetailsView({ event, onBook, onBack }: { event: Event, onBook: (details
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="h-48 w-full relative rounded-lg overflow-hidden"><Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} /></div>
+                <div className="h-48 w-full relative rounded-lg overflow-hidden"><Image src={event.flyerImage || event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} /></div>
                 <p className="text-muted-foreground">{event.description}</p>
                 <div>
                     <h3 className="font-semibold mb-2 text-lg">Select Tickets</h3>
