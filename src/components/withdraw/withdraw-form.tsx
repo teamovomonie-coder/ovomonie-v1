@@ -17,12 +17,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, ChevronsUpDown, Hash, Code, Store, QrCode } from 'lucide-react';
+import { Upload, Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Hash, Code, Store, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PinModal } from '@/components/auth/pin-modal';
@@ -74,8 +82,6 @@ function BankTransferWithdrawal() {
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<BankTransferFormData | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
-  const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
-  const [bankSearchQuery, setBankSearchQuery] = useState("");
 
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
@@ -92,9 +98,6 @@ function BankTransferWithdrawal() {
   const { watch, clearErrors, setError } = form;
   const watchedAccountNumber = watch('accountNumber');
   const watchedBankCode = watch('bankCode');
-
-  const filteredTopBanks = topBanks.filter(bank => bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase()));
-  const filteredOtherBanks = otherBanks.filter(bank => !topBankCodes.includes(bank.code));
 
   useEffect(() => {
     setRecipientName(null);
@@ -233,20 +236,44 @@ function BankTransferWithdrawal() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <Alert><Info className="h-4 w-4" /><AlertTitle>For Testing</AlertTitle><AlertDescription><p className="mb-2">Use one of these bank/account pairs for successful verification:</p><ul className="list-disc pl-5 space-y-1 text-xs"><li><b>GTB (058):</b> 0123456789</li><li><b>Access Bank (044):</b> 0987654321</li></ul></AlertDescription></Alert>
-        <FormField control={form.control} name="bankCode" render={({ field }) => (
-            <FormItem><FormLabel>Bank</FormLabel>
-                <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
-                  <PopoverTrigger asChild><FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>{field.value ? nigerianBanks.find(bank => bank.code === field.value)?.name : "Select a bank"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></FormControl></PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search for a bank..." value={bankSearchQuery} onValueChange={setBankSearchQuery} /><CommandList><CommandEmpty>No bank found.</CommandEmpty>
-                        <CommandGroup heading="Top Banks">{filteredTopBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { form.setValue("bankCode", bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>
-                        <CommandSeparator />
-                        <CommandGroup heading="All Banks">{filteredOtherBanks.map(bank => (<CommandItem key={bank.code} value={bank.name} onSelect={() => { form.setValue("bankCode", bank.code); setIsBankPopoverOpen(false); setBankSearchQuery(""); }}><Check className={cn("mr-2 h-4 w-4", field.value === bank.code ? "opacity-100" : "opacity-0")} />{bank.name}</CommandItem>))}</CommandGroup>
-                  </CommandList></Command></PopoverContent>
-                </Popover><FormMessage />
+        <FormField
+          control={form.control}
+          name="bankCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Bank</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a bank" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Top Banks</SelectLabel>
+                            {topBanks.map(bank => (
+                                <SelectItem key={bank.code} value={bank.code}>
+                                    {bank.name}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                            <SelectLabel>All Banks</SelectLabel>
+                             {otherBanks.map(bank => (
+                                <SelectItem key={bank.code} value={bank.code}>
+                                    {bank.name}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+              <FormMessage />
             </FormItem>
-        )}/>
+          )}
+        />
         <FormField control={form.control} name="accountNumber" render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><div className="relative"><FormControl><Input placeholder="10-digit account number" {...field} /></FormControl>{isVerifying && (<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />)}</div>{recipientName && !isVerifying && (<div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2"><Check className="h-4 w-4" />{recipientName}</div>)}<FormMessage /></FormItem>)}/>
-        <FormField control={form.control} name="amount" render={({ field }) => (<FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} /></FormControl><FormMessage /></FormItem>)}/>
+        <FormField control={form.control} name="amount" render={({ field }) => (<FormItem><FormLabel>Amount (₦)</FormLabel><FormControl><Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl><FormMessage /></FormItem>)}/>
         <FormField control={form.control} name="narration" render={({ field }) => (<FormItem><FormLabel>Narration (Optional)</FormLabel><FormControl><Input placeholder="e.g., For groceries" {...field} /></FormControl><FormMessage /></FormItem>)}/>
         <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>Continue</Button>
       </form>
