@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,6 +34,7 @@ interface Event {
     city: string;
     image: string;
     description: string;
+    hint: string;
 }
 
 interface TicketType {
@@ -188,7 +189,7 @@ function DiscoveryView({ onSelectEvent }: { onSelectEvent: (event: Event) => voi
                 {filteredEvents.map(event => (
                     <Card key={event.id} className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden" onClick={() => onSelectEvent(event)}>
                         <div className="relative h-40 w-full">
-                            <Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.description} />
+                            <Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} />
                             <Badge className="absolute top-2 right-2">{event.category}</Badge>
                         </div>
                         <CardHeader>
@@ -245,7 +246,7 @@ function DetailsView({ event, onBook, onBack }: { event: Event, onBook: (details
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="h-48 w-full relative rounded-lg overflow-hidden"><Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.description} /></div>
+                <div className="h-48 w-full relative rounded-lg overflow-hidden"><Image src={event.image} alt={event.name} layout="fill" objectFit="cover" data-ai-hint={event.hint} /></div>
                 <p className="text-muted-foreground">{event.description}</p>
                 <div>
                     <h3 className="font-semibold mb-2 text-lg">Select Tickets</h3>
