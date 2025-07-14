@@ -3,6 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { mockGetAccountByNumber } from '@/lib/user-data';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface User {
   userId: string;
@@ -29,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
-  const logout = useCallback(() => {
+  const performLogout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
     localStorage.removeItem('ovo-user-id');
     localStorage.removeItem('ovo-user-accountNumber');
@@ -37,49 +39,66 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setBalance(null);
   }, []);
+  
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem('ovo-auth-token');
+    if (token) {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (error) {
+            console.error("Logout API call failed, proceeding with client-side logout:", error);
+        }
+    }
+    performLogout();
+  }, [performLogout]);
 
   const fetchUserData = useCallback(async () => {
-    try {
-      const accountNumber = localStorage.getItem('ovo-user-accountNumber');
-      const userId = localStorage.getItem('ovo-user-id');
-      if (!accountNumber || !userId) {
-        if (localStorage.getItem('ovo-auth-token')) {
-            logout();
-        }
+    const token = localStorage.getItem('ovo-auth-token');
+    const userId = localStorage.getItem('ovo-user-id');
+    if (!token || !userId) {
+        if (isAuthenticated !== false) performLogout();
         return;
-      }
-      const account = await mockGetAccountByNumber(accountNumber);
-      if (account) {
-        setUser({ 
-            userId, 
-            fullName: account.fullName, 
-            accountNumber: account.accountNumber, 
-            isAgent: account.isAgent || false,
-            kycTier: account.kycTier || 1,
-        });
-        setBalance(account.balance);
-      } else {
-        setUser(null);
-        setBalance(0);
-        if (localStorage.getItem('ovo-auth-token')) {
-            logout();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch user data", error);
-      setUser(null);
-      setBalance(0);
     }
-  }, [logout]);
+    
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+            throw new Error("User not found in database.");
+        }
+
+        const userData = userDoc.data();
+        const tokenTimestamp = parseInt(token.split('-')[3] || '0');
+        const lastLogoutAll = userData.lastLogoutAll?.toMillis() || 0;
+
+        if (tokenTimestamp < lastLogoutAll) {
+            console.log("Stale token detected. Forcing logout.");
+            throw new Error("Session expired due to security update.");
+        }
+
+        setUser({
+            userId: userId,
+            fullName: userData.fullName,
+            accountNumber: userData.accountNumber,
+            isAgent: userData.isAgent || false,
+            kycTier: userData.kycTier || 1,
+        });
+        setBalance(userData.balance);
+        setIsAuthenticated(true);
+    } catch (error) {
+        console.error("Failed to fetch or validate user data:", error);
+        performLogout();
+    }
+}, [performLogout, isAuthenticated]);
+
 
   useEffect(() => {
-    const token = localStorage.getItem('ovo-auth-token');
-    const authenticated = !!token;
-    setIsAuthenticated(authenticated);
-    if (authenticated) {
-      fetchUserData();
-    }
-  }, [fetchUserData]);
+    fetchUserData();
+  }, []);
 
   const login = useCallback(async (phone: string, pin: string): Promise<void> => {
       const response = await fetch('/api/auth/login', {
@@ -98,7 +117,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('ovo-user-id', userId);
       localStorage.setItem('ovo-user-accountNumber', accountNumber);
       setIsAuthenticated(true);
-      setUser({ userId, fullName, accountNumber, kycTier: 1 }); // Set user immediately on login
       await fetchUserData();
   }, [fetchUserData]);
 

@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban } from 'lucide-react';
 import { LogoutDialog } from '@/components/auth/logout-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // Mock data
 const mockDevices = [
@@ -135,6 +136,53 @@ function ChangePinDialog() {
     );
 }
 
+function LogoutAllDevicesDialog() {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleLogoutAll = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const response = await fetch('/api/auth/logout-all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to log out other devices.');
+      
+      toast({ title: 'Success', description: 'All other devices have been logged out.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'An unknown error occurred.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" className="ml-auto" disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <LogOut className="mr-2" />}
+          Log Out All Other Devices
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Log out of all other devices?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will sign you out of Ovomonie on all other web browsers and devices. You will need to sign in again. This current session will remain active.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleLogoutAll}>Confirm</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function SecurityDashboard() {
     const [devices, setDevices] = useState(mockDevices);
     const { toast } = useToast();
@@ -210,7 +258,9 @@ export function SecurityDashboard() {
                             </div>
                         ))}
                     </CardContent>
-                    <CardFooter><Button variant="destructive" className="ml-auto"><LogOut className="mr-2"/>Log Out All Other Devices</Button></CardFooter>
+                    <CardFooter>
+                        <LogoutAllDevicesDialog />
+                    </CardFooter>
                 </Card>
 
                  <Card>
