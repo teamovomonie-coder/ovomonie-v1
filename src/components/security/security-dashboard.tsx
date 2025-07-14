@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from 'react';
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban } from 'lucide-react';
 import { LogoutDialog } from '@/components/auth/logout-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/context/auth-context';
 
 // Mock data
 const mockDevices = [
@@ -54,7 +56,11 @@ function ChangePasswordDialog() {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
-    const form = useForm<z.infer<typeof passwordSchema>>({ resolver: zodResolver(passwordSchema), defaultValues: {currentPassword: "", newPassword: "", confirmPassword: ""} });
+    const { logout } = useAuth();
+    const form = useForm<z.infer<typeof passwordSchema>>({ 
+        resolver: zodResolver(passwordSchema), 
+        defaultValues: {currentPassword: "", newPassword: "", confirmPassword: ""} 
+    });
 
     const onSubmit = async (data: z.infer<typeof passwordSchema>) => {
         setIsLoading(true);
@@ -68,9 +74,10 @@ function ChangePasswordDialog() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'Failed to change password.');
             
-            toast({ title: 'Success', description: result.message });
+            toast({ title: 'Success! Please Log In Again.', description: 'Your login PIN has been changed successfully. For your security, you have been logged out.' });
             setOpen(false);
             form.reset();
+            logout();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'An unknown error occurred.' });
         } finally {
@@ -97,7 +104,10 @@ function ChangePinDialog() {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
-    const form = useForm<z.infer<typeof pinSchema>>({ resolver: zodResolver(pinSchema), defaultValues: {currentPin: "", newPin: "", confirmPin: ""} });
+    const form = useForm<z.infer<typeof pinSchema>>({ 
+        resolver: zodResolver(pinSchema), 
+        defaultValues: {currentPin: "", newPin: "", confirmPin: ""} 
+    });
     
     const onSubmit = async (data: z.infer<typeof pinSchema>) => {
         setIsLoading(true);
@@ -139,6 +149,7 @@ function ChangePinDialog() {
 function LogoutAllDevicesDialog() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { logout } = useAuth();
 
   const handleLogoutAll = async () => {
     setIsLoading(true);
@@ -151,7 +162,8 @@ function LogoutAllDevicesDialog() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Failed to log out other devices.');
       
-      toast({ title: 'Success', description: 'All other devices have been logged out.' });
+      toast({ title: 'Success! Please Log In Again.', description: 'You have been logged out of all devices for your security.' });
+      logout(); // Also log out the current session
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'An unknown error occurred.' });
     } finally {
@@ -171,7 +183,7 @@ function LogoutAllDevicesDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>Log out of all other devices?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will sign you out of Ovomonie on all other web browsers and devices. You will need to sign in again. This current session will remain active.
+            This will sign you out of Ovomonie on all other web browsers and devices, including this one. You will need to sign in again.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
