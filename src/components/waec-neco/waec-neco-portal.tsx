@@ -17,9 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { PinModal } from '@/components/auth/pin-modal';
 
 // Icons
 import { BookOpen, Clipboard, Download, Loader2, Search, Share2, Ticket } from 'lucide-react';
+
+// Auth & Notifications
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 
 // Schemas
 const buyPinSchema = z.object({
@@ -72,9 +77,14 @@ const mockResult = {
 };
 
 function BuyPinForm() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [receipt, setReceipt] = useState<{ pins: string[], total: number } | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [pendingPurchase, setPendingPurchase] = useState<BuyPinData | null>(null);
   const { toast } = useToast();
+  const { balance, updateBalance, logout } = useAuth();
+  const { addNotification } = useNotifications();
 
   const form = useForm<BuyPinData>({
     resolver: zodResolver(buyPinSchema),
@@ -86,12 +96,67 @@ function BuyPinForm() {
   const price = watchedBody ? examData[watchedBody as keyof typeof examData].price : 0;
   const total = price * watchedQuantity;
 
-  const onSubmit = async (data: BuyPinData) => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const generatedPins = Array.from({ length: data.quantity }, () => `${data.examBody.toUpperCase()}${Math.random().toString().slice(2, 12)}`);
-    setReceipt({ pins: generatedPins, total });
-    setIsLoading(false);
+  const onSubmit = (data: BuyPinData) => {
+    if (balance === null || total * 100 > balance) {
+      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this purchase.' });
+      return;
+    }
+    setPendingPurchase(data);
+    setIsPinModalOpen(true);
+  };
+
+  const handleConfirmPurchase = async () => {
+    if (!pendingPurchase) return;
+
+    setIsProcessing(true);
+    setApiError(null);
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication token not found.');
+
+        const clientReference = `exam-pin-${crypto.randomUUID()}`;
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                clientReference,
+                amount: total,
+                category: 'education',
+                narration: `${pendingPurchase.quantity} ${pendingPurchase.examBody.toUpperCase()} PIN(s) Purchase`,
+                party: { name: pendingPurchase.examBody.toUpperCase() }
+            })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            const error: any = new Error(result.message || 'PIN purchase failed.');
+            error.response = response;
+            throw error;
+        }
+
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: 'Exam PIN Purchased',
+            description: `You bought ${pendingPurchase.quantity} ${pendingPurchase.examBody.toUpperCase()} PIN(s).`,
+            category: 'transaction',
+        });
+
+        const generatedPins = Array.from({ length: pendingPurchase.quantity }, () => `${pendingPurchase.examBody.toUpperCase()}-${Math.random().toString().slice(2, 14)}`);
+        setReceipt({ pins: generatedPins, total });
+        setIsPinModalOpen(false);
+        form.reset();
+
+    } catch (error: any) {
+        let description = "An unknown error occurred.";
+        if (error.response?.status === 401) {
+            description = 'Your session has expired. Please log in again.';
+            logout();
+        } else if (error.message) {
+            description = error.message;
+        }
+        setApiError(description);
+    } finally {
+        setIsProcessing(false);
+    }
   };
   
   const copyToClipboard = (text: string) => {
@@ -141,11 +206,21 @@ function BuyPinForm() {
               <span className="text-2xl font-bold">₦{total.toLocaleString()}</span>
             </CardContent>
           </Card>
-          <Button type="submit" className="w-full" disabled={isLoading || !watchedBody}>
-            {isLoading ? <Loader2 className="animate-spin" /> : 'Proceed to Payment'}
+          <Button type="submit" className="w-full" disabled={isProcessing || !watchedBody}>
+            {isProcessing ? <Loader2 className="animate-spin" /> : 'Proceed to Payment'}
           </Button>
         </form>
       </Form>
+
+      <PinModal
+        open={isPinModalOpen}
+        onOpenChange={setIsPinModalOpen}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={isProcessing}
+        error={apiError}
+        onClearError={() => setApiError(null)}
+        title="Authorize PIN Purchase"
+      />
 
       <Dialog open={!!receipt} onOpenChange={() => setReceipt(null)}>
         <DialogContent>
