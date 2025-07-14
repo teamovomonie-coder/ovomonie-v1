@@ -33,7 +33,7 @@ const mockActivity = [
 // Zod schemas
 const passwordSchema = z.object({
     currentPassword: z.string().min(1, "Current password is required."),
-    newPassword: z.string().min(8, "New password must be at least 8 characters."),
+    newPassword: z.string().min(6, "New password must be at least 6 characters.").regex(/^\d{6}$/, "Login PIN must be 6 digits."),
     confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -55,23 +55,36 @@ function ChangePasswordDialog() {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof passwordSchema>>({ resolver: zodResolver(passwordSchema), defaultValues: {currentPassword: "", newPassword: "", confirmPassword: ""} });
 
-    const onSubmit = async () => {
+    const onSubmit = async (data: z.infer<typeof passwordSchema>) => {
         setIsLoading(true);
-        await new Promise(res => setTimeout(res, 1500));
-        setIsLoading(false);
-        setOpen(false);
-        toast({ title: 'Success', description: 'Your password has been changed.' });
-        form.reset();
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            const response = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(data),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to change password.');
+            
+            toast({ title: 'Success', description: result.message });
+            setOpen(false);
+            form.reset();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'An unknown error occurred.' });
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button variant="outline" className="w-full justify-start gap-3"><Lock />Change Password</Button></DialogTrigger>
-            <DialogContent><DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
+            <DialogTrigger asChild><Button variant="outline" className="w-full justify-start gap-3"><Lock />Change Login PIN</Button></DialogTrigger>
+            <DialogContent><DialogHeader><DialogTitle>Change Login PIN</DialogTitle></DialogHeader>
                 <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField control={form.control} name="currentPassword" render={({ field }) => (<FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="newPassword" render={({ field }) => (<FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirm New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="currentPassword" render={({ field }) => (<FormItem><FormLabel>Current 6-Digit PIN</FormLabel><FormControl><Input type="password" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="newPassword" render={({ field }) => (<FormItem><FormLabel>New 6-Digit PIN</FormLabel><FormControl><Input type="password" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirm New PIN</FormLabel><FormControl><Input type="password" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Confirm Change</Button></DialogFooter>
                 </form></Form>
             </DialogContent>
@@ -85,13 +98,26 @@ function ChangePinDialog() {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof pinSchema>>({ resolver: zodResolver(pinSchema), defaultValues: {currentPin: "", newPin: "", confirmPin: ""} });
     
-    const onSubmit = async () => {
+    const onSubmit = async (data: z.infer<typeof pinSchema>) => {
         setIsLoading(true);
-        await new Promise(res => setTimeout(res, 1500));
-        setIsLoading(false);
-        setOpen(false);
-        toast({ title: 'Success', description: 'Your transaction PIN has been changed.' });
-        form.reset();
+         try {
+            const token = localStorage.getItem('ovo-auth-token');
+            const response = await fetch('/api/auth/change-pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(data),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to change PIN.');
+            
+            toast({ title: 'Success', description: result.message });
+            setOpen(false);
+            form.reset();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'An unknown error occurred.' });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -99,8 +125,8 @@ function ChangePinDialog() {
             <DialogTrigger asChild><Button variant="outline" className="w-full justify-start gap-3"><KeyRound />Change Transaction PIN</Button></DialogTrigger>
             <DialogContent><DialogHeader><DialogTitle>Change Transaction PIN</DialogTitle></DialogHeader>
                 <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField control={form.control} name="currentPin" render={({ field }) => (<FormItem><FormLabel>Current PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="newPin" render={({ field }) => (<FormItem><FormLabel>New PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="currentPin" render={({ field }) => (<FormItem><FormLabel>Current 4-Digit PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="newPin" render={({ field }) => (<FormItem><FormLabel>New 4-Digit PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="confirmPin" render={({ field }) => (<FormItem><FormLabel>Confirm New PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Confirm Change</Button></DialogFooter>
                 </form></Form>
