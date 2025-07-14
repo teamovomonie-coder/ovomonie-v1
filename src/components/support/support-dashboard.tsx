@@ -1,14 +1,15 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { supportTickets, faqData, SupportTicket } from '@/lib/support-data';
+import { faqData } from '@/lib/support-data';
+import { format, parseISO } from 'date-fns';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -21,18 +22,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Icons
-import { Phone, MessageSquare, Mail, HelpCircle, ListChecks, FilePlus, PhoneIncoming, ShieldAlert, ArrowLeft, Send, Paperclip, Loader2 } from 'lucide-react';
+import { Phone, MessageSquare, Mail, HelpCircle, ListChecks, FilePlus, PhoneIncoming, ShieldAlert, ArrowLeft, Send, Loader2 } from 'lucide-react';
 
 type View = 'dashboard' | 'chat' | 'email' | 'faq' | 'track' | 'submit' | 'callback' | 'fraud';
 
+export interface SupportTicket {
+    id: string;
+    subject: string;
+    category: string;
+    status: 'Open' | 'In Review' | 'Resolved' | 'Closed';
+    createdAt: string; // ISO String
+    updatedAt: string; // ISO String
+}
+
 const supportOptions = [
-    { view: 'chat', title: 'Live Chat', icon: MessageSquare },
+    { view: 'chat', title: 'Live Chat', icon: MessageSquare, isWIP: true },
     { view: 'faq', title: 'Help Articles / FAQs', icon: HelpCircle },
     { view: 'track', title: 'Track My Complaints', icon: ListChecks },
     { view: 'submit', title: 'Submit New Complaint', icon: FilePlus },
-    { view: 'callback', title: 'Request a Callback', icon: PhoneIncoming },
+    { view: 'callback', title: 'Request a Callback', icon: PhoneIncoming, isWIP: true },
     { view: 'fraud', title: 'Report Fraud', icon: ShieldAlert },
-    { view: 'email', title: 'Email Support', icon: Mail },
+    { view: 'email', title: 'Email Support', icon: Mail, isWIP: true },
     { view: 'call', title: 'Call Support', icon: Phone },
 ];
 
@@ -43,27 +53,17 @@ const complaintSchema = z.object({
   file: z.any().optional(),
 });
 
-const callbackSchema = z.object({
-  name: z.string().min(1, "Name is required."),
-  phone: z.string().min(10, "A valid phone number is required."),
-  time: z.string().min(1, "Please select a preferred time."),
-});
-
-
 function DashboardView({ setView }: { setView: (view: View, title: string) => void }) {
   const { toast } = useToast();
   
-  const handleCall = () => {
-    toast({
-      title: "Calling Support...",
-      description: "Our lines are open Mon–Fri 8am to 6pm."
-    });
-    // In a real app: window.location.href = 'tel:+23412345678';
-  }
-
   const handleClick = (opt: typeof supportOptions[0]) => {
-    if (opt.view === 'call') {
-      handleCall();
+    if (opt.isWIP || opt.view === 'call') {
+      toast({
+        title: "Feature Not Available",
+        description: opt.view === 'call' 
+          ? "Phone support is available via 0700-OVOMONIE."
+          : `The "${opt.title}" feature is under development.`
+      });
     } else {
       setView(opt.view as View, opt.title);
     }
@@ -87,42 +87,7 @@ function DashboardView({ setView }: { setView: (view: View, title: string) => vo
   );
 }
 
-function ChatView() {
-    return (
-        <Card className="h-[60vh] flex flex-col">
-            <CardHeader><CardTitle>Live Chat</CardTitle><CardDescription>Chat with our support assistant.</CardDescription></CardHeader>
-            <CardContent className="flex-grow flex items-center justify-center text-muted-foreground">
-                <p>Live Chat Coming Soon</p>
-            </CardContent>
-            <CardFooter className="border-t pt-4">
-                <div className="relative w-full">
-                    <Input placeholder="Type your message..." />
-                    <Button size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"><Send className="h-4 w-4"/></Button>
-                </div>
-            </CardFooter>
-        </Card>
-    );
-}
-
-function FaqView() {
-    return (
-         <Accordion type="single" collapsible className="w-full">
-            {faqData.map(category => (
-                <div key={category.category} className="mb-4">
-                     <h3 className="text-lg font-semibold mb-2">{category.category}</h3>
-                     {category.questions.map(qa => (
-                         <AccordionItem key={qa.question} value={qa.question}>
-                            <AccordionTrigger>{qa.question}</AccordionTrigger>
-                            <AccordionContent>{qa.answer}</AccordionContent>
-                        </AccordionItem>
-                     ))}
-                </div>
-            ))}
-        </Accordion>
-    );
-}
-
-function ComplaintView({ onNewComplaint }: { onNewComplaint: () => void }) {
+function ComplaintView({ onNewComplaint, tickets, isLoading }: { onNewComplaint: () => void, tickets: SupportTicket[], isLoading: boolean }) {
     return (
         <Card>
             <CardHeader className="flex-row items-center justify-between">
@@ -133,32 +98,38 @@ function ComplaintView({ onNewComplaint }: { onNewComplaint: () => void }) {
                 <Button onClick={onNewComplaint}>New Complaint</Button>
             </CardHeader>
             <CardContent>
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Ticket ID</TableHead>
-                            <TableHead>Subject</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Last Updated</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {supportTickets.map(ticket => (
-                            <TableRow key={ticket.id}>
-                                <TableCell className="font-mono">{ticket.id}</TableCell>
-                                <TableCell>{ticket.subject}</TableCell>
-                                <TableCell><span className={cn('px-2 py-1 text-xs rounded-full', ticket.status === 'Resolved' ? 'bg-green-100 text-green-800' : ticket.status === 'Open' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800')}>{ticket.status}</span></TableCell>
-                                <TableCell>{ticket.date}</TableCell>
+                {isLoading ? (
+                    <div className="flex items-center justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : tickets.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">You have no support tickets.</div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Ticket ID</TableHead>
+                                <TableHead>Subject</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Last Updated</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {tickets.map(ticket => (
+                                <TableRow key={ticket.id}>
+                                    <TableCell className="font-mono">{ticket.id.slice(0, 8).toUpperCase()}</TableCell>
+                                    <TableCell>{ticket.subject}</TableCell>
+                                    <TableCell><span className={cn('px-2 py-1 text-xs rounded-full', ticket.status === 'Resolved' ? 'bg-green-100 text-green-800' : ticket.status === 'Open' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800')}>{ticket.status}</span></TableCell>
+                                    <TableCell>{format(parseISO(ticket.updatedAt), 'dd MMM, yyyy')}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
             </CardContent>
         </Card>
     );
 }
 
-function SubmitComplaintForm() {
+function SubmitComplaintForm({ onSubmitted }: { onSubmitted: () => void }) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const form = useForm<z.infer<typeof complaintSchema>>({
@@ -166,60 +137,70 @@ function SubmitComplaintForm() {
         defaultValues: { subject: "", category: "", description: "" }
     });
     
-    const onSubmit = async () => {
+    const onSubmit = async (data: z.infer<typeof complaintSchema>) => {
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsLoading(false);
-        toast({ title: "Complaint Submitted", description: "Your ticket has been created. We will get back to you shortly." });
-        form.reset();
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            const response = await fetch('/api/support/tickets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(data),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to submit complaint.');
+            
+            toast({ title: "Complaint Submitted", description: "Your ticket has been created. We will get back to you shortly." });
+            onSubmitted();
+            form.reset();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="subject" render={({ field }) => <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Failed Transfer" {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="category" render={({ field }) => <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent><SelectItem value="payment">Payment Issue</SelectItem><SelectItem value="login">Login Problem</SelectItem><SelectItem value="card">Card Issue</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select><FormMessage /></FormItem>} />
+                <FormField control={form.control} name="category" render={({ field }) => <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent><SelectItem value="payment">Payment Issue</SelectItem><SelectItem value="login">Login Problem</SelectItem><SelectItem value="card">Card Issue</SelectItem><SelectItem value="fraud">Fraud Report</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="description" render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Please describe the issue in detail..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="file" render={({ field }) => <FormItem><FormLabel>Attach File (Optional)</FormLabel><FormControl><Input type="file" onChange={e => field.onChange(e.target.files)} /></FormControl><FormMessage /></FormItem>} />
                 <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />} Submit Complaint</Button>
             </form>
         </Form>
     );
 }
 
-function CallbackForm() {
-    const [isLoading, setIsLoading] = useState(false);
-    const { toast } = useToast();
-    const form = useForm<z.infer<typeof callbackSchema>>({
-        resolver: zodResolver(callbackSchema),
-        defaultValues: { name: "PAAGO DAVID", phone: "08012345678", time: "" }
-    });
-
-    const onSubmit = async () => {
-        setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsLoading(false);
-        toast({ title: "Callback Requested", description: "Our support team will call you back at your preferred time." });
-        form.reset({ name: "PAAGO DAVID", phone: "08012345678", time: "" });
-    }
-
-    return (
-         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField control={form.control} name="name" render={({ field }) => <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="phone" render={({ field }) => <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="time" render={({ field }) => <FormItem><FormLabel>Preferred Time</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a time slot" /></SelectTrigger></FormControl><SelectContent><SelectItem value="morning">Morning (9am-12pm)</SelectItem><SelectItem value="afternoon">Afternoon (12pm-4pm)</SelectItem><SelectItem value="evening">Evening (4pm-6pm)</SelectItem></SelectContent></Select><FormMessage /></FormItem>} />
-                <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />} Request Callback</Button>
-            </form>
-        </Form>
-    );
-}
-
-
 export function SupportDashboard() {
     const [view, setView] = useState<View>('dashboard');
     const [title, setTitle] = useState('Support Center');
-    
+    const [tickets, setTickets] = useState<SupportTicket[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const fetchTickets = async () => {
+        if (view !== 'track' && view !== 'dashboard') return;
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error('You must be logged in to view tickets.');
+            const response = await fetch('/api/support/tickets', { headers: { Authorization: `Bearer ${token}` } });
+            if (!response.ok) throw new Error('Failed to fetch support tickets.');
+            const data = await response.json();
+            setTickets(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        if (view === 'track') {
+            fetchTickets();
+        }
+    }, [view]);
+
     const handleSetView = (newView: View, newTitle: string) => {
         setView(newView);
         setTitle(newTitle);
@@ -227,13 +208,10 @@ export function SupportDashboard() {
     
     const renderContent = () => {
         switch(view) {
-            case 'chat': return <ChatView />;
-            case 'faq': return <FaqView />;
-            case 'track': return <ComplaintView onNewComplaint={() => handleSetView('submit', 'Submit a New Complaint')} />;
-            case 'submit': return <SubmitComplaintForm />;
-            case 'callback': return <CallbackForm />;
-            case 'fraud': return <Card><CardHeader><CardTitle>Report Fraud</CardTitle></CardHeader><CardContent><SubmitComplaintForm /></CardContent></Card>;
-            case 'email': return <Card><CardHeader><CardTitle>Email Support</CardTitle></CardHeader><CardContent><SubmitComplaintForm /></CardContent></Card>;
+            case 'faq': return <Card><CardHeader><CardTitle>Help Articles / FAQs</CardTitle></CardHeader><CardContent><Accordion type="single" collapsible className="w-full">{faqData.map(cat => (<div key={cat.category} className="mb-4"><h3 className="text-lg font-semibold mb-2">{cat.category}</h3>{cat.questions.map(qa => (<AccordionItem key={qa.question} value={qa.question}><AccordionTrigger>{qa.question}</AccordionTrigger><AccordionContent>{qa.answer}</AccordionContent></AccordionItem>))}</div>))}</Accordion></CardContent></Card>;
+            case 'track': return <ComplaintView onNewComplaint={() => handleSetView('submit', 'Submit a New Complaint')} tickets={tickets} isLoading={isLoading} />;
+            case 'submit': return <Card><CardHeader><CardTitle>Submit a New Complaint</CardTitle></CardHeader><CardContent><SubmitComplaintForm onSubmitted={() => handleSetView('track', 'Track My Complaints')} /></CardContent></Card>;
+            case 'fraud': return <Card><CardHeader><CardTitle>Report Fraud</CardTitle><CardDescription>If you suspect fraudulent activity on your account, please describe it in detail below.</CardDescription></CardHeader><CardContent><SubmitComplaintForm onSubmitted={() => handleSetView('dashboard', 'Support Center')} /></CardContent></Card>;
             case 'dashboard':
             default: return <DashboardView setView={handleSetView} />;
         }
@@ -241,11 +219,14 @@ export function SupportDashboard() {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
+             <div className="flex items-center gap-2">
+                {view !== 'dashboard' && <Button variant="ghost" size="icon" onClick={() => handleSetView('dashboard', 'Support Center')}><ArrowLeft/></Button>}
+                <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
+            </div>
             <AnimatePresence mode="wait">
                 <motion.div
                     key={view}
-                    initial={{ opacity: 0, x: 50 }}
+                    initial={{ opacity: 0, x: view === 'dashboard' ? 0 : 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -50 }}
                     transition={{ duration: 0.3 }}
