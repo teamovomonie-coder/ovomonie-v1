@@ -1,13 +1,21 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { doc, getDoc } from 'firebase/firestore';
+import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const user = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
+        const userId = await getUserIdFromToken(headers());
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
 
-        if (!user || !user.referralCode) {
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists() || !userDoc.data()?.referralCode) {
             return NextResponse.json({ message: 'User or referral code not found.' }, { status: 404 });
         }
 
@@ -20,7 +28,7 @@ export async function GET() {
         };
 
         return NextResponse.json({
-            referralCode: user.referralCode,
+            referralCode: userDoc.data()?.referralCode,
             stats: mockStats,
         });
 

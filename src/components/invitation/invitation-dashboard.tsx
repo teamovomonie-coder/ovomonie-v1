@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -20,16 +21,25 @@ export function InvitationDashboard() {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClaiming, setIsClaiming] = useState(false);
   const { toast } = useToast();
-  const { balance, updateBalance } = useAuth();
+  const { updateBalance } = useAuth();
   const { addNotification } = useNotifications();
 
   useEffect(() => {
     const fetchReferralData = async () => {
+        setIsLoading(true);
         try {
-            const response = await fetch('/api/invitations/stats');
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) throw new Error("Authentication failed.");
+
+            const response = await fetch('/api/invitations/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
             if (!response.ok) {
-                throw new Error('Failed to fetch referral data');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch referral data');
             }
             const data = await response.json();
             setReferralCode(data.referralCode);
@@ -38,7 +48,7 @@ export function InvitationDashboard() {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'Could not load your referral information.',
+                description: error instanceof Error ? error.message : 'Could not load your referral information.',
             });
         } finally {
             setIsLoading(false);
@@ -47,28 +57,42 @@ export function InvitationDashboard() {
     fetchReferralData();
   }, [toast]);
 
-  const handleReceiveReward = () => {
-      if (balance === null || !stats) return;
-      const rewardAmount = 500;
-      const newBalance = balance + (rewardAmount * 100);
-      updateBalance(newBalance);
+  const handleClaimReward = async () => {
+      setIsClaiming(true);
+      try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error("Authentication failed.");
 
-      addNotification({
-          title: "Referral Reward Earned!",
-          description: `You've received ₦${rewardAmount} for a successful referral.`,
-          category: 'transaction',
-      });
+        const response = await fetch('/api/invitations/claim-reward', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-      setStats(prevStats => ({
-          ...(prevStats!),
-          signups: prevStats!.signups + 1,
-          earnings: prevStats!.earnings + rewardAmount,
-      }));
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Failed to claim reward.');
 
-      toast({
-          title: "Reward Credited!",
-          description: `₦${rewardAmount} has been added to your wallet.`,
-      });
+        updateBalance(result.newBalanceInKobo);
+        addNotification({
+            title: "Referral Reward Earned!",
+            description: `You've received ₦500 for a successful referral.`,
+            category: 'transaction',
+        });
+        setStats(prev => prev ? {
+            ...prev,
+            signups: prev.signups + 1,
+            earnings: prev.earnings + 500,
+        } : null);
+        toast({ title: "Reward Credited!", description: "₦500 has been added to your wallet." });
+
+      } catch (error) {
+           toast({
+                variant: 'destructive',
+                title: 'Claim Failed',
+                description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+            });
+      } finally {
+          setIsClaiming(false);
+      }
   };
 
   const referralLink = `https://ovomonie.ng/signup?ref=${referralCode || ''}`;
@@ -219,9 +243,12 @@ export function InvitationDashboard() {
       </CardContent>
       <CardFooter className="flex-col gap-4">
         <p className="text-xs text-muted-foreground text-center w-full">
-          Rewards are credited to your wallet after your friend completes their first transaction of ₦1,000 or more. Terms & Conditions apply.
+          Rewards are credited to your wallet after your friend completes their first transaction of ₦1,000 or more. Terms &amp; Conditions apply.
         </p>
-        <Button variant="outline" size="sm" onClick={handleReceiveReward} disabled={isLoading}>Simulate Receiving a ₦500 Reward</Button>
+        <Button variant="outline" size="sm" onClick={handleClaimReward} disabled={isLoading || isClaiming}>
+            {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Simulate Receiving a ₦500 Reward
+        </Button>
       </CardFooter>
     </Card>
   );
