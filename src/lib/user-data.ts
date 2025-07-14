@@ -19,6 +19,8 @@ interface UserAccount {
     fullName: string;
     balance: number; // in kobo
     referralCode?: string;
+    isAgent?: boolean;
+    kycTier?: number;
 }
 
 

@@ -9,6 +9,7 @@ interface User {
   fullName: string;
   accountNumber: string;
   isAgent?: boolean;
+  kycTier?: number;
 }
 
 interface AuthContextType {
@@ -49,7 +50,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const account = await mockGetAccountByNumber(accountNumber);
       if (account) {
-        setUser({ userId, fullName: account.fullName, accountNumber: account.accountNumber, isAgent: account.isAgent || false });
+        setUser({ 
+            userId, 
+            fullName: account.fullName, 
+            accountNumber: account.accountNumber, 
+            isAgent: account.isAgent || false,
+            kycTier: account.kycTier || 1,
+        });
         setBalance(account.balance);
       } else {
         setUser(null);
@@ -91,7 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('ovo-user-id', userId);
       localStorage.setItem('ovo-user-accountNumber', accountNumber);
       setIsAuthenticated(true);
-      setUser({ userId, fullName, accountNumber }); // Set user immediately on login
+      setUser({ userId, fullName, accountNumber, kycTier: 1 }); // Set user immediately on login
       await fetchUserData();
   }, [fetchUserData]);
 
