@@ -79,8 +79,8 @@ const serviceData: ServiceCategory[] = [
       { label: "Food Delivery", icon: Utensils, href: "/food-delivery" },
       { label: "Online Shopping", icon: ShoppingCart, href: "/online-shopping" },
       { label: "Fashion Deals", icon: ShoppingBag, href: "/fashion-deals" },
-      { label: "Community", icon: Users, href: "#" },
-      { label: "Feed", icon: LayoutList, href: "#" },
+      { label: "Community", icon: Users, href: "/community" },
+      { label: "Feed", icon: LayoutList, href: "/community" },
     ],
   },
   {
