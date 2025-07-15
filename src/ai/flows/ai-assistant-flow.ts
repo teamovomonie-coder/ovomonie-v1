@@ -58,7 +58,7 @@ async function getLiveAccountSummary(userId: string) {
     const balanceInNaira = (userData.balance / 100).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
 
     // Fetch last transaction
-    const txQuery = query(collection(db, 'financialTransactions'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(1));
+    const txQuery = query(collection(db, 'financialTransactions'), where('userId', '==', userId), limit(1));
     const txSnapshot = await getDocs(txQuery);
     const lastTransaction = txSnapshot.empty ? 'No transactions found.' : `${txSnapshot.docs[0].data().narration} for ₦${(txSnapshot.docs[0].data().amount / 100).toLocaleString()}`;
     
