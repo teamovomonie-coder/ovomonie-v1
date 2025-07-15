@@ -175,8 +175,8 @@ function DisplayQrScreen({ setView, transactionData, isNfcSupported }: { setView
         setNfcWriteStatus('error');
         console.error("NFC write error:", error);
         let description = 'Could not write to the device. Please try again.';
-        if (error instanceof DOMException && error.name === 'InvalidStateError') {
-            description = 'Web NFC is not available in this browsing environment (e.g., an iframe). Please try in a top-level window.';
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+            description = 'Web NFC is not available in this environment (e.g., an iframe). Please open the app in its own browser tab to use this feature.';
         } else if (error instanceof DOMException && error.name === 'NotSupportedError') {
             description = 'NFC is not supported on this device or browser.';
         }
@@ -415,8 +415,8 @@ export function ContactlessUI() {
       console.error(`NFC Error: ${error}`);
       setNfcStatus('error');
       let description = 'Could not start scanning. Please ensure NFC is enabled on your device.';
-      if (error instanceof DOMException && error.name === 'InvalidStateError') {
-          description = 'Web NFC is not available in this browsing environment (e.g., an iframe). Please try in a top-level window.';
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          description = 'Web NFC is not available in this environment (e.g., an iframe). Please open the app in its own browser tab to use this feature.';
       } else if (error instanceof DOMException && error.name === 'NotSupportedError') {
           description = 'NFC is not supported on this device or browser.';
       }
