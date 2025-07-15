@@ -31,6 +31,8 @@ export async function GET() {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
+        // Removed orderBy to prevent index error in development environments.
+        // For production, a composite index on (userId, startDate) would be ideal.
         const q = query(collection(db, "investments"), where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
         

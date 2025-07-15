@@ -258,6 +258,26 @@ function InvestNowDialog({ children, onRequestInvestment, defaultProductTitle }:
     );
 }
 
+function WithdrawDialog({ children }: { children: React.ReactNode }) {
+  const { toast } = useToast();
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Withdraw Funds</DialogTitle>
+          <DialogDescription>
+            This feature is currently in development. You will soon be able to withdraw matured investments.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button onClick={() => toast({ title: "Feature Coming Soon!" })}>Notify Me</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function WealthDashboard() {
   const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
@@ -384,9 +404,11 @@ export function WealthDashboard() {
     <>
         <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Ovo-Wealth</h2>
+                <h2 className="text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
                 <div className="flex items-center space-x-2">
-                    <Button>Withdraw</Button>
+                    <WithdrawDialog>
+                        <Button>Withdraw</Button>
+                    </WithdrawDialog>
                     <InvestNowDialog onRequestInvestment={handleInvestmentRequest}>
                         <Button variant="secondary"><PlusCircle className="mr-2 h-4 w-4" /> Invest Now</Button>
                     </InvestNowDialog>
