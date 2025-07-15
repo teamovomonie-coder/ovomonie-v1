@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState } from 'react';
+import { useAuth } from '@/context/auth-context';
 
 interface InvoiceViewProps {
   invoice: Invoice;
@@ -28,6 +29,8 @@ interface InvoiceViewProps {
 export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewProps) {
   const { toast } = useToast();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const { user } = useAuth();
+
 
   const subtotal = invoice.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   const tax = subtotal * 0.075;
@@ -86,10 +89,13 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
             if (!saleRes.ok) throw new Error('Failed to update inventory stock.');
         }
 
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('Authentication failed.');
+
         // Now, update the invoice status to Paid
         const updateRes = await fetch(`/api/invoicing/${invoice.id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ ...invoice, status: 'Paid' }),
         });
         if (!updateRes.ok) throw new Error('Failed to update invoice status.');

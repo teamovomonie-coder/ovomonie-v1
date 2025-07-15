@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InvoiceEditor } from './invoice-editor';
 import { InvoiceView } from './invoice-view';
 import { Button } from "@/components/ui/button";
@@ -9,61 +9,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Eye } from 'lucide-react';
+import { PlusCircle, Eye, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { InvoiceFormData } from './invoice-editor';
+import { format } from 'date-fns';
 
 export interface Invoice extends InvoiceFormData {
   id: string;
   status: 'Paid' | 'Unpaid' | 'Overdue' | 'Draft';
+  client: string;
 }
 
-const mockInvoicesData: Invoice[] = [
-  { 
-    id: 'INV-003', 
-    invoiceNumber: 'INV-003',
-    client: 'Tech Solutions Ltd.',
-    fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Tech Solutions Ltd.', 
-    toEmail: 'billing@techsolutions.com',
-    toAddress: '789 Tech Park, Abuja, Nigeria',
-    issueDate: new Date('2024-07-10'), dueDate: new Date('2024-07-20'),
-    lineItems: [{ description: 'Cloud Hosting Services', quantity: 1, price: 150000 }],
-    notes: 'Thank you for your business.',
-    status: 'Paid'
-  },
-  { 
-    id: 'INV-002', 
-    invoiceNumber: 'INV-002',
-    client: 'Creative Designs Inc.',
-    fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Creative Designs Inc.', 
-    toEmail: 'accounts@creativedesigns.com',
-    toAddress: '456 Art Plaza, Ibadan, Nigeria',
-    issueDate: new Date('2024-07-15'), dueDate: new Date('2024-08-15'),
-    lineItems: [{ description: 'Logo Design & Branding', quantity: 1, price: 75000 }],
-    notes: 'Payment is due within 30 days.',
-    status: 'Unpaid'
-  },
-  { 
-    id: 'INV-001',
-    invoiceNumber: 'INV-001', 
-    client: 'Global Exports',
-    fromName: 'PAAGO DAVID (Ovo Thrive)', fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-    toName: 'Global Exports',
-    toEmail: 'exports@global.com',
-    toAddress: '101 Trade Fair, Port Harcourt, Nigeria',
-    issueDate: new Date('2024-06-01'), dueDate: new Date('2024-07-01'),
-    lineItems: [
-        { description: 'Shipping & Logistics', quantity: 2, price: 100000 },
-        { description: 'Export Documentation', quantity: 1, price: 120000 }
-    ],
-    notes: 'Please reference invoice number on payment.',
-    status: 'Overdue'
-  },
-];
-
 const calculateTotal = (lineItems: { quantity: number; price: number; }[]) => {
+    if (!lineItems) return 0;
     const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
     const tax = subtotal * 0.075;
     return subtotal + tax;
@@ -71,9 +29,41 @@ const calculateTotal = (lineItems: { quantity: number; price: number; }[]) => {
 
 export function InvoicingDashboard() {
   const [view, setView] = useState<'dashboard' | 'editor' | 'viewer'>('dashboard');
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoicesData);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  const fetchInvoices = async () => {
+    setIsLoading(true);
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to view invoices.');
+
+        const response = await fetch('/api/invoicing', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch invoices');
+        }
+        const data = await response.json();
+        setInvoices(data);
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load your invoices. Please try again later.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'dashboard') {
+        fetchInvoices();
+    }
+  }, [view]);
 
   const handleCreateNew = () => {
     const newInvoice: Invoice = {
@@ -105,46 +95,66 @@ export function InvoicingDashboard() {
     setView('viewer');
   }
 
-  const upsertInvoice = (invoiceData: Invoice) => {
-     setInvoices(prev => {
-        const index = prev.findIndex(inv => inv.id === invoiceData.id);
-        if (index > -1) {
-            const newInvoices = [...prev];
-            newInvoices[index] = invoiceData;
-            return newInvoices;
-        }
-        return [...prev, invoiceData];
-    });
-  }
-
-  const handleSaveInvoice = (data: InvoiceFormData) => {
+  const handleSaveInvoice = async (data: InvoiceFormData) => {
     if (!selectedInvoice) return;
     
-    // Determine if invoice is overdue
     const isOverdue = new Date() > data.dueDate;
-
-    const finalInvoice: Invoice = {
+    const finalInvoice: Partial<Invoice> = {
       ...data,
-      id: selectedInvoice.id.startsWith('DRAFT') ? data.invoiceNumber : selectedInvoice.id,
       status: isOverdue ? 'Overdue' : 'Unpaid',
-      client: data.toName, // Sync client name
+      client: data.toName,
     };
-    upsertInvoice(finalInvoice);
-    setSelectedInvoice(finalInvoice);
-    setView('viewer');
+
+    const isNew = selectedInvoice.id.startsWith('DRAFT');
+    const url = isNew ? '/api/invoicing' : `/api/invoicing/${selectedInvoice.id}`;
+    const method = isNew ? 'POST' : 'PUT';
+
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to save an invoice.');
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(finalInvoice),
+        });
+        const savedInvoice = await response.json();
+        if (!response.ok) throw new Error(savedInvoice.message || 'Failed to save invoice');
+        
+        setSelectedInvoice(savedInvoice);
+        setView('viewer');
+        toast({ title: 'Invoice Saved!', description: 'Your invoice has been saved and is ready to be sent.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the invoice.' });
+    }
   };
 
-  const handleSaveDraft = (data: InvoiceFormData) => {
+  const handleSaveDraft = async (data: InvoiceFormData) => {
     if (!selectedInvoice) return;
-    const draftInvoice: Invoice = {
-      ...data,
-      id: selectedInvoice.id,
-      status: 'Draft',
-      client: data.toName
-    };
-    upsertInvoice(draftInvoice);
-    toast({ title: 'Draft saved successfully' });
-    setView('dashboard');
+
+    const isNew = selectedInvoice.id.startsWith('DRAFT');
+    const draftData: Partial<Invoice> = { ...data, status: 'Draft', client: data.toName || 'N/A' };
+    
+    const url = isNew ? '/api/invoicing' : `/api/invoicing/${selectedInvoice.id}`;
+    const method = isNew ? 'POST' : 'PUT';
+    
+    try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to save a draft.');
+        
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(draftData),
+        });
+
+        if (!response.ok) throw new Error('Failed to save draft');
+        
+        toast({ title: 'Draft saved successfully' });
+        setView('dashboard');
+    } catch (error) {
+         toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the draft.' });
+    }
   };
 
   if (view === 'editor' && selectedInvoice) {
@@ -152,12 +162,16 @@ export function InvoicingDashboard() {
   }
   
   if (view === 'viewer' && selectedInvoice) {
-    return <InvoiceView invoice={selectedInvoice} onBack={() => setView('dashboard')} />;
+    return <InvoiceView invoice={selectedInvoice} onBack={() => setView('dashboard')} onInvoiceUpdated={fetchInvoices} />;
   }
 
   const renderInvoices = (statusFilter?: 'Paid' | 'Unpaid' | 'Overdue' | 'Draft') => {
     const invoicesToRender = statusFilter ? invoices.filter(inv => inv.status === statusFilter) : invoices;
     
+    if (isLoading) {
+        return <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
     if (invoicesToRender.length === 0) {
         return <div className="text-center text-muted-foreground py-10">No invoices in this category.</div>
     }
@@ -186,7 +200,7 @@ export function InvoicingDashboard() {
                     {invoice.status}
                 </Badge>
               </TableCell>
-               <TableCell>{format(invoice.dueDate, 'PPP')}</TableCell>
+               <TableCell>{format(new Date(invoice.dueDate), 'PPP')}</TableCell>
               <TableCell className="text-right">₦{calculateTotal(invoice.lineItems).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handlePreview(invoice); }}>
