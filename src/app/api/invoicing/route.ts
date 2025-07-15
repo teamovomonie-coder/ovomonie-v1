@@ -1,38 +1,28 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, runTransaction, Timestamp } from 'firebase/firestore';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-        return null;
-    }
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) {
-        return null;
-    }
-    return token.split('-')[2] || null;
-}
-
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
         const q = query(collection(db, 'invoices'), where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
-        const invoices = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            issueDate: doc.data().issueDate.toDate(),
-            dueDate: doc.data().dueDate.toDate(),
-        }));
+        const invoices = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                issueDate: (data.issueDate as Timestamp).toDate(),
+                dueDate: (data.dueDate as Timestamp).toDate(),
+            };
+        });
         return NextResponse.json(invoices);
     } catch (error) {
         console.error("Error fetching invoices:", error);
@@ -42,7 +32,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -50,7 +40,6 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { clientReference, ...invoiceData } = body;
 
-        // Basic validation
         if (!invoiceData.invoiceNumber || !invoiceData.toName) {
             return NextResponse.json({ message: 'Missing required invoice fields.' }, { status: 400 });
         }
@@ -63,8 +52,6 @@ export async function POST(request: Request) {
                 const existingInvSnapshot = await transaction.get(idempotencyQuery);
                 if (!existingInvSnapshot.empty) {
                     console.log(`Idempotent request for invoice: ${clientReference} already processed.`);
-                    // To ensure the client gets the data, we can just return the existing invoice, though for this setup we just stop.
-                    // This part can be enhanced to return the existing document's data.
                     return;
                 }
             }
@@ -73,16 +60,24 @@ export async function POST(request: Request) {
                 ...invoiceData,
                 userId,
                 clientReference: clientReference || null,
+                issueDate: new Date(invoiceData.issueDate),
+                dueDate: new Date(invoiceData.dueDate),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
         });
         
-        // Refetch the document to return it, since we can't get it from the transaction result directly
-        const docSnap = await getDocs(query(collection(db, 'invoices'), where('__name__', '==', newInvoiceRef.id)));
+        const docSnap = await getDoc(newInvoiceRef);
+        if (!docSnap.exists()) {
+             return NextResponse.json({ message: 'Failed to create invoice after transaction.' }, { status: 500 });
+        }
+        const createdInvoiceData = docSnap.data();
+
         const createdInvoice = {
-            id: docSnap.docs[0].id,
-            ...docSnap.docs[0].data(),
+            id: docSnap.id,
+            ...createdInvoiceData,
+            issueDate: (createdInvoiceData.issueDate as Timestamp).toDate(),
+            dueDate: (createdInvoiceData.dueDate as Timestamp).toDate(),
         };
 
         return NextResponse.json(createdInvoice, { status: 201 });

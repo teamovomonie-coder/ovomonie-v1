@@ -7,7 +7,7 @@ import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

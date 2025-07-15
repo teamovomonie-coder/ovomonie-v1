@@ -34,16 +34,15 @@ export function InvoicingDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (view === 'dashboard') {
-        fetchInvoices();
-    }
-  }, [view]);
-
   const fetchInvoices = async () => {
     setIsLoading(true);
     try {
-        const response = await fetch('/api/invoicing');
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to view invoices.');
+
+        const response = await fetch('/api/invoicing', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch invoices');
         }
@@ -59,6 +58,12 @@ export function InvoicingDashboard() {
         setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (view === 'dashboard') {
+        fetchInvoices();
+    }
+  }, [view]);
 
   const handleCreateNew = () => {
     const newInvoice: Invoice = {
@@ -92,12 +97,12 @@ export function InvoicingDashboard() {
 
   const handleSaveInvoice = async (data: InvoiceFormData) => {
     if (!selectedInvoice) return;
-
+    
     const isOverdue = new Date() > data.dueDate;
     const finalInvoice: Partial<Invoice> = {
-        ...data,
-        status: isOverdue ? 'Overdue' : 'Unpaid',
-        client: data.toName,
+      ...data,
+      status: isOverdue ? 'Overdue' : 'Unpaid',
+      client: data.toName,
     };
 
     const isNew = selectedInvoice.id.startsWith('DRAFT');
@@ -105,9 +110,12 @@ export function InvoicingDashboard() {
     const method = isNew ? 'POST' : 'PUT';
 
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to save an invoice.');
+
         const response = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(finalInvoice),
         });
         if (!response.ok) throw new Error('Failed to save invoice');
@@ -131,9 +139,12 @@ export function InvoicingDashboard() {
     const method = isNew ? 'POST' : 'PUT';
     
     try {
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) throw new Error('You must be logged in to save a draft.');
+        
         const response = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(draftData),
         });
 

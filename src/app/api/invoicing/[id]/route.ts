@@ -2,25 +2,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { headers } from 'next/headers';
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-        return null;
-    }
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) {
-        return null;
-    }
-    return token.split('-')[2] || null;
-}
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -49,7 +37,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
