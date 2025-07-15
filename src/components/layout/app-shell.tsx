@@ -5,7 +5,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic } from 'lucide-react';
+import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic, LogOut, Settings, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,10 +15,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
 import { getPersonalizedRecommendation } from '@/ai/flows/personalized-recommendations-flow';
 import { ProactiveAssistantDialog } from '../ai-assistant/proactive-assistant-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { LogoutDialog } from '../auth/logout-dialog';
 
 interface NavItem {
     href: string;
@@ -117,12 +126,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {showHeader && (
                 <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
                      <div className="flex items-center gap-3">
-                        <CustomLink href="/profile">
-                            <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
-                                <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                        </CustomLink>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button aria-label="User menu">
+                                    <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                        <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                        <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                                <DropdownMenuLabel>{user?.fullName}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild><CustomLink href="/profile" className="w-full justify-start"><User className="mr-2"/>Profile</CustomLink></DropdownMenuItem>
+                                <DropdownMenuItem asChild><CustomLink href="/security" className="w-full justify-start"><Shield className="mr-2"/>Settings</CustomLink></DropdownMenuItem>
+                                <DropdownMenuItem asChild><CustomLink href="/notifications" className="w-full justify-start"><Bell className="mr-2"/>Notifications</CustomLink></DropdownMenuItem>
+                                <DropdownMenuItem asChild><CustomLink href="/support" className="w-full justify-start"><MessageCircle className="mr-2"/>Support</CustomLink></DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <LogoutDialog>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}><LogOut className="mr-2"/>Logout</DropdownMenuItem>
+                                </LogoutDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <span className="font-semibold text-base">Hi, {firstName}</span>
                     </div>
 

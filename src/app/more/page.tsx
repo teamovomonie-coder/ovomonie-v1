@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash, LayoutList, Gamepad2 } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Zap, Target, Receipt, Briefcase, Store, Package, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Plane, Hotel, Car, Ticket, ShoppingCart, Building2, Book, Gift, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Gamepad2, LayoutList } from "lucide-react";
 import CustomLink from "@/components/layout/custom-link";
 import type { LucideIcon } from 'lucide-react';
 import { LogoutDialog } from "@/components/auth/logout-dialog";
@@ -79,8 +79,6 @@ const serviceData: ServiceCategory[] = [
     title: "Government Services",
     services: [
       { label: <><span className="block">CAC</span><span className="text-xs font-normal text-muted-foreground">Business Registration</span></>, icon: Building2, href: "/cac-registration" },
-      { label: <><span className="block">NIN</span><span className="text-xs font-normal text-muted-foreground">Registration</span></>, icon: Fingerprint, href: "/nin-registration" },
-      { label: "Tax & Remittance", icon: Landmark, href: "/tax-remittance" },
       { label: "WAEC/NECO PINs", icon: Book, href: "/waec-neco" },
     ],
   },
@@ -89,17 +87,6 @@ const serviceData: ServiceCategory[] = [
     services: [
       { label: "Invite & Earn", icon: Gift, href: "/invitation" },
       { label: "Loyalty Points", icon: Medal, href: "/rewards" },
-    ],
-  },
-  {
-    title: "Account & App Settings",
-    services: [
-      { label: "Profile / KYC", icon: User, href: "/profile" },
-      { label: "Security", icon: Shield, href: "/security" },
-      { label: "Statements", icon: FileText, href: "/statements" },
-      { label: "Settings", icon: Settings, href: "/security" },
-      { label: "Support", icon: MessageCircle, href: "/support" },
-      { label: "Logout", icon: LogOut, href: "#" },
     ],
   },
 ];

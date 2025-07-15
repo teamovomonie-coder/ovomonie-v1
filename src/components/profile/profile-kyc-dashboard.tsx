@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from 'react';
@@ -12,9 +13,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Loader2, Upload, User, Shield, KeyRound, Bell, Mail, Phone, Lock } from 'lucide-react';
+import { CheckCircle, Loader2, Upload, User, Shield, KeyRound, Bell, Mail, Phone, Lock, MessageCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
+import CustomLink from '../layout/custom-link';
 
 // --- KYC Tier Data ---
 const kycTiers = [
@@ -75,7 +77,7 @@ export function ProfileKycDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column: Profile Summary & Security */}
+        {/* Left Column: Profile Summary & Actions */}
         <div className="lg:col-span-1 space-y-6">
             <Card>
                 <CardHeader>
@@ -107,14 +109,13 @@ export function ProfileKycDashboard() {
                 </CardContent>
             </Card>
 
-             <Card>
-                <CardHeader>
-                    <CardTitle>Security Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <Button variant="outline" className="w-full justify-start gap-3"><Lock /> Change Login PIN</Button>
-                    <Button variant="outline" className="w-full justify-start gap-3"><KeyRound /> Change Transaction PIN</Button>
-                </CardContent>
+            <Card>
+              <CardHeader><CardTitle>Account</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/security"><Shield /> Security Settings</CustomLink></Button>
+                <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/notifications"><Bell /> Notifications</CustomLink></Button>
+                <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/support"><MessageCircle /> Support</CustomLink></Button>
+              </CardContent>
             </Card>
         </div>
 
@@ -279,5 +280,3 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean, onOpenC
         </Dialog>
     )
 }
-
-    
