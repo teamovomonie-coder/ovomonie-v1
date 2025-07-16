@@ -118,9 +118,9 @@ export function InvoicingDashboard() {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(finalInvoice),
         });
-        if (!response.ok) throw new Error('Failed to save invoice');
-        
         const savedInvoice = await response.json();
+        if (!response.ok) throw new Error(savedInvoice.message || 'Failed to save invoice');
+        
         setSelectedInvoice(savedInvoice);
         setView('viewer');
         toast({ title: 'Invoice Saved!', description: 'Your invoice has been saved and is ready to be sent.' });

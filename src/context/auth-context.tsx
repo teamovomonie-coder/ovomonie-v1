@@ -2,7 +2,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { mockGetAccountByNumber } from '@/lib/user-data';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 

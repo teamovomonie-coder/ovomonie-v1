@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState } from 'react';
@@ -13,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Loader2, Upload, User, Shield, KeyRound, Bell, Mail, Phone, Lock, MessageCircle } from 'lucide-react';
+import { CheckCircle, Loader2, Upload, User, Shield, KeyRound, Bell, Mail, Phone, Lock, MessageCircle, ArrowLeftRight } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import CustomLink from '../layout/custom-link';
@@ -112,6 +111,7 @@ export function ProfileKycDashboard() {
             <Card>
               <CardHeader><CardTitle>Account</CardTitle></CardHeader>
               <CardContent className="space-y-3">
+                <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/statements"><ArrowLeftRight /> Transaction History</CustomLink></Button>
                 <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/security"><Shield /> Security Settings</CustomLink></Button>
                 <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/notifications"><Bell /> Notifications</CustomLink></Button>
                 <Button asChild variant="outline" className="w-full justify-start gap-3"><CustomLink href="/support"><MessageCircle /> Support</CustomLink></Button>
