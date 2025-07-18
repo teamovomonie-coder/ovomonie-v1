@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
@@ -44,33 +44,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Missing required invoice fields.' }, { status: 400 });
         }
 
-        const newInvoiceRef = doc(collection(db, 'invoices'));
+        const newInvoice = {
+            ...invoiceData,
+            userId,
+            clientReference: clientReference || null,
+            issueDate: new Date(invoiceData.issueDate),
+            dueDate: new Date(invoiceData.dueDate),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
 
-        await runTransaction(db, async (transaction) => {
-            if (clientReference) {
-                const idempotencyQuery = query(collection(db, 'invoices'), where("clientReference", "==", clientReference), where("userId", "==", userId));
-                const existingInvSnapshot = await transaction.get(idempotencyQuery);
-                if (!existingInvSnapshot.empty) {
-                    console.log(`Idempotent request for invoice: ${clientReference} already processed.`);
-                    return;
-                }
-            }
-            
-            transaction.set(newInvoiceRef, {
-                ...invoiceData,
-                userId,
-                clientReference: clientReference || null,
-                issueDate: new Date(invoiceData.issueDate),
-                dueDate: new Date(invoiceData.dueDate),
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
-        });
-        
-        const docSnap = await getDoc(newInvoiceRef);
+        const docRef = await addDoc(collection(db, 'invoices'), newInvoice);
+        const docSnap = await getDoc(docRef);
+
         if (!docSnap.exists()) {
              return NextResponse.json({ message: 'Failed to create invoice after transaction.' }, { status: 500 });
         }
+        
         const createdInvoiceData = docSnap.data();
 
         const createdInvoice = {

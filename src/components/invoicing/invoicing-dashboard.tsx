@@ -44,7 +44,8 @@ export function InvoicingDashboard() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) {
-            throw new Error('Failed to fetch invoices');
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to fetch invoices');
         }
         const data = await response.json();
         setInvoices(data);
@@ -52,7 +53,7 @@ export function InvoicingDashboard() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not load your invoices. Please try again later.',
+            description: (error as Error).message,
         });
     } finally {
         setIsLoading(false);
@@ -125,7 +126,7 @@ export function InvoicingDashboard() {
         setView('viewer');
         toast({ title: 'Invoice Saved!', description: 'Your invoice has been saved and is ready to be sent.' });
     } catch (error) {
-        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the invoice.' });
+        toast({ variant: 'destructive', title: 'Save Failed', description: (error as Error).message });
     }
   };
 
@@ -153,7 +154,7 @@ export function InvoicingDashboard() {
         toast({ title: 'Draft saved successfully' });
         setView('dashboard');
     } catch (error) {
-         toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the draft.' });
+         toast({ variant: 'destructive', title: 'Save Failed', description: (error as Error).message });
     }
   };
 
