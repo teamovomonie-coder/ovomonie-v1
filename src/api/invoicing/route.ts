@@ -19,10 +19,10 @@ export async function GET(request: Request) {
             return {
                 id: doc.id,
                 ...data,
-                issueDate: (data.issueDate as Timestamp).toDate().toISOString(),
-                dueDate: (data.dueDate as Timestamp).toDate().toISOString(),
-                createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-                updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                issueDate: (data.issueDate as Timestamp)?.toDate().toISOString(),
+                dueDate: (data.dueDate as Timestamp)?.toDate().toISOString(),
+                createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
+                updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
             };
         });
         return NextResponse.json(invoices);
