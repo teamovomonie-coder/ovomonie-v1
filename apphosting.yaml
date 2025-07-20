@@ -11,4 +11,4 @@ runConfig:
 # WARNING: Do not commit a real password to your repository.
 # Use a secret manager for production environments.
 # https://firebase.google.com/docs/app-hosting/configure#password-protection
-password: your-secret-password
+password: Dathird1980@
