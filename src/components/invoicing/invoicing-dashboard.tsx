@@ -64,7 +64,7 @@ export function InvoicingDashboard() {
     if (view === 'dashboard') {
         fetchInvoices();
     }
-  }, [view]);
+  }, [view, toast]);
 
   const handleCreateNew = () => {
     const newInvoice: Invoice = {

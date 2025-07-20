@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
@@ -16,11 +16,12 @@ export async function GET(request: Request) {
         const querySnapshot = await getDocs(q);
         const invoices = querySnapshot.docs.map(doc => {
             const data = doc.data();
+            // This robust conversion prevents crashes if any date field is missing or null.
             return {
                 id: doc.id,
                 ...data,
-                issueDate: (data.issueDate as Timestamp)?.toDate().toISOString(),
-                dueDate: (data.dueDate as Timestamp)?.toDate().toISOString(),
+                issueDate: data.issueDate ? (data.issueDate as Timestamp).toDate().toISOString() : new Date().toISOString(),
+                dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate().toISOString() : new Date().toISOString(),
                 createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
                 updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
             };
@@ -45,37 +46,31 @@ export async function POST(request: Request) {
         if (!invoiceData.invoiceNumber || !invoiceData.toName) {
             return NextResponse.json({ message: 'Missing required invoice fields.' }, { status: 400 });
         }
-
-        const newInvoiceRef = doc(collection(db, 'invoices'));
-
-        await runTransaction(db, async (transaction) => {
-            if (clientReference) {
-                const idempotencyQuery = query(collection(db, 'invoices'), where("clientReference", "==", clientReference), where("userId", "==", userId));
-                const existingInvSnapshot = await transaction.get(idempotencyQuery);
-                if (!existingInvSnapshot.empty) {
-                    console.log(`Idempotent request for invoice: ${clientReference} already processed.`);
-                    return;
-                }
-            }
-            
-            transaction.set(newInvoiceRef, {
-                ...invoiceData,
-                userId,
-                clientReference: clientReference || null,
-                issueDate: new Date(invoiceData.issueDate),
-                dueDate: new Date(invoiceData.dueDate),
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
-        });
         
-        const docSnap = await getDoc(newInvoiceRef);
+        // Ensure dates are always valid Date objects before storing.
+        const issueDate = invoiceData.issueDate ? new Date(invoiceData.issueDate) : new Date();
+        const dueDate = invoiceData.dueDate ? new Date(invoiceData.dueDate) : new Date();
+
+        const newInvoice = {
+            ...invoiceData,
+            userId,
+            clientReference: clientReference || null,
+            issueDate: issueDate,
+            dueDate: dueDate,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+
+        const docRef = await addDoc(collection(db, 'invoices'), newInvoice);
+        const docSnap = await getDoc(docRef);
+
         if (!docSnap.exists()) {
              return NextResponse.json({ message: 'Failed to create invoice after transaction.' }, { status: 500 });
         }
+        
         const createdInvoiceData = docSnap.data();
 
-        // Ensure issueDate and dueDate are converted to ISO strings for JSON serialization
+        // Safely convert timestamps back to ISO strings for the response.
         const createdInvoice = {
             id: docSnap.id,
             ...createdInvoiceData,
