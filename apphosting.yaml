@@ -5,3 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Add password protection
+# Replace 'your-secret-password' with a strong, unique password.
+# WARNING: Do not commit a real password to your repository.
+# Use a secret manager for production environments.
+# https://firebase.google.com/docs/app-hosting/configure#password-protection
+password: your-secret-password
