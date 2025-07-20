@@ -56,23 +56,16 @@ export const mockGetAccountByNumber = async (accountNumber: string): Promise<Use
 };
 
 export const performTransfer = async (
-    senderAccountNumber: string,
+    senderUserId: string,
     recipientAccountNumber: string,
     amountInKobo: number,
     clientReference: string,
     narration?: string
-): Promise<{ success: true; newSenderBalance: number; reference: string } | { success: false; message: string }> => {
-    
-    const FRAUD_THRESHOLD_KOBO = 10000000; // ₦100,000
-    if (amountInKobo > FRAUD_THRESHOLD_KOBO) {
-        return {
-            success: false,
-            message: 'This transaction is unusually large and has been flagged for security review. Please contact support if you believe this is an error.'
-        };
-    }
+): Promise<{ success: true; newSenderBalance: number; recipientName: string; reference: string } | { success: false; message: string }> => {
     
     try {
-        let newSenderBalance = 0;
+        let finalSenderBalance = 0;
+        let recipientName = '';
 
         await runTransaction(db, async (transaction) => {
             const financialTransactionsRef = collection(db, 'financialTransactions');
@@ -80,42 +73,46 @@ export const performTransfer = async (
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
+                const senderDocRef = doc(db, 'users', senderUserId);
+                const senderDoc = await transaction.get(senderDocRef);
+                if (senderDoc.exists()) {
+                    finalSenderBalance = senderDoc.data().balance;
+                }
                 console.log(`Idempotent request for internal transfer: ${clientReference} already processed.`);
                 return;
             }
 
-            const senderQuery = query(collection(db, "users"), where("accountNumber", "==", senderAccountNumber));
+            const senderDocRef = doc(db, "users", senderUserId);
             const recipientQuery = query(collection(db, "users"), where("accountNumber", "==", recipientAccountNumber));
 
-            const senderSnapshot = await getDocs(senderQuery);
-            const recipientSnapshot = await getDocs(recipientQuery);
+            const [senderDoc, recipientSnapshot] = await Promise.all([
+                transaction.get(senderDocRef),
+                transaction.get(recipientQuery)
+            ]);
 
-            if (senderSnapshot.empty) {
+            if (!senderDoc.exists()) {
                 throw new Error("Sender account not found.");
             }
             if (recipientSnapshot.empty) {
                 throw new Error("Recipient account not found.");
             }
             
-            const senderDoc = senderSnapshot.docs[0];
             const recipientDoc = recipientSnapshot.docs[0];
 
             const senderData = senderDoc.data() as UserAccount;
             const recipientData = recipientDoc.data() as UserAccount;
+            recipientName = recipientData.fullName;
 
             if (senderData.balance < amountInKobo) {
                 throw new Error("Insufficient funds.");
             }
 
-            // Perform balance updates
-            newSenderBalance = senderData.balance - amountInKobo;
+            const newSenderBalance = senderData.balance - amountInKobo;
             const newRecipientBalance = recipientData.balance + amountInKobo;
             
             transaction.update(senderDoc.ref, { balance: newSenderBalance });
             transaction.update(recipientDoc.ref, { balance: newRecipientBalance });
             
-
-            // Log Debit for Sender
             const senderLog = {
                 userId: senderDoc.id,
                 category: 'transfer',
@@ -133,7 +130,6 @@ export const performTransfer = async (
             };
             transaction.set(doc(financialTransactionsRef), senderLog);
             
-            // Log Credit for Recipient
             const recipientLog = {
                 userId: recipientDoc.id,
                 category: 'transfer',
@@ -143,20 +139,26 @@ export const performTransfer = async (
                 narration: narration || `Transfer from ${senderData.fullName}`,
                 party: {
                     name: senderData.fullName,
-                    account: senderAccountNumber,
+                    account: senderData.accountNumber,
                     bank: 'Ovomonie'
                 },
                 timestamp: serverTimestamp(),
                 balanceAfter: newRecipientBalance
             };
             transaction.set(doc(financialTransactionsRef), recipientLog);
+
+            finalSenderBalance = newSenderBalance;
         });
 
-        // Re-fetch balance to return the most up-to-date value, even if the txn was idempotent
-        const finalSenderAccount = await mockGetAccountByNumber(senderAccountNumber);
-        newSenderBalance = finalSenderAccount!.balance;
+        if (finalSenderBalance === 0 && clientReference) {
+             const senderDocRef = doc(db, 'users', senderUserId);
+             const senderDoc = await getDoc(senderDocRef);
+             if (senderDoc.exists()) {
+                 finalSenderBalance = senderDoc.data().balance;
+             }
+        }
         
-        return { success: true, newSenderBalance, reference: clientReference };
+        return { success: true, newSenderBalance: finalSenderBalance, recipientName, reference: clientReference };
 
     } catch (error) {
         console.error("Firestore transaction failed: ", error);
@@ -166,7 +168,3 @@ export const performTransfer = async (
         return { success: false, message: 'An unexpected error occurred during the transfer.' };
     }
 }
-
-
-// We'll use this as the sender's account for all transactions in this simulation
-export const MOCK_SENDER_ACCOUNT = '8012345678';
