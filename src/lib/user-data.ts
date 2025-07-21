@@ -9,7 +9,8 @@ import {
     where, 
     getDocs,
     runTransaction,
-    doc
+    doc,
+    getDoc
 } from 'firebase/firestore';
 
 interface UserAccount {
@@ -60,7 +61,9 @@ export const performTransfer = async (
     recipientAccountNumber: string,
     amountInKobo: number,
     clientReference: string,
-    narration?: string
+    narration?: string,
+    message?: string,
+    photo?: string,
 ): Promise<{ success: true; newSenderBalance: number; recipientName: string; reference: string } | { success: false; message: string }> => {
     
     try {
@@ -126,7 +129,9 @@ export const performTransfer = async (
                     bank: 'Ovomonie'
                 },
                 timestamp: serverTimestamp(),
-                balanceAfter: newSenderBalance
+                balanceAfter: newSenderBalance,
+                memoMessage: message || null,
+                memoImageUri: photo || null,
             };
             transaction.set(doc(financialTransactionsRef), senderLog);
             
@@ -143,7 +148,9 @@ export const performTransfer = async (
                     bank: 'Ovomonie'
                 },
                 timestamp: serverTimestamp(),
-                balanceAfter: newRecipientBalance
+                balanceAfter: newRecipientBalance,
+                memoMessage: message || null,
+                memoImageUri: photo || null,
             };
             transaction.set(doc(financialTransactionsRef), recipientLog);
 

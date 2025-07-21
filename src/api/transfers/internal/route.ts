@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { recipientAccountNumber, amount, narration, clientReference } = body;
+        const { recipientAccountNumber, amount, narration, clientReference, message, photo } = body;
 
         if (!recipientAccountNumber || !amount || typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json({ message: 'Invalid request body. Recipient and amount are required.' }, { status: 400 });
@@ -41,7 +41,9 @@ export async function POST(request: Request) {
             recipientAccountNumber, 
             transferAmountInKobo, 
             clientReference,
-            narration
+            narration,
+            message,
+            photo
         );
 
         if (!transferResult.success) {

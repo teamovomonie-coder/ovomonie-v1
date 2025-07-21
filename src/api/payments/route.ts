@@ -11,24 +11,13 @@ import {
     getDoc,
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
 export async function POST(request: Request) {
     try {
-        const headersList = headers();
-        const authorization = headersList.get('authorization');
-
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
-        }
-
-        const token = authorization.split(' ')[1];
-        if (!token.startsWith('fake-token-')) {
-             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
-        }
-
-        const userId = token.split('-')[2];
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
-            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
         const { amount, category, party, narration, clientReference } = await request.json();
@@ -90,13 +79,13 @@ export async function POST(request: Request) {
             transaction.set(doc(financialTransactionsRef), debitLog);
         });
 
-        // Re-fetch the balance to return the most current state, even if the transaction was idempotent.
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-        if(userDoc.exists()){
-            newBalance = userDoc.data().balance
+        if (newBalance === 0 && clientReference) {
+            const userRef = doc(db, "users", userId);
+            const userDoc = await getDoc(userRef);
+            if(userDoc.exists()){
+                newBalance = userDoc.data().balance
+            }
         }
-
 
         return NextResponse.json({
             message: 'Payment successful!',

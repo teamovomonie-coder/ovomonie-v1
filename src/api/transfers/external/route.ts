@@ -9,29 +9,17 @@ import {
     serverTimestamp,
     query,
     where,
+    getDoc,
 } from 'firebase/firestore';
 import { nigerianBanks } from '@/lib/banks';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
 export async function POST(request: Request) {
     try {
-        // --- API Security Check ---
-        const headersList = headers();
-        const authorization = headersList.get('authorization');
-
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
-        }
-        
-        const token = authorization.split(' ')[1];
-        if (!token.startsWith('fake-token-')) {
-             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
-        }
-
-        const userId = token.split('-')[2];
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
-            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-        // --- End Security Check ---
 
         const body = await request.json();
         const { recipientName, bankCode, accountNumber, amount, narration, clientReference, message, photo } = body;
@@ -49,7 +37,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Invalid recipient bank.' }, { status: 400 });
         }
         
-        // 2. Perform the "transaction"
         const transferAmountInKobo = Math.round(amount * 100);
         let newSenderBalance = 0;
         
@@ -104,14 +91,14 @@ export async function POST(request: Request) {
             transaction.set(doc(financialTransactionsRef), debitLog);
         });
         
-        // Re-fetch balance to ensure the latest state is returned
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-        if(userDoc.exists()) {
-            newSenderBalance = userDoc.data().balance;
+        if (newSenderBalance === 0 && clientReference) {
+          const userRef = doc(db, "users", userId);
+          const userDoc = await getDoc(userRef);
+          if(userDoc.exists()) {
+              newSenderBalance = userDoc.data().balance;
+          }
         }
-
-        // 3. Return success response
+        
         return NextResponse.json({
             message: 'Transfer successful!',
             data: {
