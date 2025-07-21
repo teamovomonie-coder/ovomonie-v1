@@ -6,27 +6,56 @@ import {
     runTransaction,
     doc,
     serverTimestamp,
+    query,
+    where,
+    getDoc,
 } from 'firebase/firestore';
-import { mockGetAccountByNumber, MOCK_SENDER_ACCOUNT } from '@/lib/user-data';
+import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+
 
 export async function POST(request: Request) {
     try {
-        const { loanId, amount } = await request.json();
+        const userId = getUserIdFromToken(headers());
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        
+        const { loanId, amount, clientReference } = await request.json();
 
         if (!loanId || !amount || amount <= 0) {
             return NextResponse.json({ message: 'Loan ID and a positive amount are required.' }, { status: 400 });
         }
-
-        const userAccount = await mockGetAccountByNumber(MOCK_SENDER_ACCOUNT);
-        if (!userAccount || !userAccount.id) throw new Error("User account not found");
+        if (!clientReference) {
+            return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
+        }
         
         const amountInKobo = Math.round(amount * 100);
         let newLoanBalance = 0;
         let newUserBalance = 0;
 
         await runTransaction(db, async (transaction) => {
+            const financialTransactionsRef = collection(db, 'financialTransactions');
+            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+
+            if (!existingTxnSnapshot.empty) {
+                console.log(`Idempotent request for loan repayment: ${clientReference} already processed.`);
+                const userRef = doc(db, "users", userId);
+                const loanRef = doc(db, "loans", loanId);
+
+                const [userDoc, loanDoc] = await Promise.all([
+                    transaction.get(userRef),
+                    transaction.get(loanRef)
+                ]);
+
+                if (userDoc.exists()) newUserBalance = userDoc.data().balance;
+                if (loanDoc.exists()) newLoanBalance = loanDoc.data().balance;
+                return;
+            }
+
             const loanRef = doc(db, "loans", loanId);
-            const userRef = doc(db, "users", userAccount.id!);
+            const userRef = doc(db, "users", userId);
 
             const [loanDoc, userDoc] = await Promise.all([
                 transaction.get(loanRef),
@@ -34,6 +63,7 @@ export async function POST(request: Request) {
             ]);
 
             if (!loanDoc.exists()) throw new Error("Loan not found.");
+            if (loanDoc.data().userId !== userId) throw new Error("Loan does not belong to this user.");
             if (!userDoc.exists()) throw new Error("User not found.");
 
             const loanData = loanDoc.data();
@@ -56,18 +86,16 @@ export async function POST(request: Request) {
             transaction.update(loanRef, {
                 balance: newLoanBalance,
                 status: newStatus,
-                repayments: updatedRepayments, // In a real app, update this properly
+                repayments: updatedRepayments, 
                 lastRepaymentDate: serverTimestamp(),
             });
 
-            // Log the debit transaction
-            const financialTransactionsRef = collection(db, 'financialTransactions');
             const debitLog = {
-                userId: userAccount.id,
+                userId: userId,
                 category: 'loan',
                 type: 'debit',
                 amount: amountInKobo,
-                reference: `REPAY-${loanId}`,
+                reference: clientReference,
                 narration: 'Loan repayment',
                 party: { name: 'Ovomonie Loans' },
                 timestamp: serverTimestamp(),
