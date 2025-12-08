@@ -1,7 +1,7 @@
 
-import { collection, addDoc, serverTimestamp, type DocumentData } from 'firebase/firestore';
-import { db } from './firebase';
-import type { ReadonlyHeaders } from 'next/headers';
+import {collection, addDoc, serverTimestamp, type DocumentData} from 'firebase/firestore';
+import {db} from './firebase';
+import {verifyAuthToken} from './auth';
 
 /**
  * Safely adds a document to a Firestore collection, catching potential errors.
@@ -40,17 +40,26 @@ export async function createNotification(userId: string, notificationData: Omit<
 
 /**
  * Extracts a user ID from a bearer token in the request headers.
- * @param headers The request headers from Next.js.
+ * @param headers The request headers from Next.js (supports Next 15+ async headers()).
  * @returns The user ID string, or null if not found or invalid.
  */
-export function getUserIdFromToken(headers: ReadonlyHeaders): string | null {
-    const authorization = headers.get('authorization');
+type HeaderLike = { get(name: string): string | null };
+
+export function getUserIdFromToken(headers: HeaderLike | Promise<HeaderLike>): string | null {
+    const headerObj = headers as HeaderLike & { get?: HeaderLike['get'] };
+    const authorization = headerObj.get?.('authorization');
     if (!authorization || !authorization.startsWith('Bearer ')) {
         return null;
     }
     const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) {
-        return null;
+
+    // Prefer signed tokens first
+    const payload = verifyAuthToken(token);
+    if (payload?.sub) return payload.sub;
+
+    // Fallback for legacy demo tokens so existing sessions still work
+    if (token.startsWith('fake-token-')) {
+        return token.split('-')[2] || null;
     }
-    return token.split('-')[2] || null;
+    return null;
 }

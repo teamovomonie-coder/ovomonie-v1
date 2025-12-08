@@ -5,10 +5,12 @@ import { performTransfer } from '@/lib/user-data';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error('Internal Transfer Error:', error);
+        logger.error('Internal Transfer Error:', error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

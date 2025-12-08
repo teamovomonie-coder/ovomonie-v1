@@ -4,6 +4,8 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { headers } from 'next/headers';
+import { logger } from '@/lib/logger';
+
 
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
@@ -46,7 +48,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
         return NextResponse.json({ id: updatedDoc.id, ...responseData });
     } catch (error) {
-        console.error("Error updating invoice:", error);
+        logger.error("Error updating invoice:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -68,7 +70,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
         await deleteDoc(docRef);
         return NextResponse.json({ message: 'Invoice deleted successfully' }, { status: 200 });
     } catch (error) {
-        console.error("Error deleting invoice:", error);
+        logger.error("Error deleting invoice:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,7 +72,7 @@ const ticketTypeSchema = z.object({
 const eventCreationSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(5, "Event name is too short."),
-    category: z.string().min(1, "Category is required."),
+    category: z.enum(['Music', 'Comedy', 'Sports', 'Conference', 'Church', 'Islamic']),
     description: z.string().min(20, "Please provide more details."),
     date: z.date({required_error: "Please select a date."}),
     venue: z.string().min(3, "Venue is required."),
@@ -119,11 +119,15 @@ function OrganizerView() {
     }, [view, fetchHostedEvents]);
 
     const handleCreateEvent = (data: EventCreationFormData) => {
-        const newEvent: Partial<EventData> & { date: Date } = {
+        const newEvent: EventData = {
             ...data,
+            category: data.category as EventCategory,
+            date: data.date.toISOString(),
             ticketTypes: data.ticketTypes.map(t => ({...t, id: `tix-${Math.random()}`})),
+            userId: 'organizer',
+            id: data.id || `evt-${Date.now()}`
         };
-        setActiveEvent(newEvent as EventData);
+        setActiveEvent(newEvent);
         setView('payment');
     };
     

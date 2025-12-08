@@ -1,6 +1,8 @@
 
 import { NextResponse } from 'next/server';
 import { mockHotels } from '@/lib/hotel-data';
+import { logger } from '@/lib/logger';
+
 
 export async function GET(request: Request) {
     try {
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
         return NextResponse.json(results);
 
     } catch (error) {
-        console.error("Hotel Search Error:", error);
+        logger.error("Hotel Search Error:", error);
         return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
     }
 }

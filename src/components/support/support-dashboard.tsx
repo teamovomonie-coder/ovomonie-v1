@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -178,7 +178,7 @@ export function SupportDashboard() {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         if (view !== 'track' && view !== 'dashboard') return;
         setIsLoading(true);
         try {
@@ -193,13 +193,13 @@ export function SupportDashboard() {
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [toast, view]);
 
     useEffect(() => {
         if (view === 'track') {
             fetchTickets();
         }
-    }, [view]);
+    }, [fetchTickets, view]);
 
     const handleSetView = (newView: View, newTitle: string) => {
         setView(newView);

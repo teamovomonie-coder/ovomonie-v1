@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { logger } from '@/lib/logger';
+
 
 interface UserAccount {
     id?: string;
@@ -12,11 +14,11 @@ interface UserAccount {
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: { accountNumber: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ accountNumber: string }> }
 ) {
   try {
-    const accountNumber = params.accountNumber;
+    const { accountNumber } = await params;
     if (!accountNumber) {
         return NextResponse.json({ message: 'Account number is required.' }, { status: 400 });
     }
@@ -34,7 +36,7 @@ export async function GET(
     return NextResponse.json(userData);
 
   } catch (error) {
-    console.error("Error fetching user data:", error);
+    logger.error("Error fetching user data:", error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

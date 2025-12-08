@@ -3,17 +3,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, doc, runTransaction, serverTimestamp, query, where, Timestamp } from 'firebase/firestore';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
+
 
 const LISTING_FEE_KOBO = 20000_00; // ₦20,000
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-    if (!authorization || !authorization.startsWith('Bearer ')) return null;
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) return null;
-    return token.split('-')[2] || null;
-}
+
 
 export async function GET(request: Request) {
     try {
@@ -28,14 +25,14 @@ export async function GET(request: Request) {
         });
         return NextResponse.json(events);
     } catch (error) {
-        console.error("Error fetching events: ", error);
+        logger.error("Error fetching events: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
 
 
 export async function POST(request: Request) {
-    const userId = await getUserIdFromToken();
+    const userId = getUserIdFromToken(headers());
     if (!userId) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
@@ -101,7 +98,7 @@ export async function POST(request: Request) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error("Error creating event:", error);
+        logger.error("Error creating event:", error);
         return NextResponse.json({ message: (error as Error).message }, { status: 400 });
     }
 }

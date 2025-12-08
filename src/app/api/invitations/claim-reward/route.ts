@@ -9,12 +9,14 @@ import {
     serverTimestamp,
 } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 const REWARD_AMOUNT_KOBO = 500_00; // ₦500
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Reward Claim Error:", error);
+        logger.error("Reward Claim Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

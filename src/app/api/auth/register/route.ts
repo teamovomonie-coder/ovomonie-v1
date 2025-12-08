@@ -2,6 +2,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
+import { hashSecret } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+
 
 // Helper function to generate a unique referral code
 const generateReferralCode = (length: number = 6): string => {
@@ -16,7 +19,7 @@ const generateReferralCode = (length: number = 6): string => {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, phone, loginPin, fullName, transactionPin } = body;
+        const { email, phone, loginPin, fullName, transactionPin, ...rest } = body;
 
         if (!email || !phone || !loginPin || !fullName || !transactionPin) {
             return NextResponse.json({ message: 'Missing required fields for registration.' }, { status: 400 });
@@ -46,11 +49,14 @@ export async function POST(request: Request) {
 
         // Create new user document
         const newUser = {
-            ...body,
+            ...rest,
+            email,
+            phone,
+            fullName,
             accountNumber,
             referralCode,
-            // In a real app, the PIN should be securely hashed before saving.
-            // For simplicity, we are storing it in plaintext. THIS IS NOT SECURE FOR PRODUCTION.
+            loginPinHash: hashSecret(String(loginPin)),
+            transactionPinHash: hashSecret(String(transactionPin)),
             balance: 125034500, // Initial balance in kobo (e.g., ₦1,250,345.00)
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -61,7 +67,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'Registration successful!', userId: docRef.id }, { status: 201 });
 
     } catch (error) {
-        console.error("Registration Error:", error);
+        logger.error("Registration Error:", error);
         let errorMessage = 'An internal server error occurred.';
         // Check if the error message is about a missing Firestore index
         if (error instanceof Error && error.message.includes('The query requires an index')) {

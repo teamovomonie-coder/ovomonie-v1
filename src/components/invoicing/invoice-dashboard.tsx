@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InvoiceEditor } from './invoice-editor';
 import { InvoiceView } from './invoice-view';
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ export function InvoicingDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
     try {
         const token = localStorage.getItem('ovo-auth-token');
@@ -57,13 +57,13 @@ export function InvoicingDashboard() {
     } finally {
         setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (view === 'dashboard') {
         fetchInvoices();
     }
-  }, [view]);
+  }, [fetchInvoices, view]);
 
   const handleCreateNew = () => {
     const newInvoice: Invoice = {

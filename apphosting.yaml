@@ -11,23 +11,25 @@
 env:
   # Firebase SDK configuration
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: "AIzaSyBXUqhX6hN8r4EXbeuwaGlcG0pdFpjh0Fc"
+    value: secret:NEXT_PUBLIC_FIREBASE_API_KEY
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: "ovo-thrive.firebaseapp.com"
+    value: secret:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: "ovo-thrive"
+    value: secret:NEXT_PUBLIC_FIREBASE_PROJECT_ID
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: "ovo-thrive.firebasestorage.app"
+    value: secret:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "412842608177"
+    value: secret:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "1:412842608177:web:86bf90fef3bfdb3a22b710"
+    value: secret:NEXT_PUBLIC_FIREBASE_APP_ID
 
   # Genkit/Gemini API configuration
   # For production, it's recommended to use secrets for your API keys.
   # Replace 'your-gemini-api-key' with your actual key or a secret reference.
   - variable: GEMINI_API_KEY
-    value: "AIzaSyCXagUelHL269D1yRQ-nXoU_572LdJKqjw"
+    value: secret:GEMINI_API_KEY
+  - variable: AUTH_SECRET
+    value: secret:AUTH_SECRET
 
 
 runConfig:
@@ -40,4 +42,4 @@ runConfig:
 # WARNING: Do not commit a real password to your repository.
 # Use a secret manager for production environments.
 # https://firebase.google.com/docs/app-hosting/configure#password-protection
-password: Dathird1980@
+password: secret:APPHOSTING_PASSWORD

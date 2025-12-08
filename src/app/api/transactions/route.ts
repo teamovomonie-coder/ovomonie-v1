@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
+import { logger } from '@/lib/logger';
+
 
 export async function GET() {
     try {
@@ -20,7 +22,7 @@ export async function GET() {
 
         return NextResponse.json(transactions);
     } catch (error) {
-        console.error("Error fetching financial transactions: ", error);
+        logger.error("Error fetching financial transactions: ", error);
         let errorMessage = 'An internal server error occurred.';
          if (error instanceof Error && error.message.includes('The query requires an index')) {
             errorMessage = "The database is missing a required index for fetching financial transactions. Please check the server logs for a link to create it in the Firebase Console.";

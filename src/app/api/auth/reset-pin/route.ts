@@ -1,7 +1,10 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, deleteField } from "firebase/firestore";
+import { hashSecret } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
@@ -27,13 +30,14 @@ export async function POST(request: Request) {
         const userDoc = querySnapshot.docs[0];
         
         await updateDoc(userDoc.ref, {
-            loginPin: String(newPin)
+            loginPinHash: hashSecret(String(newPin)),
+            loginPin: deleteField(),
         });
 
         return NextResponse.json({ message: 'Your PIN has been reset successfully.' });
 
     } catch (error) {
-        console.error("PIN Reset Error:", error);
+        logger.error("PIN Reset Error:", error);
         let errorMessage = 'An internal server error occurred.';
         if (error instanceof Error) {
             errorMessage = `An internal server error occurred: ${error.message}`;

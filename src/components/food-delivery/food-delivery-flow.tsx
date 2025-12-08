@@ -254,7 +254,7 @@ function CartSheet({ cart, updateCartQuantity, onCheckout, restaurant }: { cart:
 }
 
 function CheckoutScreen({ cart, restaurant, onBack, onConfirmOrder }: { cart: CartItem[]; restaurant: Restaurant; onBack: () => void; onConfirmOrder: () => void; }) {
-    const [isProcessing, setIsLoading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.menuItem.price * item.quantity, 0), [cart]);
     const deliveryFee = 500;

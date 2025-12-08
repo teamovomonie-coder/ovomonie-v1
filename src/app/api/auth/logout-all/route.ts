@@ -4,10 +4,12 @@ import { headers } from 'next/headers';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'Successfully logged out all other devices.' });
 
     } catch (error) {
-        console.error("Logout All Error:", error);
+        logger.error("Logout All Error:", error);
         return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
     }
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Crown, X, Settings, User as UserIcon, Bot } from 'lucide-react';
@@ -39,7 +39,7 @@ const LudoGameLogic = () => {
     const [winner, setWinner] = useState<PlayerColor | null>(null);
     const [message, setMessage] = useState('Red player, roll the dice!');
 
-    const playerOrder: PlayerColor[] = ['red', 'green', 'yellow', 'blue'];
+    const playerOrder: PlayerColor[] = useMemo(() => ['red', 'green', 'yellow', 'blue'], []);
     const currentPlayer = playerOrder[currentPlayerIndex];
 
     const initializeGame = useCallback(() => {
@@ -52,7 +52,7 @@ const LudoGameLogic = () => {
         setDiceValue(null);
         setWinner(null);
         setMessage('Red player, roll the dice!');
-    }, []);
+    }, [playerOrder]);
 
     useEffect(() => {
         initializeGame();

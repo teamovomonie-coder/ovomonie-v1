@@ -180,17 +180,14 @@ const aiAssistantFlow = ai.defineFlow(
     outputSchema: AiAssistantFlowOutputSchema,
   },
   async (input) => {
-    // Transform history for the model
-    const history = input.history.map(msg => ({
-        role: msg.role,
-        parts: [{ text: msg.content }],
-    }));
+    const historyText = input.history
+        .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
 
     const { output } = await ai.generate({
         model: googleAI.model('gemini-1.5-flash-latest'),
         system: systemPrompt.replace('{{userName}}', input.userName),
-        history: history,
-        prompt: `My user ID is ${input.userId}. My query is: ${input.query}`,
+        prompt: `My user ID is ${input.userId}.\nConversation so far:\n${historyText}\n\nLatest query: ${input.query}`,
         tools: [getAccountSummaryTool, initiateInternalTransferTool],
         output: {
             schema: AiAssistantFlowOutputSchema,

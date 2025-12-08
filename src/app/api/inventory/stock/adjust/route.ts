@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ message: 'Stock adjusted and logged successfully' }, { status: 200 });
     } catch (error) {
-        console.error("Stock adjustment error:", error);
+        logger.error("Stock adjustment error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 500 });
         }

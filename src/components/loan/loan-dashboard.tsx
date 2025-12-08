@@ -192,7 +192,7 @@ export function LoanDashboard() {
     if (!applicationData) return { totalRepayable: 0, monthlyPayment: 0 };
     const interest = applicationData.amount * LOAN_INTEREST_RATE * applicationData.duration;
     const totalRepayable = applicationData.amount + interest;
-    const monthlyPayment = totalRepayable / duration;
+    const monthlyPayment = totalRepayable / applicationData.duration;
     return { totalRepayable, monthlyPayment };
   }, [applicationData]);
 
@@ -536,4 +536,3 @@ export function LoanDashboard() {
     </>
   );
 }
-

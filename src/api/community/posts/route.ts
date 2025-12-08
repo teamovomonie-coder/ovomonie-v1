@@ -4,6 +4,8 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { headers } from 'next/headers';
+import { logger } from '@/lib/logger';
+
 
 // GET all posts
 export async function GET() {
@@ -33,7 +35,7 @@ export async function GET() {
 
         return NextResponse.json(posts);
     } catch (error) {
-        console.error("Error fetching community posts:", error);
+        logger.error("Error fetching community posts:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
         
         return NextResponse.json({ message: 'Post created successfully!', postId: docRef.id }, { status: 201 });
     } catch (error) {
-        console.error("Error creating post:", error);
+        logger.error("Error creating post:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -41,7 +41,7 @@ export const invoiceSchema = z.object({
 export type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 interface InvoiceEditorProps {
-  invoice: Partial<InvoiceFormData>;
+  invoice: Partial<InvoiceFormData & { id?: string }>;
   onSave: (data: InvoiceFormData) => void;
   onSaveDraft: (data: InvoiceFormData) => void;
   onBack: () => void;

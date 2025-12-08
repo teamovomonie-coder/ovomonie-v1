@@ -1,5 +1,7 @@
 
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
+
 
 const airlines = [
     { code: 'P4', name: 'Air Peace' },
@@ -54,7 +56,7 @@ export async function GET(request: Request) {
         return NextResponse.json(mockFlights);
 
     } catch (error) {
-        console.error("Flight Search Error:", error);
+        logger.error("Flight Search Error:", error);
         return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
     }
 }

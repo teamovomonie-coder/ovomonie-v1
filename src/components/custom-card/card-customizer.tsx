@@ -174,8 +174,8 @@ export function CardCustomizer() {
     }
   };
 
-  const handleCustomizationSubmit = () => {
-    const cardDataValid = cardDetailsForm.trigger();
+  const handleCustomizationSubmit = async () => {
+    const cardDataValid = await cardDetailsForm.trigger();
     if (cardDataValid) {
         setView('review');
     }

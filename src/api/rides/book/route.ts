@@ -11,25 +11,18 @@ import {
     where,
     addDoc,
 } from 'firebase/firestore';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
+
 
 export async function POST(request: Request) {
     try {
-        const headersList = headers();
-        const authorization = headersList.get('authorization');
-        
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
-        }
-        
-        const token = authorization.split(' ')[1];
-        if (!token.startsWith('fake-token-')) {
-             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+        const userId = getUserIdFromToken(headers());
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const userId = token.split('-')[2];
-        if (!userId) {
-            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
-        }
         
         const { ride, searchDetails, clientReference } = await request.json();
 
@@ -47,7 +40,7 @@ export async function POST(request: Request) {
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for ride booking: ${clientReference} already processed.`);
+                logger.info(`Idempotent request for ride booking: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const userDoc = await transaction.get(userRef);
                 if (userDoc.exists()) newBalance = userDoc.data().balance;
@@ -99,7 +92,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Ride Booking Error:", error);
+        logger.error("Ride Booking Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

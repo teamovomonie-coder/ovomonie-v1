@@ -4,10 +4,12 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 export async function GET(request: Request) {
     try {
-        const userId = await getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
         });
 
     } catch (error) {
-        console.error("Error fetching invitation stats:", error);
+        logger.error("Error fetching invitation stats:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

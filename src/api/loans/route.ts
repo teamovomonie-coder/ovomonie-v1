@@ -16,19 +16,16 @@ import {
 } from 'firebase/firestore';
 import { add } from 'date-fns';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-    if (!authorization || !authorization.startsWith('Bearer ')) return null;
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) return null;
-    return token.split('-')[2] || null;
-}
+
+
+
 
 export async function GET() {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -63,7 +60,7 @@ export async function GET() {
         return NextResponse.json(loan);
 
     } catch (error) {
-        console.error("Error fetching active loan: ", error);
+        logger.error("Error fetching active loan: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -71,7 +68,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -103,7 +100,7 @@ export async function POST(request: Request) {
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for new loan: ${clientReference} already processed.`);
+                logger.info(`Idempotent request for new loan: ${clientReference} already processed.`);
                 const userDoc = await transaction.get(userDocRef);
                 if (userDoc.exists()) newBalance = userDoc.data().balance;
                 return;
@@ -155,7 +152,7 @@ export async function POST(request: Request) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error("Loan Disbursement Error:", error);
+        logger.error("Loan Disbursement Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

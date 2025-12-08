@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -185,7 +185,7 @@ export function PayrollDashboard() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const fetchBatches = async () => {
+  const fetchBatches = useCallback(async () => {
     setIsLoading(true);
     try {
         const response = await fetch('/api/payroll');
@@ -197,11 +197,11 @@ export function PayrollDashboard() {
     } finally {
         setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchBatches();
-  }, []);
+  }, [fetchBatches]);
 
   const handleCreateNew = () => {
     setActiveBatch({

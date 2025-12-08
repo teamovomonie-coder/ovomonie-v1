@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '@/lib/utils';
@@ -170,7 +170,7 @@ function PassengerDetailsView({ flight, searchData, onBook, onBack }: { flight: 
             passengers: Array.from({ length: searchData.passengers }, () => ({ fullName: '', email: '', phone: '' })),
         }
     });
-    const { fields } = form.control;
+    const { fields } = useFieldArray({ control: form.control, name: 'passengers' });
     const totalAmount = flight.price * searchData.passengers;
 
     return (

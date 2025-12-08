@@ -11,27 +11,20 @@ import {
     where,
     getDocs,
 } from 'firebase/firestore';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
+
 
 const CARD_FEE_KOBO = 1500_00; // ₦1,500
 
 export async function POST(request: Request) {
     try {
-        const headersList = headers();
-        const authorization = headersList.get('authorization');
-        
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
-        }
-        
-        const token = authorization.split(' ')[1];
-        if (!token.startsWith('fake-token-')) {
-             return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+        const userId = getUserIdFromToken(await headers());
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const userId = token.split('-')[2];
-        if (!userId) {
-            return NextResponse.json({ message: 'User ID not found in token.' }, { status: 401 });
-        }
 
         const { nameOnCard, designType, designValue, shippingInfo, clientReference } = await request.json();
 
@@ -44,10 +37,10 @@ export async function POST(request: Request) {
         await runTransaction(db, async (transaction) => {
             const cardOrdersRef = collection(db, 'cardOrders');
             const idempotencyQuery = query(cardOrdersRef, where("clientReference", "==", clientReference));
-            const existingOrderSnapshot = await transaction.get(idempotencyQuery);
+            const existingOrderSnapshot = await (transaction.get as any)(idempotencyQuery as any);
 
-            if (!existingOrderSnapshot.empty) {
-                console.log(`Idempotent request for card order: ${clientReference} already processed.`);
+            if (!(existingOrderSnapshot as any).empty) {
+                logger.info(`Idempotent request for card order: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const userDoc = await transaction.get(userRef);
                 if (userDoc.exists()) newBalance = userDoc.data().balance;
@@ -101,7 +94,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Card Order Error:", error);
+        logger.error("Card Order Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

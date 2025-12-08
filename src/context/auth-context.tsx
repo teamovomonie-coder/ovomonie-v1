@@ -30,6 +30,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
+  const parseTokenTimestamps = useCallback((token: string | null): { issuedAtMs: number; expiresAtMs: number } => {
+    if (!token) return { issuedAtMs: 0, expiresAtMs: 0 };
+    if (token.startsWith('ovotoken.')) {
+        const parts = token.split('.');
+        if (parts.length >= 2) {
+            try {
+                const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+                const payload = JSON.parse(atob(padded));
+                const issuedAtMs = payload?.iat ? Number(payload.iat) * 1000 : 0;
+                const expiresAtMs = payload?.exp ? Number(payload.exp) * 1000 : 0;
+                return { issuedAtMs, expiresAtMs };
+            } catch (error) {
+                console.error('Failed to parse auth token payload', error);
+            }
+        }
+    }
+    if (token.startsWith('fake-token-')) {
+        const tokenTimestamp = parseInt(token.split('-')[3] || '0');
+        return { issuedAtMs: isNaN(tokenTimestamp) ? 0 : tokenTimestamp, expiresAtMs: 0 };
+    }
+    return { issuedAtMs: 0, expiresAtMs: 0 };
+  }, []);
+
   const performLogout = useCallback(() => {
     localStorage.removeItem('ovo-auth-token');
     localStorage.removeItem('ovo-user-id');
@@ -71,10 +95,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const userData = userDoc.data();
-        const tokenTimestamp = parseInt(token.split('-')[3] || '0');
+        const { issuedAtMs, expiresAtMs } = parseTokenTimestamps(token);
+        if (expiresAtMs && expiresAtMs < Date.now()) {
+            throw new Error('Session expired.');
+        }
         const lastLogoutAll = userData.lastLogoutAll?.toMillis() || 0;
 
-        if (tokenTimestamp < lastLogoutAll) {
+        if (issuedAtMs < lastLogoutAll) {
             console.log("Stale token detected. Forcing logout.");
             throw new Error("Session expired due to security update.");
         }
@@ -92,12 +119,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Failed to fetch or validate user data:", error);
         performLogout();
     }
-}, [performLogout, isAuthenticated]);
+}, [performLogout, isAuthenticated, parseTokenTimestamps]);
 
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
 
   const login = useCallback(async (phone: string, pin: string): Promise<void> => {
       const response = await fetch('/api/auth/login', {

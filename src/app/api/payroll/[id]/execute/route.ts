@@ -1,27 +1,24 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { nigerianBanks } from '@/lib/banks';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-    if (!authorization || !authorization.startsWith('Bearer ')) return null;
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) return null;
-    return token.split('-')[2] || null;
-}
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+
+
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const batchId = params.id;
+        const { id: batchId } = await params;
         let finalUserBalance = 0;
 
         await runTransaction(db, async (transaction) => {
@@ -91,7 +88,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         return NextResponse.json({ message: "Payroll processed successfully!", newBalanceInKobo: finalUserBalance }, { status: 200 });
 
     } catch (error) {
-        console.error("Payroll Execution Error:", error);
+        logger.error("Payroll Execution Error:", error);
         return NextResponse.json({ message: (error as Error).message }, { status: 400 });
     }
 }

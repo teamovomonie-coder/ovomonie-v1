@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { logger } from '@/lib/logger';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const docRef = doc(db, "products", params.id);
+        const { id } = await params;
+        const docRef = doc(db, "products", id);
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
@@ -12,37 +15,39 @@ export async function GET(request: Request, { params }: { params: { id: string }
         }
         return NextResponse.json({ id: docSnap.id, ...docSnap.data() });
     } catch (error) {
-        console.error("Error fetching product: ", error);
+        logger.error("Error fetching product: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const body = await request.json();
-        const docRef = doc(db, "products", params.id);
+        const body = await _request.json();
+        const { id } = await params;
+        const docRef = doc(db, "products", id);
         
         // Ensure we don't try to update the ID field
-        const { id, ...updateData } = body;
+        const { id: _bodyId, ...updateData } = body;
 
         await updateDoc(docRef, {
             ...updateData,
             updatedAt: serverTimestamp(),
         });
-        return NextResponse.json({ id: params.id, ...body });
+        return NextResponse.json({ id, ...body });
     } catch (error) {
-        console.error("Error updating product: ", error);
+        logger.error("Error updating product: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const docRef = doc(db, "products", params.id);
+        const { id } = await params;
+        const docRef = doc(db, "products", id);
         await deleteDoc(docRef);
         return NextResponse.json({ message: 'Product deleted' }, { status: 200 });
     } catch (error) {
-        console.error("Error deleting product: ", error);
+        logger.error("Error deleting product: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

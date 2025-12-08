@@ -1,6 +1,8 @@
 
 import { NextResponse } from 'next/server';
 import { mockHotels, mockRooms } from '@/lib/hotel-data';
+import { logger } from '@/lib/logger';
+
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
     try {
@@ -19,7 +21,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         return NextResponse.json({ ...hotel, rooms });
 
     } catch (error) {
-        console.error("Fetch Hotel Details Error:", error);
+        logger.error("Fetch Hotel Details Error:", error);
         return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
     }
 }

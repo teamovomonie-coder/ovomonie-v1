@@ -1,6 +1,9 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 // Mock market data - in a real app, this would come from a live feed API.
 const mockStocks = [
@@ -14,18 +17,16 @@ const mockStocks = [
 
 export async function GET(request: Request) {
     try {
-        const headersList = headers();
-        const authorization = headersList.get('authorization');
-        
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            return NextResponse.json({ message: 'Authorization header missing or invalid.' }, { status: 401 });
+        const userId = getUserIdFromToken(await headers());
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
         
         // Return the mock data
         return NextResponse.json(mockStocks);
 
     } catch (error) {
-        console.error("Market Data API Error:", error);
+        logger.error("Market Data API Error:", error);
         return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
     }
 }

@@ -12,15 +12,17 @@ import {
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-        
+
         const { loanId, amount, clientReference } = await request.json();
 
         if (!loanId || !amount || amount <= 0) {
@@ -37,10 +39,10 @@ export async function POST(request: Request) {
         await runTransaction(db, async (transaction) => {
             const financialTransactionsRef = collection(db, 'financialTransactions');
             const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
 
-            if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for loan repayment: ${clientReference} already processed.`);
+            if (!(existingTxnSnapshot as any).empty) {
+                logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const loanRef = doc(db, "loans", loanId);
 
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Loan Repayment Error:", error);
+        logger.error("Loan Repayment Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

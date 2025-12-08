@@ -82,9 +82,15 @@ export function AgentLifeCard() {
         <Card className="relative w-full h-36 overflow-hidden bg-[#001F54] text-white shadow-lg rounded-2xl group">
             {/* Animated background icons */}
             <div className="absolute inset-0 opacity-65">
-                <TargetIcon className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }} />
-                <StarIcon className="absolute h-12 w-12" style={{ bottom: '-1rem', left: '1rem', animationDelay: '0s' }} />
-                <StarIcon className="absolute h-16 w-16" style={{ top: '-1rem', right: '1rem', animationDelay: '1.5s' }} />
+                <div className="absolute h-24 w-24 animate-slow-spin" style={{ top: '-2rem', right: '5rem', animationDuration: '25s' }}>
+                    <TargetIcon className="h-24 w-24" />
+                </div>
+                <div className="absolute h-12 w-12" style={{ bottom: '-1rem', left: '1rem', animationDelay: '0s' }}>
+                    <StarIcon className="h-12 w-12" />
+                </div>
+                <div className="absolute h-16 w-16" style={{ top: '-1rem', right: '1rem', animationDelay: '1.5s' }}>
+                    <StarIcon className="h-16 w-16" />
+                </div>
             </div>
 
           <CardContent className="relative z-10 flex items-center h-full p-4">

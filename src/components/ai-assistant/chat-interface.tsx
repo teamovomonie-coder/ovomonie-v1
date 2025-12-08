@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { getAiAssistantResponse, AiAssistantFlowOutput } from '@/ai/flows/ai-assistant-flow';
 import { textToSpeech, type SupportedLanguage } from '@/ai/flows/tts-flow';
 import { Input } from '@/components/ui/input';
@@ -88,36 +88,6 @@ export function ChatInterface() {
   }, [isInitialized, toast, userName]);
 
 
-  // Request microphone permission and setup SpeechRecognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onstart = () => {
-        setIsRecording(true);
-      };
-      recognition.onend = () => {
-        setIsRecording(false);
-      };
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
-        toast({ variant: 'destructive', title: 'Voice Error', description: `An error occurred: ${event.error}`});
-        setIsRecording(false);
-      };
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        handleSendMessage(null, transcript);
-      };
-      recognitionRef.current = recognition;
-    } else {
-        toast({ variant: 'destructive', title: 'Browser Not Supported', description: 'Voice recognition is not supported in your browser.'});
-    }
-  }, [toast]);
-  
   // Update recognition language when user selects a new one
   useEffect(() => {
       if (recognitionRef.current) {
@@ -139,7 +109,7 @@ export function ChatInterface() {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent | null, text: string = input) => {
+  const handleSendMessage = useCallback(async (e: React.FormEvent | null, text: string = input) => {
     e?.preventDefault();
     if (!text.trim() || isLoading || !user?.userId) return;
 
@@ -201,7 +171,37 @@ export function ChatInterface() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, messages, toast, user?.userId, userName]);
+
+  // Request microphone permission and setup SpeechRecognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        toast({ variant: 'destructive', title: 'Voice Error', description: `An error occurred: ${event.error}`});
+        setIsRecording(false);
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        handleSendMessage(null, transcript);
+      };
+      recognitionRef.current = recognition;
+    } else {
+        toast({ variant: 'destructive', title: 'Browser Not Supported', description: 'Voice recognition is not supported in your browser.'});
+    }
+  }, [handleSendMessage, toast]);
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];

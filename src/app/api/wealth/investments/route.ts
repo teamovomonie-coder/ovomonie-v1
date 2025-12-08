@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { 
@@ -15,10 +14,11 @@ import {
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json(investments);
     } catch (error) {
-        console.error("Error fetching investments: ", error);
+        logger.error("Error fetching investments: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -71,10 +71,10 @@ export async function POST(request: Request) {
         await runTransaction(db, async (transaction) => {
             const financialTransactionsRef = collection(db, 'financialTransactions');
             const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
 
-            if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for investment: ${clientReference} already processed.`);
+            if (!(existingTxnSnapshot as any).empty) {
+                logger.info(`Idempotent request for investment: ${clientReference} already processed.`);
                 const userDoc = await transaction.get(userDocRef);
                 if (userDoc.exists()) newBalance = userDoc.data().balance;
                 return;
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error("Investment Error:", error);
+        logger.error("Investment Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

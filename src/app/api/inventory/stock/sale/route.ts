@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, collection, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
                 await runTransaction(db, async (transaction) => {
                     const productDoc = await transaction.get(productRef);
                     if (!productDoc.exists()) {
-                         console.warn(`Product with ID ${item.productId} not found for sale ${referenceId}. Skipping.`);
+                         logger.warn(`Product with ID ${item.productId} not found for sale ${referenceId}. Skipping.`);
                         return;
                     }
 
@@ -48,17 +50,17 @@ export async function POST(request: Request) {
                             date: serverTimestamp(),
                         });
                     } else {
-                        console.warn(`Insufficient stock for product ${product.name} (ID: ${productDoc.id}) to fulfill sale for invoice ${referenceId}`);
+                        logger.warn(`Insufficient stock for product ${product.name} (ID: ${productDoc.id}) to fulfill sale for invoice ${referenceId}`);
                     }
                 });
             } catch (error) {
-                 console.error(`Transaction failed for product ${item.productId}:`, error);
+                 logger.error(`Transaction failed for product ${item.productId}:`, error);
             }
         }
 
         return NextResponse.json({ message: 'Sales logged and stock updated' }, { status: 200 });
     } catch (error) {
-        console.error('Sale logging error:', error);
+        logger.error('Sale logging error:', error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

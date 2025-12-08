@@ -1,7 +1,10 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, deleteField } from "firebase/firestore";
+import { createAuthToken, hashSecret, verifySecret } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
@@ -22,19 +25,47 @@ export async function POST(request: Request) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
         
-        if (!userData || typeof userData.loginPin === 'undefined') {
+        if (!userData) {
              return NextResponse.json({ message: 'Authentication data is incomplete for this user.' }, { status: 401 });
         }
-        
-        if (String(userData.loginPin) === String(pin).trim()) {
-            const token = `fake-token-${userDoc.id}-${Date.now()}`;
-            return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName, accountNumber: userData.accountNumber });
-        } else {
+
+        const providedPin = String(pin).trim();
+        const loginPinHash = userData.loginPinHash as string | undefined;
+        let isValid = false;
+
+        if (loginPinHash) {
+            isValid = verifySecret(providedPin, loginPinHash);
+        } else if (typeof userData.loginPin !== 'undefined') {
+            // Legacy plaintext support with migration to hashed storage
+            isValid = String(userData.loginPin) === providedPin;
+            if (isValid) {
+                try {
+                    await updateDoc(userDoc.ref, {
+                        loginPinHash: hashSecret(providedPin),
+                        loginPin: deleteField(),
+                    });
+                } catch (migrationError) {
+                    logger.error('Failed to migrate login PIN to hashed storage:', migrationError);
+                }
+            }
+        }
+
+        if (!isValid) {
             return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
         }
 
+        let token: string;
+        try {
+            token = createAuthToken(userDoc.id);
+        } catch (tokenError) {
+            logger.error('Failed to generate auth token', tokenError);
+            return NextResponse.json({ message: 'Authentication is temporarily unavailable. Please try again later.' }, { status: 500 });
+        }
+
+        return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName, accountNumber: userData.accountNumber });
+
     } catch (error) {
-        console.error("Login Error:", error);
+        logger.error("Login Error:", error);
         let errorMessage = 'An internal server error occurred.';
         if (error instanceof Error && error.message.includes('The query requires an index')) {
             errorMessage = "The database is missing a required index for login. Please check the server logs for a link to create it in the Firebase Console.";

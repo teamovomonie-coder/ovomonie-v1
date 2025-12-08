@@ -1,32 +1,36 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { logger } from '@/lib/logger';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+
+export async function PUT(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const body = await request.json();
-        const docRef = doc(db, "suppliers", params.id);
+        const body = await _request.json();
+        const { id } = await params;
+        const docRef = doc(db, "suppliers", id);
         
-        const { id, ...updateData } = body;
+        const { id: _bodyId, ...updateData } = body;
         await updateDoc(docRef, {
             ...updateData,
             updatedAt: serverTimestamp()
         });
         
-        return NextResponse.json({ id: params.id, ...body });
+        return NextResponse.json({ id, ...body });
     } catch (error) {
-        console.error("Error updating supplier: ", error);
+        logger.error("Error updating supplier: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const docRef = doc(db, "suppliers", params.id);
+        const { id } = await params;
+        const docRef = doc(db, "suppliers", id);
         await deleteDoc(docRef);
         return NextResponse.json({ message: 'Supplier deleted' }, { status: 200 });
     } catch (error) {
-        console.error("Error deleting supplier: ", error);
+        logger.error("Error deleting supplier: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

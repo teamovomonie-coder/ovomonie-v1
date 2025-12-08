@@ -11,20 +11,17 @@ import {
     getDoc,
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
 
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
-    if (!authorization || !authorization.startsWith('Bearer ')) return null;
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) return null;
-    return token.split('-')[2] || null;
-}
+
+
+
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -48,7 +45,7 @@ export async function POST(request: Request) {
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for loan repayment: ${clientReference} already processed.`);
+                logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const loanRef = doc(db, "loans", loanId);
 
@@ -119,7 +116,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Loan Repayment Error:", error);
+        logger.error("Loan Repayment Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }

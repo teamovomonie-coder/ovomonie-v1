@@ -3,24 +3,16 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
 
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('authorization');
 
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-        return null;
-    }
-    const token = authorization.split(' ')[1];
-    if (!token.startsWith('fake-token-')) {
-        return null;
-    }
-    return token.split('-')[2] || null;
-}
+
+
 
 export async function GET() {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -34,14 +26,14 @@ export async function GET() {
         }));
         return NextResponse.json(batches);
     } catch (error) {
-        console.error("Error fetching payroll batches:", error);
+        logger.error("Error fetching payroll batches:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserIdFromToken();
+        const userId = getUserIdFromToken(await headers());
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -61,7 +53,7 @@ export async function POST(request: Request) {
         
         return NextResponse.json(savedBatch, { status: 201 });
     } catch (error) {
-        console.error("Error creating payroll batch:", error);
+        logger.error("Error creating payroll batch:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

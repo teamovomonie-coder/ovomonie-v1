@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, Link, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Progress } from "@/components/ui/progress";
 
@@ -225,8 +225,13 @@ export default function RegisterPage() {
                                     <p className="text-sm text-muted-foreground">Your Account Number</p>
                                     <p className="text-3xl font-bold tracking-widest">{accountNumber}</p>
                                 </div>
-                                <Button onClick={() => router.push('/login')} className="w-full">
+                                {/* <Button onClick={() => router.push('/login')} className="w-full">
                                     Go to Login
+                                </Button> */}
+                                <Button>
+                                    <CustomLink href="/login" className="w-full">
+                                        Go to Login
+                                    </CustomLink>
                                 </Button>
                             </div>
                         )}

@@ -175,9 +175,10 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
   const { toast } = useToast();
 
   useEffect(() => {
+    let stream: MediaStream | null = null;
     const getCamera = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
             setHasCameraPermission(true);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -190,9 +191,7 @@ function BiometricStep({ onNext, onBack }: { onNext: (data: { selfie: string }) 
     getCamera();
 
     return () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-        }
+        stream?.getTracks().forEach(track => track.stop());
     }
   }, [toast]);
   

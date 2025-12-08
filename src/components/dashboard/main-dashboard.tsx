@@ -39,7 +39,7 @@ export function MainDashboard() {
                             {balance === null ? (
                             <Skeleton className="h-7 w-32 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (
-                            new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 100)
+                            new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 8)
                             ) : (
                             '******'
                             )}

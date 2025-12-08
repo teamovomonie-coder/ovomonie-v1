@@ -45,7 +45,7 @@ export default function WelcomePage() {
                         transition={{ duration: 0.8 }}
                         className="flex flex-col items-center"
                     >
-                        <OvoLogo />
+                        <OvoLogo className="mx-auto" />
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -63,7 +63,7 @@ export default function WelcomePage() {
                         transition={{ duration: 0.5 }}
                         className="w-full max-w-sm text-center"
                     >
-                        <OvoLogo />
+                        <OvoLogo className="mx-auto" />
                         <h2 className="text-3xl font-bold mt-8 mb-4">Welcome to OVOMONIE</h2>
                         <p className="text-primary-foreground/80 mb-12">Innovative Banking...</p>
                         <div className="space-y-4">

@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { logger } from '@/lib/logger';
+
 
 export async function POST(request: Request) {
     try {
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
             const existingTxnSnapshot = await transaction.get(idempotencyQuery);
 
             if (!existingTxnSnapshot.empty) {
-                console.log(`Idempotent request for payment: ${clientReference} already processed.`);
+                logger.info(`Idempotent request for payment: ${clientReference} already processed.`);
                 const userRef = doc(db, "users", userId);
                 const userDoc = await transaction.get(userRef);
                 if (userDoc.exists()) {
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Generic Payment Error:", error);
+        logger.error("Generic Payment Error:", error);
         if (error instanceof Error) {
             return NextResponse.json({ message: error.message }, { status: 400 });
         }
