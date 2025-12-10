@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Download, Search, FileText, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { Download, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +47,14 @@ export function StatementDashboard() {
   });
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const filterTypes = [
+    { value: 'all', label: 'All' },
+    { value: 'transfer', label: 'Transfers' },
+    { value: 'bill', label: 'Bills' },
+    { value: 'airtime', label: 'Airtime' },
+    { value: 'deposit', label: 'Deposits' },
+    { value: 'withdrawal', label: 'Withdrawals' },
+  ];
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -118,69 +126,62 @@ export function StatementDashboard() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">Account Statement</h2>
-         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleExport('PDF')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">PDF</span></Button>
-            <Button variant="outline" onClick={() => handleExport('Excel')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span></Button>
-            <Button variant="outline" onClick={() => handleExport('CSV')}><Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">CSV</span></Button>
-        </div>
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Current Balance</CardTitle><FileText className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">₦{(balance || 0 / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">As of today</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Credits</CardTitle><ArrowUp className="h-4 w-4 text-green-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-green-500">+₦{(totalCredits / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Debits</CardTitle><ArrowDown className="h-4 w-4 text-red-500"/></CardHeader><CardContent><div className="text-2xl font-bold text-red-500">-₦{(totalDebits / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div><p className="text-xs text-muted-foreground">For selected period</p></CardContent></Card>
-        <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Spending Summary</CardTitle></CardHeader>
-            <CardContent className="h-[60px] pb-0">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                    <BarChart layout="vertical" data={chartData.slice(0, 3)} margin={{left: -20, right: 0, top: 0, bottom: 0}}>
-                        <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" hide />
-                        <Bar dataKey="debits" layout="vertical" fill="var(--color-debits)" radius={4} />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div>
-              <CardTitle>Transaction History</CardTitle>
-              <CardDescription>A detailed log of all your account activities.</CardDescription>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full md:w-auto">
-              <DateRangePicker date={dateRange} onDateChange={setDateRange} />
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger><SelectValue placeholder="Transaction Type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="transfer">Transfers</SelectItem>
-                  <SelectItem value="bill">Bill Payments</SelectItem>
-                  <SelectItem value="airtime">Airtime</SelectItem>
-                  <SelectItem value="deposit">Deposits</SelectItem>
-                  <SelectItem value="withdrawal">Withdrawals</SelectItem>
-                </SelectContent>
-              </Select>
-               <div className="relative">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                 <Input placeholder="Search..." className="pl-10" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-               </div>
-            </div>
+    <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6 select-none">
+      <Card className="rounded-2xl border border-slate-200 shadow-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-2xl font-semibold">Account Statement</CardTitle>
+            <CardDescription>Filter, review, and export your transactions.</CardDescription>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => handleExport('PDF')}>
+              <Download className="h-4 w-4 mr-2" /> PDF
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('Excel')}>
+              <Download className="h-4 w-4 mr-2" /> Excel
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('CSV')}>
+              <Download className="h-4 w-4 mr-2" /> CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+          <div className="flex flex-wrap gap-2">
+            {filterTypes.map((type) => (
+              <Badge
+                key={type.value}
+                variant={filterType === type.value ? "default" : "outline"}
+                className={cn(
+                  "cursor-pointer px-3 py-1 text-xs",
+                  filterType === type.value ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                )}
+                onClick={() => setFilterType(type.value)}
+              >
+                {type.label}
+              </Badge>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input placeholder="Search by name or reference..." className="pl-10 select-text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border border-slate-200 shadow-sm">
+        <CardHeader>
+          <CardTitle>Transaction History</CardTitle>
+          <CardDescription>Chronological log of your account activity.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto">
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction Details</TableHead>
@@ -190,8 +191,8 @@ export function StatementDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTransactions.map(tx => (
-                      <TableRow key={tx.id}>
+                    {filteredTransactions.map((tx, idx) => (
+                      <TableRow key={tx.id} className={cn(idx % 2 === 0 ? 'bg-muted/30' : 'bg-white')}>
                         <TableCell>
                           <p className="font-medium">{tx.party.name}</p>
                           <p className="text-xs text-muted-foreground">{format(new Date(tx.timestamp), 'dd MMM, yyyy, h:mm a')}</p>
@@ -204,7 +205,8 @@ export function StatementDashboard() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                  </Table>
+                </div>
               </div>
               {filteredTransactions.length === 0 && (
                   <div className="text-center py-10 text-muted-foreground">

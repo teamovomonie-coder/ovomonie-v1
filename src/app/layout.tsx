@@ -7,11 +7,17 @@ import { NotificationProvider } from '@/context/notification-context';
 import { PageLoader } from '@/components/layout/page-loader';
 import BackButton from '@/components/layout/back-button';
 import { Suspense } from 'react';
+import { ensureFirestoreInit } from '@/lib/firestore-ping';
 
 export const metadata: Metadata = {
   title: 'OVOMONIE',
   description: 'A revolutionary platform that combines modern banking with innovative lifestyle and financial solutions.',
 };
+
+if (typeof window === 'undefined') {
+  // Initialize Firestore immediately on app start (server side).
+  ensureFirestoreInit();
+}
 
 export default function RootLayout({
   children,
