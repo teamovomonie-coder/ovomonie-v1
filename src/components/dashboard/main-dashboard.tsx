@@ -41,9 +41,9 @@ export function MainDashboard() {
                         Transaction History <ArrowRight className="h-3 w-3" />
                     </CustomLink>
                 </div>
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="text-2xl font-semibold tracking-tight truncate">
+                <div className="flex items-end justify-between gap-4 flex-nowrap min-w-0">
+                    <div className="flex items-center gap-3 min-w-[160px] flex-1">
+                        <div className="text-2xl font-semibold tracking-tight truncate tabular-nums">
                             {balance === null ? (
                             <Skeleton className="h-8 w-32 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (

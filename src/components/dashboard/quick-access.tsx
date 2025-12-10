@@ -65,13 +65,12 @@ export function QuickAccess() {
             key={feature.label}
             className="group relative rounded-lg sm:rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
           >
-            <div className="flex h-full flex-col items-start gap-2">
+            <div className="flex h-full flex-col items-center gap-2 text-center">
               <div className="rounded-lg bg-slate-100 p-1.5 shadow-inner">
                 <feature.icon className="h-5 w-5 text-[#050a1a]" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-[10px] sm:text-sm font-black text-[#050a1a] leading-tight tracking-tight">{feature.label}</p>
-                <p className="text-[9px] sm:text-[11px] text-[#050a1a]/85 font-semibold">Ready 24/7</p>
+                <p className="text-[12px] sm:text-[15px] font-black text-[#050a1a] leading-tight tracking-tight">{feature.label}</p>
               </div>
             </div>
           </CustomLink>
