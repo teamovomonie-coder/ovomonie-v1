@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { useForm, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,8 +14,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CheckCircle, Link, Link2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Clock3, Smartphone, Building2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 
 const MOCK_OTP = "123456";
@@ -50,10 +50,34 @@ const steps: { id: number, name: string, fields: FieldPath<FullFormData>[] }[] =
 
 export default function RegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
+  const trustSignals = useMemo(
+    () => [
+      {
+        icon: ShieldCheck,
+        title: 'CBN Licensed & NDIC Covered',
+        description: 'Savings and deposits safeguarded under Nigerian microfinance regulation.',
+      },
+      {
+        icon: Smartphone,
+        title: 'Device-Aware Onboarding',
+        description: 'PIN-first enrollment with fraud monitoring on new devices.',
+      },
+      {
+        icon: Clock3,
+        title: '24/7 Service',
+        description: 'Open and manage your account anytime, anywhere in Nigeria.',
+      },
+      {
+        icon: Building2,
+        title: 'Built for Nigerians',
+        description: 'BVN-aligned flows for individuals, agents, and SMEs.',
+      },
+    ],
+    [],
+  );
 
   const form = useForm<FullFormData>({
     resolver: zodResolver(fullRegisterSchema),
@@ -147,109 +171,233 @@ export default function RegisterPage() {
   const progressValue = (currentStep / steps.length) * 100;
 
   return (
-    <div className="animated-gradient-bg flex min-h-screen w-full items-center justify-center p-4">
-       <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-md"
-      >
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(processRegistration)}>
-                <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border-white/20 rounded-2xl">
-                <CardHeader>
-                    {currentStep <= steps.length && (
-                        <>
-                        <div className="mx-auto"><OvoLogo /></div>
-                        {currentStep < steps.length ? (
-                             <>
-                             <CardTitle className="text-2xl font-bold text-primary text-center pt-2">Create Your Account</CardTitle>
-                             <CardDescription className="text-center text-muted-foreground">{steps[currentStep].name}</CardDescription>
-                             <Progress value={progressValue} className="!mt-4" />
-                            </>
-                        ) : null}
-                        </>
-                    )}
-                </CardHeader>
-                <CardContent>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary-light-bg via-white to-slate-50">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 -top-32 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-0 right-10 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-4 py-10 lg:flex-row lg:items-stretch lg:px-8 xl:px-12">
+        <div className="lg:hidden space-y-4 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-md shadow-primary/10 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <OvoLogo width={40} height={40} />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">CBN Licensed</p>
+              <p className="text-base font-semibold text-foreground">PIN-first onboarding</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Create your OVOMONIE account with NDIC-backed protection, BVN-aligned flows, and device-aware security.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {trustSignals.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-100 bg-muted/40 p-3">
+                <div className="flex items-center gap-2">
+                  <item.icon className="h-4 w-4 text-primary" aria-hidden />
+                  <p className="text-sm font-semibold">{item.title}</p>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="hidden w-full max-w-xl flex-col justify-between rounded-3xl bg-primary px-10 py-12 text-primary-foreground shadow-2xl shadow-primary/20 lg:flex">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <OvoLogo className="drop-shadow-lg" />
+              <div>
+                <p className="text-sm text-primary-foreground/80">OVOMONIE Microfinance</p>
+                <p className="text-lg font-semibold">Account Opening</p>
+              </div>
+            </div>
+            <Badge className="border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground">CBN Licensed</Badge>
+          </div>
+
+          <div className="mt-10 space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Secure Onboarding</p>
+              <h1 className="mt-3 text-3xl font-semibold leading-tight">Start saving and transacting in minutes.</h1>
+              <p className="mt-3 text-primary-foreground/80">
+                Built for Nigerians with NDIC-backed deposits, BVN-aligned flows, and PIN-first controls.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {trustSignals.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-primary-foreground/15 bg-primary-foreground/10 p-4 shadow-sm shadow-primary/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 text-primary-foreground" aria-hidden />
+                    <p className="text-sm font-semibold">{item.title}</p>
+                  </div>
+                  <p className="mt-2 text-sm text-primary-foreground/80">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/10 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">Need help enrolling?</p>
+                <p className="text-sm text-primary-foreground/80">Call 0700-OVO-CARE or reach out to your account officer.</p>
+              </div>
+              <Badge className="border-primary-foreground/30 bg-primary-foreground/20 text-[11px] text-primary-foreground" variant="secondary">
+                24/7 Support
+              </Badge>
+            </div>
+            <p className="mt-3 text-xs text-primary-foreground/80">Every step aligns with CBN/NDIC guidance and device-bound security.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center pb-10 lg:pb-0">
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="w-full"
+          >
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(processRegistration)}>
+                <Card className="border border-slate-100/80 shadow-xl shadow-primary/5 backdrop-blur-sm">
+                  <CardHeader className="space-y-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <OvoLogo width={44} height={44} />
+                        <div className="space-y-2">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                            Create an OVOMONIE account
+                          </div>
+                          <CardTitle className="text-3xl font-semibold leading-tight">PIN-first</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Clean, compliant onboarding with your phone, NIN, and secure PINs.
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-gradient-to-r from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20">
+                        PIN-first
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-base">
+                      Complete four guided steps in under 3 minutes. We validate your phone, verify your email, capture NIN, and lock in your login/transaction PINs.
+                    </CardDescription>
+                    <div className="space-y-3 rounded-2xl border border-slate-100 bg-muted/40 p-3">
+                      <Progress value={progressValue} className="!mt-0" />
+                      {currentStep < steps.length && (
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground">{steps[currentStep].name}</span>
+                          <span>Step {currentStep + 1} of {steps.length}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
                     {currentStep > 0 && currentStep <= steps.length && (
-                        <Button variant="ghost" size="sm" onClick={handleBack} className="mb-4" type="button">
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                        </Button>
+                      <Button variant="ghost" size="sm" onClick={handleBack} className="mb-2" type="button">
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                      </Button>
                     )}
                     <AnimatePresence mode="wait">
-                    <motion.div
+                      <motion.div
                         key={currentStep}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2 }}
-                    >
+                      >
                         {currentStep === 0 && (
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <Button type="button" className="w-full" onClick={handleNext} disabled={isLoading}> {isLoading && <Loader2 className="animate-spin mr-2" />} Continue</Button>
-                            </div>
+                          <div className="space-y-4">
+                            <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="phone" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="0801 234 5678"
+                                    inputMode="numeric"
+                                    autoComplete="tel-national"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <Button type="button" className="w-full" onClick={handleNext} disabled={isLoading}>
+                              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Continue
+                            </Button>
+                          </div>
                         )}
                         {currentStep === 1 && (
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="otp" render={({ field }) => ( <FormItem><FormLabel>Verification Code</FormLabel><FormControl><Input placeholder="6-digit code from your email" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <Button type="button" className="w-full" onClick={handleNext}>Verify Email</Button>
-                                <p className="text-center text-sm text-muted-foreground">Didn't receive a code? <button type="button" className="underline">Resend</button></p>
-                            </div>
+                          <div className="space-y-4">
+                            <FormField control={form.control} name="otp" render={({ field }) => ( <FormItem><FormLabel>Verification Code</FormLabel><FormControl><Input placeholder="6-digit code from your email" inputMode="numeric" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <Button type="button" className="w-full" onClick={handleNext}>Verify Email</Button>
+                            <p className="text-center text-sm text-muted-foreground">Didn&apos;t receive a code? <button type="button" className="underline">Resend</button></p>
+                          </div>
                         )}
                         {currentStep === 2 && (
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="nin" render={({ field }) => ( <FormItem><FormLabel>National Identification Number (NIN)</FormLabel><FormControl><Input placeholder="11-digit NIN" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Residential Address</FormLabel><FormControl><Input placeholder="Your home address" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
-                            </div>
+                          <div className="space-y-4">
+                            <FormField control={form.control} name="nin" render={({ field }) => ( <FormItem><FormLabel>National Identification Number (NIN)</FormLabel><FormControl><Input placeholder="11-digit NIN" inputMode="numeric" maxLength={11} {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Residential Address</FormLabel><FormControl><Input placeholder="Your home address" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <Button type="button" className="w-full" onClick={handleNext}>Continue</Button>
+                          </div>
                         )}
                         {currentStep === 3 && (
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="loginPin" render={({ field }) => ( <FormItem><FormLabel>Create 6-Digit Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="confirmLoginPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="transactionPin" render={({ field }) => ( <FormItem><FormLabel>Create 4-Digit Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="confirmTransactionPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="animate-spin mr-2" />}Create Account</Button>
-                            </div>
+                          <div className="space-y-4">
+                            <FormField control={form.control} name="loginPin" render={({ field }) => ( <FormItem><FormLabel>Create 6-Digit Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="confirmLoginPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="transactionPin" render={({ field }) => ( <FormItem><FormLabel>Create 4-Digit Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="confirmTransactionPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Account</Button>
+                          </div>
                         )}
                         {currentStep === 4 && (
-                             <div className="text-center p-4 flex flex-col items-center">
-                                <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-                                <h2 className="text-2xl font-bold mb-2">Welcome to OVOMONIE!</h2>
-                                <p className="text-muted-foreground max-w-md">Your account has been successfully created.</p>
-                                <div className="p-4 bg-muted rounded-lg text-center my-6 w-full">
-                                    <p className="text-sm text-muted-foreground">Your Account Number</p>
-                                    <p className="text-3xl font-bold tracking-widest">{accountNumber}</p>
-                                </div>
-                                {/* <Button onClick={() => router.push('/login')} className="w-full">
-                                    Go to Login
-                                </Button> */}
-                                <Button>
-                                    <CustomLink href="/login" className="w-full">
-                                        Go to Login
-                                    </CustomLink>
-                                </Button>
+                          <div className="flex flex-col items-center gap-4 rounded-2xl bg-muted/40 p-6 text-center">
+                            <CheckCircle className="h-14 w-14 text-green-600" />
+                            <h2 className="text-2xl font-bold">Welcome to OVOMONIE!</h2>
+                            <p className="text-muted-foreground max-w-md">
+                              Your Nigerian microfinance account is live with CBN/NDIC-aligned, PIN-first security.
+                            </p>
+                            <div className="w-full rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4">
+                              <p className="text-sm text-muted-foreground">Your Account Number</p>
+                              <p className="text-3xl font-bold tracking-widest text-foreground">{accountNumber}</p>
                             </div>
+                            <Button asChild className="w-full">
+                              <CustomLink href="/login">Go to Login</CustomLink>
+                            </Button>
+                          </div>
                         )}
-                    </motion.div>
+                      </motion.div>
                     </AnimatePresence>
-                     {currentStep < 4 && (
-                        <div className="mt-4 text-center text-sm">
+                    {currentStep < 4 && (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-muted/30 p-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-foreground">
+                          <ShieldCheck className="h-4 w-4 text-primary" aria-hidden />
+                          <span className="font-semibold">What you&apos;ll need</span>
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed">
+                          Your Nigerian phone number, email verification code, NIN, and 6-digit login PIN. We verify devices and enforce retry limits to protect your account.
+                        </p>
+                      </div>
+                    )}
+                    {currentStep < 4 && (
+                      <div className="text-center text-sm">
                         Already have an account?{" "}
                         <CustomLink href="/login" className="underline text-primary font-semibold">
                             Log In
                         </CustomLink>
-                        </div>
+                      </div>
                     )}
-                </CardContent>
+                  </CardContent>
                 </Card>
-            </form>
-        </Form>
-      </motion.div>
+              </form>
+            </Form>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

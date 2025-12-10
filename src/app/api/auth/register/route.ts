@@ -1,9 +1,11 @@
 
-import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { hashSecret } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+
+import { NextResponse } from 'next/server';
+
+import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 
 
 // Helper function to generate a unique referral code
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
             referralCode,
             loginPinHash: hashSecret(String(loginPin)),
             transactionPinHash: hashSecret(String(transactionPin)),
-            balance: 125034500, // Initial balance in kobo (e.g., ₦1,250,345.00)
+            balance: 0.0, // Initial balance in kobo (e.g., ₦1,250,345.00)
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         };
