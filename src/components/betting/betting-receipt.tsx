@@ -6,6 +6,8 @@ import { Separator } from '@/components/ui/separator';
 import Watermark from '@/components/transaction/watermark';
 import { Share2, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import React, { useRef, useState } from 'react';
+import ShareModal from '@/components/transaction/share-modal';
 
 const Bet9jaLogo = ({ className }: { className?: string }) => (
   <div className={`w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-xs ${className || ''}`}>B9</div>
@@ -45,16 +47,13 @@ export function BettingReceipt({ data }: { data: BettingReceiptData }) {
   const { toast } = useToast();
   const platformInfo = bettingPlatforms[data.platform];
   const PlatformLogo = platformInfo?.Logo || Wallet;
-
-  const handleShare = () => {
-    toast({
-      title: "Shared!",
-      description: "Your transaction receipt has been shared.",
-    });
-  };
+  const receiptRef = useRef<HTMLDivElement | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20 overflow-visible min-h-[380px] relative">
+    <>
+      <div ref={receiptRef}>
+        <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20 overflow-visible min-h-[380px] relative">
       <Watermark variant="center" opacity={0.06} maxSize="w-96 h-96" />
       <CardHeader className="bg-primary text-primary-foreground p-4 rounded-t-lg flex flex-row items-center justify-between space-y-0 relative z-10">
         <CardTitle className="text-lg font-bold">Betting Funded</CardTitle>
@@ -100,12 +99,15 @@ export function BettingReceipt({ data }: { data: BettingReceiptData }) {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex-col gap-2 p-4 pt-0 relative z-10">
-        <p className="text-xs text-muted-foreground text-center w-full">Powered by Ovomonie</p>
-        <Button className="w-full" onClick={handleShare}>
+        <CardFooter className="flex-col gap-2 p-4 pt-0 relative z-10">
+        <p data-powered-by="ovomonie" className="text-xs text-muted-foreground text-center w-full">Powered by Ovomonie</p>
+        <Button className="w-full" onClick={() => setIsShareOpen(true)}>
           <Share2 className="mr-2 h-4 w-4" /> Share Receipt
         </Button>
       </CardFooter>
-    </Card>
+        </Card>
+      </div>
+      <ShareModal open={isShareOpen} onOpenChange={setIsShareOpen} targetRef={receiptRef} title={`${platformInfo?.name || 'Betting'} Receipt`} />
+    </>
   );
 }

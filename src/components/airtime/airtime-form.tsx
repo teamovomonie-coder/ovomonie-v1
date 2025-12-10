@@ -458,7 +458,7 @@ function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | nul
                      </div>
                 </div>
                 <DialogFooter className="flex-col gap-2 p-4 pt-0 sm:flex-col sm:space-x-0">
-                    <p className="text-xs text-muted-foreground text-center mb-2">Powered by Ovomonie</p>
+                    <p data-powered-by="ovomonie" className="text-xs text-muted-foreground text-center mb-2">Powered by Ovomonie</p>
                     <Button className="w-full" onClick={handleShare}>
                         <Share2 className="mr-2 h-4 w-4" /> Share Receipt
                     </Button>

@@ -245,7 +245,7 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
             <CardFooter className="flex-col sm:flex-row items-center justify-between p-4 mt-8 border-t">
                 <div className="text-sm text-muted-foreground text-center sm:text-left mb-4 sm:mb-0">
                     <p className="font-bold">Thank you for your business!</p>
-                    <p>Powered by Ovomonie</p>
+                    <p data-powered-by="ovomonie">Powered by Ovomonie</p>
                 </div>
                 {invoice.status !== 'Paid' && (
                     <Button size="lg" className="w-full sm:w-auto" onClick={handlePay} disabled={isProcessingPayment}>

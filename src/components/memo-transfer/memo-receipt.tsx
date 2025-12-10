@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Landmark, Share2 } from 'lucide-react';
+import ShareModal from '@/components/transaction/share-modal';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 
@@ -21,13 +22,14 @@ export default function MemoReceipt({ data, recipientName, onReset, transactionI
   const { toast } = useToast();
   const bankName = nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank';
 
-  const handleShare = () => {
-    toast({ title: 'Shared!', description: 'Your memorable receipt has been shared.' });
-  };
+  const receiptRef = useRef<HTMLDivElement | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
-      <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
+    <>
+      <div ref={receiptRef}>
+        <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
+          <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
         <h2 className="text-lg font-bold">Transfer Successful!</h2>
         <Landmark className="w-6 h-6" />
       </div>
@@ -60,15 +62,18 @@ export default function MemoReceipt({ data, recipientName, onReset, transactionI
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col gap-2 p-4 pt-0">
-        <p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
-        <Button className="w-full" onClick={handleShare}>
-          <Share2 className="mr-2 h-4 w-4" /> Share Receipt
-        </Button>
-        <Button variant="outline" className="w-full" onClick={onReset}>
-          Make Another Transfer
-        </Button>
-      </CardFooter>
-    </Card>
+          <CardFooter className="flex flex-col gap-2 p-4 pt-0">
+            <p data-powered-by="ovomonie" className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
+            <Button className="w-full" onClick={() => setIsShareOpen(true)}>
+              <Share2 className="mr-2 h-4 w-4" /> Share Receipt
+            </Button>
+            <Button variant="outline" className="w-full" onClick={onReset}>
+              Make Another Transfer
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+      <ShareModal open={isShareOpen} onOpenChange={setIsShareOpen} targetRef={receiptRef} title={`Transfer Receipt`} />
+    </>
   );
 }

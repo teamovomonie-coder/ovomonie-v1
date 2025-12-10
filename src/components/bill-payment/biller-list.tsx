@@ -30,64 +30,84 @@ interface Biller {
 }
 
 interface Bouquet {
-    id: string;
-    name: string;
-    price: number;
+  id: string;
+  name: string;
+  price: number;
 }
 
 interface ReceiptData {
-    biller: Biller;
-    amount: number;
-    accountId: string;
-    verifiedName: string | null;
-    bouquet?: Bouquet;
+  biller: Biller;
+  amount: number;
+  accountId: string;
+  verifiedName: string | null;
+  bouquet?: Bouquet;
 }
 
 const allBillers: Biller[] = [
-  // Electricity
   { id: 'ikedc', name: 'Ikeja Electric (IKEDC)', icon: Lightbulb, category: 'Electricity', fieldLabel: 'Meter/Account Number', placeholder: 'Enter your IKEDC number' },
   { id: 'ekedc', name: 'Eko Electric (EKEDC)', icon: Lightbulb, category: 'Electricity', fieldLabel: 'Meter/Account Number', placeholder: 'Enter your EKEDC number' },
   { id: 'aedc', name: 'Abuja Electric (AEDC)', icon: Lightbulb, category: 'Electricity', fieldLabel: 'Meter/Account Number', placeholder: 'Enter your AEDC number' },
-  // Cable TV
   { id: 'dstv', name: 'DStv', icon: Tv, category: 'Cable TV', fieldLabel: 'Smartcard Number', placeholder: 'Enter your DStv IUC/Smartcard' },
   { id: 'gotv', name: 'GOtv', icon: Tv, category: 'Cable TV', fieldLabel: 'IUC Number', placeholder: 'Enter your GOtv IUC number' },
   { id: 'startimes', name: 'StarTimes', icon: Tv, category: 'Cable TV', fieldLabel: 'Smartcard Number', placeholder: 'Enter your StarTimes Smartcard' },
-  // Internet
   { id: 'spectranet', name: 'Spectranet', icon: Wifi, category: 'Internet', fieldLabel: 'User ID', placeholder: 'Enter your Spectranet User ID' },
   { id: 'smile', name: 'Smile', icon: Wifi, category: 'Internet', fieldLabel: 'Account ID', placeholder: 'Enter your Smile Account ID' },
-  // Water
   { id: 'lwc', name: 'Lagos Water Corp', icon: Droplet, category: 'Water', fieldLabel: 'Customer ID', placeholder: 'Enter your LWC Customer ID' },
 ];
 
 const bouquets: Record<string, Bouquet[]> = {
-    dstv: [
-        { id: 'dstv-padi', name: 'DStv Padi', price: 3950 },
-        { id: 'dstv-yanga', name: 'DStv Yanga', price: 7200 },
-        { id: 'dstv-confam', name: 'DStv Confam', price: 12500 },
-        { id: 'dstv-compact', name: 'DStv Compact', price: 15700 },
-        { id: 'dstv-premium', name: 'DStv Premium', price: 37000 },
-    ],
-    gotv: [
-        { id: 'gotv-smallie', name: 'GOtv Smallie', price: 1300 },
-        { id: 'gotv-jinja', name: 'GOtv Jinja', price: 3300 },
-        { id: 'gotv-jolli', name: 'GOtv Jolli', price: 4850 },
-        { id: 'gotv-max', name: 'GOtv Max', price: 7200 },
-        { id: 'gotv-supa', name: 'GOtv Supa+', price: 15700 },
-    ],
-    startimes: [
-        { id: 'st-nova', name: 'Nova Bouquet', price: 1500 },
-        { id: 'st-basic', name: 'Basic Bouquet', price: 2600 },
-        { id: 'st-smart', name: 'Smart Bouquet', price: 3500 },
-        { id: 'st-classic', name: 'Classic Bouquet', price: 3800 },
-        { id: 'st-super', name: 'Super Bouquet', price: 6500 },
-    ]
+  dstv: [
+    { id: 'dstv-padi', name: 'DStv Padi', price: 3950 },
+    { id: 'dstv-yanga', name: 'DStv Yanga', price: 7200 },
+    { id: 'dstv-confam', name: 'DStv Confam', price: 12500 },
+    { id: 'dstv-compact', name: 'DStv Compact', price: 15700 },
+    { id: 'dstv-premium', name: 'DStv Premium', price: 37000 },
+  ],
+  gotv: [
+    { id: 'gotv-smallie', name: 'GOtv Smallie', price: 1300 },
+    { id: 'gotv-jinja', name: 'GOtv Jinja', price: 3300 },
+    { id: 'gotv-jolli', name: 'GOtv Jolli', price: 4850 },
+    { id: 'gotv-max', name: 'GOtv Max', price: 7200 },
+    { id: 'gotv-supa', name: 'GOtv Supa+', price: 15700 },
+  ],
+  startimes: [
+    { id: 'st-nova', name: 'Nova Bouquet', price: 1500 },
+    { id: 'st-basic', name: 'Basic Bouquet', price: 2600 },
+    { id: 'st-smart', name: 'Smart Bouquet', price: 3500 },
+    { id: 'st-classic', name: 'Classic Bouquet', price: 3800 },
+    { id: 'st-super', name: 'Super Bouquet', price: 6500 },
+  ],
 };
 
 const mockSmartcards: Record<string, Record<string, string>> = {
-    dstv: { '1234567890': 'JOHN DOE', '0987654321': 'JANE SMITH' },
-    gotv: { '1122334455': 'FEMI ADEBOLA', '5544332211': 'CHIOMA OKOYE' },
-    startimes: { '5566778899': 'MUSA ALIYU', '9988776655': 'AMINA YAKUBU' },
-}
+  dstv: { '1234567890': 'JOHN DOE', '0987654321': 'JANE SMITH' },
+  gotv: { '1122334455': 'FEMI ADEBOLA', '5544332211': 'CHIOMA OKOYE' },
+  startimes: { '5566778899': 'MUSA ALIYU', '9988776655': 'AMINA YAKUBU' },
+};
+
+// Mock account mappings for utility billers (electricity, internet, water)
+const mockUtilityAccounts: Record<string, Record<string, { name: string; address?: string; meterType?: string }>> = {
+    ikedc: {
+        '1100110011': { name: 'ADEBAYO OLA', address: '12 Awolowo Rd, Ikeja', meterType: 'Prepaid' },
+        '2200220022': { name: 'MRS. IHEKWEM', address: '45 Allen Ave, Ikeja', meterType: 'Postpaid' },
+    },
+    ekedc: {
+        '3300330033': { name: 'TUNDE SALAMI', address: '9 Victoria Is, Lagos', meterType: 'Prepaid' },
+        '4400440044': { name: 'OLUCHI NWANKWO', address: '78 Ojota St, Lagos', meterType: 'Postpaid' },
+    },
+    aedc: {
+        '5500550055': { name: 'OMOTAYO A.', address: '3 Garki, Abuja', meterType: 'Prepaid' },
+    },
+    spectranet: {
+        'SPEC12345': { name: 'SPECTRANET USER', address: 'Tech Park, Lagos', meterType: 'Account' },
+    },
+    smile: {
+        'SMILE0001': { name: 'SMILE CUSTOMER', address: 'Smile Plaza', meterType: 'Account' },
+    },
+    lwc: {
+        'LWC-1001': { name: 'LAGOS HOUSEHOLD', address: 'Ikeja, Lagos', meterType: 'Customer' },
+    },
+};
 
 const categories = [
     { name: 'Electricity', icon: Lightbulb },
@@ -175,6 +195,7 @@ export function BillerList() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verifiedName, setVerifiedName] = useState<string | null>(null);
+    const [verifiedInfo, setVerifiedInfo] = useState<{ name: string; address?: string; meterType?: string } | null>(null);
   const [selectedBouquetId, setSelectedBouquetId] = useState<string>('');
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
     const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
@@ -206,15 +227,24 @@ export function BillerList() {
     if (!selectedBiller || !accountId) return;
     setIsVerifying(true);
     setVerifiedName(null);
+    setVerifiedInfo(null);
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-
+    // Check cable TV smartcards first, otherwise try utility account mocks
     const providerSmartcards = mockSmartcards[selectedBiller.id];
+    const providerAccounts = mockUtilityAccounts[selectedBiller.id];
+
     if (providerSmartcards && providerSmartcards[accountId]) {
-        setVerifiedName(providerSmartcards[accountId]);
+        const name = providerSmartcards[accountId];
+        setVerifiedName(name);
+        setVerifiedInfo({ name });
+    } else if (providerAccounts && providerAccounts[accountId]) {
+        const info = providerAccounts[accountId];
+        setVerifiedName(info.name);
+        setVerifiedInfo(info);
     } else {
         toast({
             title: "Verification Failed",
-            description: "Invalid Smartcard number. Please check and try again.",
+            description: "Invalid account number. Please check and try again.",
             variant: "destructive"
         });
     }
@@ -314,7 +344,8 @@ export function BillerList() {
                         biller: { id: selectedBiller!.id, name: selectedBiller!.name },
                         amount: paymentData.amount,
                         accountId,
-                        verifiedName,
+                        verifiedName: verifiedInfo?.name || verifiedName,
+                        verifiedInfo: verifiedInfo || null,
                         bouquet: bouquet || null,
                     },
                     transactionId: clientReference,
@@ -387,13 +418,20 @@ export function BillerList() {
                     </div>
                 </div>
 
-                {verifiedName && (
-                    <>
-                        <div className="bg-green-50 p-3 rounded-md text-center">
-                            <p className="text-sm text-green-700">Customer Name</p>
-                            <p className="font-bold text-green-800 text-lg">{verifiedName}</p>
+                {verifiedInfo && (
+                    <div className="mt-3">
+                        <div className="flex items-start gap-3 p-3 bg-muted rounded-lg shadow-sm ring-1 ring-green-100">
+                            <div className="flex items-center justify-center w-10 h-10 bg-green-50 rounded-full">
+                                <CheckCircle className="w-6 h-6 text-green-600 animate-pulse" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="text-sm font-semibold">{verifiedInfo.name}</div>
+                                {verifiedInfo.address && <div className="text-xs text-muted-foreground">{verifiedInfo.address}</div>}
+                                {verifiedInfo.meterType && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">Type:</span> {verifiedInfo.meterType}</div>}
+                            </div>
                         </div>
-                        <div className="space-y-2">
+
+                        <div className="space-y-2 mt-3">
                             <Label htmlFor="bouquet">Bouquet/Package</Label>
                             <Select onValueChange={setSelectedBouquetId} value={selectedBouquetId}>
                                 <SelectTrigger id="bouquet">
@@ -413,7 +451,7 @@ export function BillerList() {
                                 Total: ₦{selectedBouquet.price.toLocaleString()}
                             </div>
                         )}
-                    </>
+                    </div>
                 )}
             </div>
         );
@@ -421,14 +459,51 @@ export function BillerList() {
 
     return (
         <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="account-id" className="text-right">{selectedBiller.fieldLabel}</Label>
-              <Input id="account-id" value={accountId} onChange={(e) => setAccountId(e.target.value)} className="col-span-3" placeholder={selectedBiller.placeholder} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">Amount (₦)</Label>
-              <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="col-span-3" placeholder="Enter amount" />
-            </div>
+                        <Alert>
+                                <AlertTitle>Testing Info</AlertTitle>
+                                <UICardDescription>
+                                        For testing, use one of the sample account numbers for {selectedBiller.name}: 
+                                        <div className="mt-2">
+                                                {mockUtilityAccounts[selectedBiller.id] ? Object.keys(mockUtilityAccounts[selectedBiller.id]).map(k => (
+                                                        <div key={k} className="inline-block mr-2 px-2 py-1 bg-muted rounded text-xs">{k}</div>
+                                                )) : <span className="text-muted-foreground">No sample accounts available for this provider.</span>}
+                                        </div>
+                                </UICardDescription>
+                        </Alert>
+
+                <div className="grid grid-cols-12 items-center gap-3">
+                    <Label htmlFor="account-id" className="col-span-12 sm:col-span-4 text-sm font-medium">{selectedBiller.fieldLabel}</Label>
+                    <div className="col-span-12 sm:col-span-8">
+                        <div className="flex gap-2">
+                            <Input id="account-id" value={accountId} onChange={(e) => setAccountId(e.target.value)} className="flex-1" placeholder={selectedBiller.placeholder} />
+                            <Button onClick={handleVerifySmartcard} disabled={isVerifying || !accountId || !!verifiedName} className="w-32">
+                                {isVerifying ? <Loader2 className="animate-spin" /> : "Verify"}
+                            </Button>
+                        </div>
+
+                        {verifiedInfo && (
+                            <div className="mt-2">
+                                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg shadow-sm ring-1 ring-green-100">
+                                    <div className="flex items-center justify-center w-10 h-10 bg-green-50 rounded-full">
+                                        <CheckCircle className="w-6 h-6 text-green-600 animate-pulse" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-semibold">{verifiedInfo.name}</div>
+                                        {verifiedInfo.address && <div className="text-xs text-muted-foreground">{verifiedInfo.address}</div>}
+                                        {verifiedInfo.meterType && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">Type:</span> {verifiedInfo.meterType}</div>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-12 items-center gap-3">
+                    <Label htmlFor="amount" className="col-span-12 sm:col-span-4 text-sm font-medium">Amount (₦)</Label>
+                    <div className="col-span-12 sm:col-span-8">
+                        <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full" placeholder="Enter amount" />
+                    </div>
+                </div>
         </div>
     );
   };
@@ -456,10 +531,10 @@ export function BillerList() {
                     <span className="text-muted-foreground">{selectedBiller.fieldLabel}</span>
                     <span className="font-semibold">{accountId}</span>
                 </div>
-                 {verifiedName && (
+                 {(verifiedInfo?.name || verifiedName) && (
                      <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Account Name</span>
-                        <span className="font-semibold">{verifiedName}</span>
+                        <span className="font-semibold">{verifiedInfo?.name || verifiedName}</span>
                     </div>
                 )}
                  {selectedBouquet && (

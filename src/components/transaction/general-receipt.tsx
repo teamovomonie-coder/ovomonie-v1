@@ -1,9 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, Copy, Share2 } from 'lucide-react';
+import ShareModal from './share-modal';
 import { useRouter } from 'next/navigation';
 import Watermark from './watermark';
 
@@ -21,11 +22,14 @@ type GeneralReceiptProps = {
 
 export default function GeneralReceipt({ title = 'Transfer', amount, status = 'Successful', recipient, accountInfo, transactionId, paymentMethod, date, onReport }: GeneralReceiptProps) {
   const router = useRouter();
+  const receiptRef = useRef<HTMLDivElement | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-card relative overflow-visible min-h-[380px]">
+      <div ref={receiptRef}>
+        <Card className="w-full max-w-md bg-card relative overflow-visible min-h-[380px]">
         {/* Watermark: prefer a provided logo file in public/images, fallback to inline SVG */}
         <Watermark variant="center" opacity={0.06} maxSize="w-96 h-96" />
         <CardHeader className="relative z-10">
@@ -50,18 +54,20 @@ export default function GeneralReceipt({ title = 'Transfer', amount, status = 'S
             </div>
           </div>
         </CardContent>
-        <div className="text-center text-xs text-muted-foreground mt-2 mb-2">Powered by Ovomonie</div>
+        <div data-powered-by="ovomonie" className="text-center text-xs text-muted-foreground mt-2 mb-2">Powered by Ovomonie</div>
         <CardFooter className="flex flex-col gap-3 p-4 relative z-10">
-          <div className="flex gap-2">
+            <div className="flex gap-2">
             <Button variant="ghost" className="w-full" onClick={() => { if (onReport) onReport(); else router.push('/support'); }}>Report Issue</Button>
-            <Button className="w-full" onClick={() => navigator.share ? navigator.share({ title: 'Transaction Receipt', text: `Receipt ${transactionId}` }) : null }><Share2 className="mr-2 w-4 h-4"/> Share Receipt</Button>
+            <Button className="w-full" onClick={() => setIsShareOpen(true)}><Share2 className="mr-2 w-4 h-4"/> Share Receipt</Button>
           </div>
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => router.push('/payments')}>View Records</Button>
             <Button onClick={() => router.push('/')}>Transfer Again</Button>
           </div>
         </CardFooter>
-      </Card>
+        </Card>
+      </div>
+      <ShareModal open={isShareOpen} onOpenChange={setIsShareOpen} targetRef={receiptRef} title={title} />
     </div>
   );
 }

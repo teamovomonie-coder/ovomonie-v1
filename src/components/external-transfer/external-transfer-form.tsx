@@ -95,7 +95,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
         </div>
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4 pt-0">
-        <p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
+        <p data-powered-by="ovomonie" className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
         <Button className="w-full" onClick={handleShare}>
           <Share2 className="mr-2 h-4 w-4" /> Share Receipt
         </Button>
