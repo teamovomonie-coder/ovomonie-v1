@@ -16,7 +16,16 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that the funding/card request arrived and whether auth header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('funding/card request received', { authPresent: Boolean(authHeader), path: '/api/funding/card' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in funding/card');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

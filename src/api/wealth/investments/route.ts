@@ -23,7 +23,8 @@ import { logger } from '@/lib/logger';
 
 export async function GET() {
     try {
-        const userId = getUserIdFromToken(headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -53,7 +54,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

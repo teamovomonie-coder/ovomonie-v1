@@ -1,18 +1,9 @@
 
 // @ts-nocheck
-// This file now interacts directly with Firestore for user account data.
-import { db } from '@/lib/firebase';
-import { 
-    collection, 
-    addDoc, 
-    serverTimestamp, 
-    query, 
-    where, 
-    getDocs,
-    runTransaction,
-    doc,
-    getDoc
-} from 'firebase/firestore';
+// Server-side user-data: migrated to Firebase Admin SDK
+import { getDb, admin } from '@/lib/firebaseAdmin';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface UserAccount {
     id?: string;
@@ -27,20 +18,15 @@ interface UserAccount {
 
 
 export const mockGetAccountByNumber = async (accountNumber: string): Promise<UserAccount | undefined> => {
-    // On the server, query Firestore directly.
+    // On the server, query Firestore using Admin SDK.
     if (typeof window === 'undefined') {
-        const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            return undefined;
-        }
-        
-        const userDoc = querySnapshot.docs[0];
-        return { id: userDoc.id, ...userDoc.data() } as UserAccount;
-    } 
-    // On the client, fetch from the API route to avoid direct DB connection issues.
-    else {
+        const db = await getDb();
+        const snapshot = await db.collection('users').where('accountNumber', '==', accountNumber).get();
+        if (snapshot.empty) return undefined;
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...(doc.data() as any) } as UserAccount;
+    } else {
+        // On the client, fetch via API
         try {
             const response = await fetch(`/api/user/${accountNumber}`);
             if (!response.ok) {
@@ -68,111 +54,95 @@ export const performTransfer = async (
 ): Promise<{ success: true; newSenderBalance: number; recipientName: string; reference: string } | { success: false; message: string }> => {
     
     try {
+        const db = await getDb();
+        // Idempotency pre-check
+        try {
+            const existing = await db.collection('financialTransactions').where('reference', '==', clientReference).get();
+            if (existing && !existing.empty) {
+                const senderDoc = await db.collection('users').doc(senderUserId).get();
+                const finalSenderBalance = (senderDoc.exists ? (senderDoc.data() as any).balance : 0) || 0;
+                return { success: true, newSenderBalance: finalSenderBalance, recipientName: '', reference: clientReference };
+            }
+        } catch (e) {
+            // proceed to transaction if idempotency check fails
+            console.warn('Idempotency pre-check failed, proceeding with transaction', e);
+        }
+
         let finalSenderBalance = 0;
         let recipientName = '';
 
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+        // Find recipient doc first
+        const recipientSnapshot = await db.collection('users').where('accountNumber', '==', recipientAccountNumber).get();
+        if (recipientSnapshot.empty) return { success: false, message: 'Recipient account not found.' };
+        const recipientDocRef = db.collection('users').doc(recipientSnapshot.docs[0].id);
 
-            if (!existingTxnSnapshot.empty) {
-                const senderDocRef = doc(db, 'users', senderUserId);
-                const senderDoc = await transaction.get(senderDocRef);
-                if (senderDoc.exists()) {
-                    finalSenderBalance = senderDoc.data().balance;
-                }
-                console.log(`Idempotent request for internal transfer: ${clientReference} already processed.`);
-                return;
-            }
-
-            const senderDocRef = doc(db, "users", senderUserId);
-            const recipientQuery = query(collection(db, "users"), where("accountNumber", "==", recipientAccountNumber));
-
-            const [senderDoc, recipientSnapshot] = await Promise.all([
-                transaction.get(senderDocRef),
-                transaction.get(recipientQuery)
+        await db.runTransaction(async (transaction) => {
+            const senderRef = db.collection('users').doc(senderUserId);
+            const [senderDocSnap, recipientDocSnap] = await Promise.all([
+                transaction.get(senderRef),
+                transaction.get(recipientDocRef),
             ]);
 
-            if (!senderDoc.exists()) {
-                throw new Error("Sender account not found.");
-            }
-            if (recipientSnapshot.empty) {
-                throw new Error("Recipient account not found.");
-            }
-            
-            const recipientDoc = recipientSnapshot.docs[0];
+            if (!senderDocSnap.exists) throw new Error('Sender account not found.');
+            if (!recipientDocSnap.exists) throw new Error('Recipient account not found.');
 
-            const senderData = senderDoc.data() as UserAccount;
-            const recipientData = recipientDoc.data() as UserAccount;
-            recipientName = recipientData.fullName;
+            const senderData = senderDocSnap.data() as any;
+            const recipientData = recipientDocSnap.data() as any;
+            recipientName = recipientData.fullName || '';
 
-            if (senderData.balance < amountInKobo) {
-                throw new Error("Insufficient funds.");
+            if ((senderData.balance || 0) < amountInKobo) {
+                throw new Error('Insufficient funds.');
             }
 
-            const newSenderBalance = senderData.balance - amountInKobo;
-            const newRecipientBalance = recipientData.balance + amountInKobo;
-            
-            transaction.update(senderDoc.ref, { balance: newSenderBalance });
-            transaction.update(recipientDoc.ref, { balance: newRecipientBalance });
-            
-            const senderLog = {
-                userId: senderDoc.id,
+            const newSenderBalance = (senderData.balance || 0) - amountInKobo;
+            const newRecipientBalance = (recipientData.balance || 0) + amountInKobo;
+
+            transaction.update(senderRef, { balance: newSenderBalance });
+            transaction.update(recipientDocRef, { balance: newRecipientBalance });
+
+            const debitLog = {
+                userId: senderUserId,
                 category: 'transfer',
                 type: 'debit',
                 amount: amountInKobo,
                 reference: clientReference,
                 narration: narration || `Transfer to ${recipientData.fullName}`,
-                party: {
-                    name: recipientData.fullName,
-                    account: recipientAccountNumber,
-                    bank: 'Ovomonie'
-                },
-                timestamp: serverTimestamp(),
+                party: { name: recipientData.fullName, account: recipientAccountNumber, bank: 'Ovomonie' },
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 balanceAfter: newSenderBalance,
                 memoMessage: message || null,
                 memoImageUri: photo || null,
             };
-            transaction.set(doc(financialTransactionsRef), senderLog);
-            
-            const recipientLog = {
-                userId: recipientDoc.id,
+            const creditLog = {
+                userId: recipientDocRef.id,
                 category: 'transfer',
                 type: 'credit',
                 amount: amountInKobo,
                 reference: clientReference,
                 narration: narration || `Transfer from ${senderData.fullName}`,
-                party: {
-                    name: senderData.fullName,
-                    account: senderData.accountNumber,
-                    bank: 'Ovomonie'
-                },
-                timestamp: serverTimestamp(),
+                party: { name: senderData.fullName, account: senderData.accountNumber, bank: 'Ovomonie' },
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 balanceAfter: newRecipientBalance,
                 memoMessage: message || null,
                 memoImageUri: photo || null,
             };
-            transaction.set(doc(financialTransactionsRef), recipientLog);
+
+            transaction.set(db.collection('financialTransactions').doc(), debitLog);
+            transaction.set(db.collection('financialTransactions').doc(), creditLog);
 
             finalSenderBalance = newSenderBalance;
         });
 
         if (finalSenderBalance === 0 && clientReference) {
-             const senderDocRef = doc(db, 'users', senderUserId);
-             const senderDoc = await getDoc(senderDocRef);
-             if (senderDoc.exists()) {
-                 finalSenderBalance = senderDoc.data().balance;
-             }
+            const senderDoc = await db.collection('users').doc(senderUserId).get();
+            if (senderDoc.exists) finalSenderBalance = (senderDoc.data() as any).balance || 0;
         }
-        
+
         return { success: true, newSenderBalance: finalSenderBalance, recipientName, reference: clientReference };
 
     } catch (error) {
-        console.error("Firestore transaction failed: ", error);
-        if (error instanceof Error) {
-           return { success: false, message: error.message };
-        }
+        console.error('Firestore transaction failed: ', error);
+        if (error instanceof Error) return { success: false, message: error.message };
         return { success: false, message: 'An unexpected error occurred during the transfer.' };
     }
 }

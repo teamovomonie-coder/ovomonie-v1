@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -102,6 +103,7 @@ type ReceiptData = {
 // --- Sub-components ---
 
 function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
+  const router = useRouter();
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<z.infer<typeof airtimeSchema> | null>(null);
   const { balance, updateBalance, logout } = useAuth();
@@ -167,8 +169,22 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
           title: "Purchase Successful!",
           description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
         });
-        onPurchase({ ...purchaseData, type: 'Airtime' });
+        
+        // Save pending receipt and navigate to /success
+        const pendingReceipt = {
+          type: 'airtime',
+          data: {
+            network: purchaseData.network,
+            phoneNumber: purchaseData.phoneNumber,
+            amount: purchaseData.amount,
+          },
+          transactionId: clientReference,
+          completedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
         form.reset();
+        setPurchaseData(null);
+        router.push('/success');
 
     } catch(error: any) {
         let description = "An unknown error occurred.";
@@ -238,6 +254,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
 }
 
 function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => void }) {
+  const router = useRouter();
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState<{values: z.infer<typeof dataSchema>, plan: typeof dataPlans.mtn[0]} | null>(null);
   const { balance, updateBalance, logout } = useAuth();
@@ -309,8 +326,24 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
           title: "Purchase Successful!",
           description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
         });
-        onPurchase({ ...purchaseData.values, type: 'Data', amount: purchaseData.plan.price, planName: purchaseData.plan.name });
+        
+        // Save pending receipt and navigate to /success
+        const pendingReceipt = {
+          type: 'airtime',
+          data: {
+            network: purchaseData.values.network,
+            phoneNumber: purchaseData.values.phoneNumber,
+            amount: purchaseData.plan.price,
+            planName: purchaseData.plan.name,
+            isDataPlan: true,
+          },
+          transactionId: clientReference,
+          completedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
         form.reset();
+        setPurchaseData(null);
+        router.push('/success');
     } catch (error: any) {
         let description = "An unknown error occurred.";
         if (error.response?.status === 401) {
@@ -442,13 +475,6 @@ function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | nul
 // --- Main Component ---
 
 export function AirtimeForm() {
-    const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
-    const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-
-    const handlePurchase = (data: ReceiptData) => {
-        setReceiptData(data);
-        setIsReceiptOpen(true);
-    }
   
     return (
         <>
@@ -458,13 +484,12 @@ export function AirtimeForm() {
                     <TabsTrigger value="data"><Wifi className="h-4 w-4 mr-2" />Buy Data</TabsTrigger>
                 </TabsList>
                 <TabsContent value="airtime" className="pt-6">
-                    <AirtimePurchaseForm onPurchase={handlePurchase} />
+                    <AirtimePurchaseForm onPurchase={() => {}} />
                 </TabsContent>
                 <TabsContent value="data" className="pt-6">
-                    <DataPurchaseForm onPurchase={handlePurchase} />
+                    <DataPurchaseForm onPurchase={() => {}} />
                 </TabsContent>
             </Tabs>
-            <PurchaseReceipt data={receiptData} open={isReceiptOpen} onOpenChange={setIsReceiptOpen} />
         </>
     );
 }

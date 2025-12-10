@@ -18,7 +18,16 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that the loan repay request arrived and whether auth header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('loan repay request received', { authPresent: Boolean(authHeader), path: '/api/loans/repay' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in loan repay');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

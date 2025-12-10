@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -21,6 +22,7 @@ import { Share2, Wallet, Loader2, ArrowLeft, Landmark, Info, Check, Hash, Code, 
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -31,21 +33,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
-import { Separator } from '../ui/separator';
-
-const amountSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive.'),
-});
-
-const posAgentSchema = z.object({
-  agentId: z.string().min(4, 'Agent ID must be at least 4 characters.'),
-  amount: z.coerce.number().positive('Amount must be positive.'),
-});
 
 const bankTransferSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -54,30 +45,24 @@ const bankTransferSchema = z.object({
   narration: z.string().max(50, "Narration can't exceed 50 characters.").optional(),
 });
 
+const amountSchema = z.object({
+  amount: z.coerce.number().positive('Amount must be positive.'),
+});
+
+const posAgentSchema = z.object({
+  agentId: z.string().min(1, 'Agent ID is required.'),
+  amount: z.coerce.number().positive('Amount must be positive.'),
+});
+
 type BankTransferFormData = z.infer<typeof bankTransferSchema>;
 
 const topBankCodes = ["058", "044", "057", "011", "033"];
 const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
 const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
-function WithdrawalReceipt({ data, recipientName, bankName, onReset }: { data: {amount: number, narration?: string | null}, recipientName: string; bankName: string; onReset: () => void }) {
-  const { toast } = useToast();
-  const handleShare = () => toast({ title: "Shared!", description: "Your withdrawal receipt has been shared." });
-
-  return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
-      <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center"><h2 className="text-lg font-bold">Withdrawal Successful!</h2><Landmark className="w-6 h-6" /></div>
-      <CardContent className="p-4 bg-card"><div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
-          <div className="text-center space-y-1"><p className="text-sm text-muted-foreground">You withdrew</p><p className="text-4xl font-bold text-foreground">₦{data.amount.toLocaleString()}</p><p className="text-sm text-muted-foreground">to</p><p className="text-lg font-semibold text-foreground">{recipientName}</p><p className="text-sm text-muted-foreground">{bankName}</p></div>
-          <div className="text-xs text-muted-foreground pt-4 space-y-2"><div className="flex justify-between"><span>Date</span><span>{new Date().toLocaleString()}</span></div><div className="flex justify-between"><span>Ref ID</span><span>OVO-WTH-{Date.now()}</span></div></div>
-      </div></CardContent>
-      <CardFooter className="flex flex-col gap-2 p-4 pt-0"><p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p><Button className="w-full" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share Receipt</Button><Button variant="outline" className="w-full" onClick={onReset}>Make Another Withdrawal</Button></CardFooter>
-    </Card>
-  );
-}
-
 function BankTransferWithdrawal() {
-  const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
+  const router = useRouter();
+  const [step, setStep] = useState<'form' | 'summary'>('form');
   const [isVerifying, setIsVerifying] = useState(false);
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<BankTransferFormData | null>(null);
@@ -134,7 +119,7 @@ function BankTransferWithdrawal() {
       return;
     }
     if (balance === null || (data.amount * 100) > balance) {
-        toast({ variant: "destructive", title: "Insufficient Funds" });
+        toast({ variant: "destructive", title: "Insufficient Funds", description: `Your balance is not enough for this withdrawal.` });
         return;
     }
     setSubmittedData(data);
@@ -147,56 +132,94 @@ function BankTransferWithdrawal() {
     setIsProcessing(true);
     setApiError(null);
     try {
-        const token = localStorage.getItem('ovo-auth-token');
-        if (!token) throw new Error('Authentication token not found.');
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+      
+      const clientReference = `withdrawal-${crypto.randomUUID()}`;
 
-        const response = await fetch('/api/transfers/external', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ ...submittedData, recipientName, clientReference: `withdraw-${crypto.randomUUID()}` }),
-        });
+      const response = await fetch('/api/transfers/external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientReference,
+          recipientName,
+          bankCode: submittedData.bankCode,
+          accountNumber: submittedData.accountNumber,
+          amount: submittedData.amount,
+          narration: submittedData.narration,
+        }),
+      });
 
-        const result = await response.json();
-        if (!response.ok) {
-            const error: any = new Error(result.message || 'Withdrawal failed.');
-            error.response = response;
-            throw error;
-        }
+      const result = await response.json();
+      if (!response.ok) {
+        const error: any = new Error(result.message || 'An error occurred during the withdrawal.');
+        error.response = response; 
+        throw error;
+      }
 
-        updateBalance(result.data.newBalanceInKobo);
-        addNotification({
-            title: 'Withdrawal Successful',
-            description: `You withdrew ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
-            category: 'transaction',
-        });
-        toast({ title: 'Withdrawal Successful!' });
-        setIsPinModalOpen(false);
-        setStep('receipt');
+      toast({
+        title: 'Withdrawal Successful!',
+        description: `₦${submittedData.amount.toLocaleString()} withdrawn to ${recipientName}.`,
+      });
+
+      addNotification({
+        title: 'Withdrawal Successful',
+        description: `You withdrew ₦${submittedData.amount.toLocaleString()} to ${recipientName}.`,
+        category: 'transaction',
+      });
+
+      updateBalance(result.data.newBalanceInKobo);
+      setIsPinModalOpen(false);
+
+      // Save pending receipt to localStorage and navigate to success page
+      try {
+        const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+        const pendingReceipt = {
+          type: 'withdrawal',
+          data: submittedData,
+          recipientName,
+          bankName,
+          transactionId: result.data.transactionId || `OVO-WTH-${Date.now()}`,
+          completedAt: new Date().toLocaleString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+      } catch (e) {
+        console.warn('[Withdrawal] could not save pending receipt', e);
+      }
+
+      // Navigate to success page
+      router.push('/success');
+      
     } catch (error: any) {
-        let description = 'An unknown error occurred.';
-        if (error.response?.status === 401) {
-            description = 'Your session has expired. Please log in again.';
-            logout();
-        } else if (error.message) {
-            description = error.message;
-        }
-        setApiError(description);
+      let description = 'An unknown error occurred.';
+
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        description = 'Please check your internet connection and try again.';
+      } else if (error.response?.status === 401) {
+          description = 'Your session has expired. Please log in again.';
+          logout();
+      } else if (error.message) {
+          description = error.message;
+      }
+      
+      setApiError(description);
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
-  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
+  }, [submittedData, recipientName, toast, updateBalance, logout, addNotification, router]);
 
   const resetForm = useCallback(() => {
     setStep('form');
     setSubmittedData(null);
     setRecipientName(null);
+    try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     form.reset();
   }, [form]);
-
-  if (step === 'receipt' && submittedData && recipientName) {
-    const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
-    return <WithdrawalReceipt data={submittedData} recipientName={recipientName} bankName={bankName} onReset={resetForm} />;
-  }
 
   if (step === 'summary' && submittedData && recipientName) {
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
@@ -216,7 +239,14 @@ function BankTransferWithdrawal() {
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>Confirm Withdrawal</Button>
+            <Button className="w-full" onClick={() => {
+                try {
+                  if (submittedData && recipientName) {
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: 'withdrawal', data: submittedData, recipientName }));
+                  }
+                } catch (e) {}
+                setIsPinModalOpen(true);
+              }} disabled={isProcessing}>Confirm Withdrawal</Button>
           </CardFooter>
         </Card>
         <PinModal

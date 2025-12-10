@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import { PageLoader } from '@/components/layout/page-loader';
+import BackButton from '@/components/layout/back-button';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({
           <PageLoader />
         </Suspense>
         <AuthProvider>
+          <BackButton />
           <NotificationProvider>
             {children}
             <Toaster />

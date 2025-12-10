@@ -1,24 +1,47 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
-import {
-    collection,
-    runTransaction,
-    doc,
-    serverTimestamp,
-    query,
-    where,
-    getDoc,
-} from 'firebase/firestore';
+import { getDb, admin } from '@/lib/firebaseAdmin';
 import { nigerianBanks } from '@/lib/banks';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
 
+function safe(obj: any, prop: string) {
+    try {
+        return obj && obj[prop];
+    } catch { return undefined; }
+}
+
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        // Ensure Firestore Admin is initialized and available
+        let db: FirebaseFirestore.Firestore;
+        try {
+            // getDb throws with clear message if initialization failed
+            // eslint-disable-next-line @typescript-eslint/await-thenable
+            db = await getDb() as any;
+        } catch (initErr) {
+            const msg = initErr instanceof Error ? initErr.message : String(initErr);
+            logger.error('Firestore initialization failed in external transfer', initErr as Error);
+            return NextResponse.json({ message: msg }, { status: 500 });
+        }
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that the external transfer request arrived and whether auth header was present
+        try {
+            const authHeader = safe(reqHeaders, 'get')?.('authorization') || safe(reqHeaders, 'get')?.('Authorization') || null;
+            logger.debug('external transfer request received', { authPresent: Boolean(authHeader), path: '/api/transfers/external' });
+            // Environment diagnostics useful for TLS / connection issues
+            logger.debug('firestore diagnostics', {
+                googleCreds: process.env.GOOGLE_APPLICATION_CREDENTIALS ? true : false,
+                firestoreEmulator: process.env.FIRESTORE_EMULATOR_HOST || null,
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || null,
+            });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in external transfer', { error: String(e) });
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -42,38 +65,39 @@ export async function POST(request: Request) {
         const transferAmountInKobo = Math.round(amount * 100);
         let newSenderBalance = 0;
         
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
-
-            if (!(existingTxnSnapshot as any).empty) {
+        // Check idempotency outside the transaction using Admin SDK queries
+        try {
+            const existingTxnSnapshot = await db.collection('financialTransactions').where('reference', '==', clientReference).get();
+            if (existingTxnSnapshot && !existingTxnSnapshot.empty) {
                 logger.info(`Idempotent request for external transfer: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) {
-                    newSenderBalance = userDoc.data().balance;
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    const data = userDoc.data();
+                    newSenderBalance = (data && data.balance) || 0;
                 }
-                return;
+                return NextResponse.json({ message: 'Transfer already processed.' , data: { newBalanceInKobo: newSenderBalance }}, { status: 200 });
             }
+        } catch (e) {
+            logger.warn('Idempotency check failed, proceeding with transaction', { error: String(e) });
+        }
 
-            const senderRef = doc(db, "users", userId);
+        await db.runTransaction(async (transaction) => {
+            const senderRef = db.collection('users').doc(userId);
             const senderDoc = await transaction.get(senderRef);
-            
-            if (!senderDoc.exists()) {
+
+            if (!senderDoc.exists) {
                 throw new Error("Sender account not found.");
             }
-            
-            const senderData = senderDoc.data();
-            if (senderData.balance < transferAmountInKobo) {
+
+            const senderData = senderDoc.data() as any;
+            if ((senderData.balance || 0) < transferAmountInKobo) {
                 throw new Error("Insufficient funds.");
             }
-
-            newSenderBalance = senderData.balance - transferAmountInKobo;
+            newSenderBalance = (senderData.balance || 0) - transferAmountInKobo;
             transaction.update(senderRef, { balance: newSenderBalance });
 
             // Log the debit transaction
-            const debitLog = {
+                const debitLog = {
                 userId: userId,
                 category: 'transfer',
                 type: 'debit',
@@ -85,21 +109,22 @@ export async function POST(request: Request) {
                     account: accountNumber,
                     bank: bank.name,
                 },
-                timestamp: serverTimestamp(),
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 balanceAfter: newSenderBalance,
                 memoMessage: message || null,
                 memoImageUri: photo || null,
             };
-            transaction.set(doc(financialTransactionsRef), debitLog);
+            const newTxnRef = db.collection('financialTransactions').doc();
+            transaction.set(newTxnRef, debitLog);
         });
         
-        if (newSenderBalance === 0 && clientReference) {
-          const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
-          if(userDoc.exists()) {
-              newSenderBalance = userDoc.data().balance;
-          }
-        }
+                if (newSenderBalance === 0 && clientReference) {
+                    const userDoc = await db.collection('users').doc(userId).get();
+                    if(userDoc.exists) {
+                            const data = userDoc.data();
+                            newSenderBalance = (data && data.balance) || 0;
+                    }
+                }
         
         return NextResponse.json({
             message: 'Transfer successful!',
