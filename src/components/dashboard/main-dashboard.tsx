@@ -18,37 +18,51 @@ export function MainDashboard() {
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
 
   return (
-    <div className="px-4">
+    <div className="px-4 md:px-6">
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-muted p-1">
-          <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Dashboard</TabsTrigger>
-          <TabsTrigger value="ai-assistant" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">AI Assistant</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 rounded-full bg-muted/70 p-1 shadow-inner">
+          <TabsTrigger value="dashboard" className="rounded-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="ai-assistant" className="rounded-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            AI Assistant
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard">
-          <Card className="bg-primary text-primary-foreground shadow-lg rounded-2xl my-4">
-            <CardContent className="p-4 flex flex-col gap-2">
+          <Card className="relative overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-2xl rounded-3xl my-4 border-none">
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute -left-10 top-8 h-40 w-40 rounded-full bg-primary-foreground/10 blur-3xl" />
+              <div className="absolute right-4 bottom-6 h-32 w-32 rounded-full bg-primary-foreground/15 blur-3xl" />
+            </div>
+            <CardContent className="relative p-5 md:p-6 flex flex-col gap-3">
                 <div className="flex justify-between items-center text-sm text-primary-foreground/80">
-                    <span>Available Balance</span>
-                    <CustomLink href="/statements" className="text-xs font-semibold flex items-center gap-1">
+                    <span className="uppercase tracking-[0.2em] text-xs">Available Balance</span>
+                    <CustomLink href="/statements" className="text-xs font-semibold flex items-center gap-1 underline-offset-4 hover:underline">
                         Transaction History <ArrowRight className="h-3 w-3" />
                     </CustomLink>
                 </div>
-                <div className="flex justify-between items-end gap-4">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="text-xl font-bold truncate">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="text-3xl font-semibold tracking-tight truncate">
                             {balance === null ? (
-                            <Skeleton className="h-7 w-32 bg-primary-foreground/20" />
+                            <Skeleton className="h-9 w-36 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (
                             new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 8)
                             ) : (
                             '******'
                             )}
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-foreground hover:bg-primary-foreground/20 flex-shrink-0" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20 flex-shrink-0" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
                             {isBalanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                     </div>
-                    <CustomLink href="/add-money" className="bg-primary-foreground/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0">+ Add Money</CustomLink>
+                    <CustomLink
+                      href="/add-money"
+                      className="group inline-flex items-center gap-2 bg-white text-primary text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 shadow-md shadow-black/10 transition hover:translate-y-[-1px] hover:shadow-lg hover:bg-primary-foreground/90 hover:text-primary-foreground"
+                    >
+                      <span className="inline-flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      Add Money
+                    </CustomLink>
                 </div>
             </CardContent>
           </Card>

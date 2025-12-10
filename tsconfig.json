@@ -23,5 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "src/app/**/*.ts", "src/app/**/*.tsx", "src/components/**/*.ts", "src/components/**/*.tsx", "src/lib/**/*.ts", "src/lib/**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "src/api", "src/app/api"]
+  "exclude": ["node_modules", "src/api"]
 }

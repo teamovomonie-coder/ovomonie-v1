@@ -34,7 +34,7 @@ export default function WelcomePage() {
     }
 
     return (
-        <div className="h-screen w-screen bg-primary flex flex-col items-center justify-center p-8 text-primary-foreground">
+        <div className="h-screen w-screen bg-primary flex flex-col items-center justify-center p-8 text-primary-foreground ">
             <AnimatePresence mode="wait">
                 {!showContent ? (
                     <motion.div
