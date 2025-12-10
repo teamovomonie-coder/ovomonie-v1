@@ -30,36 +30,29 @@ export default function ShareModal({ open, onOpenChange, targetRef, title = 'Rec
   const captureCanvas = async (): Promise<HTMLCanvasElement> => {
     if (!targetRef?.current) throw new Error('Receipt element not found');
     const container = targetRef.current as HTMLElement;
+    
+    // Hide elements with no-capture class
+    const noCaptureElements = container.querySelectorAll('.no-capture');
+    const originalStyles: Array<{ element: Element; display: string }> = [];
+    
+    noCaptureElements.forEach((element) => {
+      originalStyles.push({
+        element,
+        display: (element as HTMLElement).style.display,
+      });
+      (element as HTMLElement).style.display = 'none';
+    });
+
     const scale = 2;
-    // html2canvas will capture the node into a canvas
-    const canvas = await html2canvas(container, { scale, useCORS: true });
-
-    // Try to find the "Powered by Ovomonie" footer inside the container and crop it out
     try {
-      // Prefer a data attribute if present for more reliable detection
-      const possibleFooter = container.querySelector('[data-powered-by="ovomonie"]') as HTMLElement | null
-        || Array.from(container.querySelectorAll('*')).find(el => el.textContent && el.textContent.trim().includes('Powered by Ovomonie')) as HTMLElement | undefined;
-      if (!possibleFooter) return canvas;
-
-      const containerRect = container.getBoundingClientRect();
-      const footerRect = possibleFooter.getBoundingClientRect();
-
-      // compute height (CSS px) from top of container to top of footer
-      const cropHeightCss = Math.max(0, footerRect.top - containerRect.top);
-      if (cropHeightCss <= 0) return canvas;
-
-      const cropHeightPx = Math.round(cropHeightCss * scale);
-      const croppedCanvas = document.createElement('canvas');
-      croppedCanvas.width = canvas.width;
-      croppedCanvas.height = cropHeightPx;
-      const ctx = croppedCanvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(canvas, 0, 0, canvas.width, cropHeightPx, 0, 0, canvas.width, cropHeightPx);
-        return croppedCanvas;
-      }
+      // html2canvas will capture the node into a canvas
+      const canvas = await html2canvas(container, { scale, useCORS: true });
       return canvas;
-    } catch (e) {
-      return canvas;
+    } finally {
+      // Restore the original styles
+      originalStyles.forEach(({ element, display }) => {
+        (element as HTMLElement).style.display = display;
+      });
     }
   };
 

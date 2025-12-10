@@ -54,8 +54,8 @@ export default function GeneralReceipt({ title = 'Transfer', amount, status = 'S
             </div>
           </div>
         </CardContent>
-        <div data-powered-by="ovomonie" className="text-center text-xs text-muted-foreground mt-2 mb-2">Powered by Ovomonie</div>
-        <CardFooter className="flex flex-col gap-3 p-4 relative z-10">
+        <div data-powered-by="ovomonie" className="text-center text-xs text-muted-foreground py-4 border-t">Powered by Ovomonie</div>
+        <CardFooter className="flex flex-col gap-3 p-4 relative z-10 no-capture">
             <div className="flex gap-2">
             <Button variant="ghost" className="w-full" onClick={() => { if (onReport) onReport(); else router.push('/support'); }}>Report Issue</Button>
             <Button className="w-full" onClick={() => setIsShareOpen(true)}><Share2 className="mr-2 w-4 h-4"/> Share Receipt</Button>
