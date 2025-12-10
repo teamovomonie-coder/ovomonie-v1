@@ -624,6 +624,10 @@ export function CardCustomizer() {
       <PinModal
         open={isPinModalOpenForVirtual}
         onOpenChange={setIsPinModalOpenForVirtual}
+        // Prevent PinModal from navigating to `/success` for virtual-card flows.
+        // We want users to remain on the Virtual Card view so the newly created
+        // card is immediately visible.
+        successUrl={null}
         onConfirm={handleConfirmVirtualCard}
         isProcessing={isActivatingCard}
         error={virtualCardApiError}

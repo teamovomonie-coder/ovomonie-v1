@@ -42,7 +42,7 @@ interface PinModalProps {
   onClearError?: () => void;
 }
 
-export function PinModal({ open, onOpenChange, onConfirm, title, description, isProcessing = false, error, onClearError }: PinModalProps) {
+export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, description, isProcessing = false, error, onClearError }: PinModalProps) {
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const router = useRouter();
@@ -80,11 +80,13 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
           // Close the modal
           onOpenChange(false);
 
-          // Navigate to a generic success page as an immediate UX feedback.
-          // Consumers can set `successUrl` prop to change this behavior; default '/success'.
-          const successUrl = (typeof (PinModal as any).defaultSuccessUrl === 'string') ? (PinModal as any).defaultSuccessUrl : '/success';
-          if (successUrl) {
-            try { router.push(successUrl); } catch {}
+          // Navigate to a generic success page as an immediate UX feedback unless
+          // the consumer explicitly disabled navigation by passing `successUrl={null}`.
+          if (successUrl !== null) {
+            const derived = (typeof successUrl === 'string') ? successUrl : ((typeof (PinModal as any).defaultSuccessUrl === 'string') ? (PinModal as any).defaultSuccessUrl : '/success');
+            if (derived) {
+              try { router.push(derived); } catch {}
+            }
           }
 
           // Run the confirmation handler and await it so we only navigate to the
@@ -115,11 +117,13 @@ export function PinModal({ open, onOpenChange, onConfirm, title, description, is
               console.error('[PinModal] error updating pending receipt', err);
             }
 
-            // Close modal and navigate to the success/receipt page
+            // Close modal and navigate to the success/receipt page unless disabled
             try { onOpenChange(false); } catch {}
-            const successUrl = (typeof (PinModal as any).defaultSuccessUrl === 'string') ? (PinModal as any).defaultSuccessUrl : '/success';
-            if (successUrl) {
-              try { router.replace(successUrl); } catch (e) { console.error(e); }
+            if (successUrl !== null) {
+              const derived = (typeof successUrl === 'string') ? successUrl : ((typeof (PinModal as any).defaultSuccessUrl === 'string') ? (PinModal as any).defaultSuccessUrl : '/success');
+              if (derived) {
+                try { router.replace(derived); } catch (e) { console.error(e); }
+              }
             }
             try { window.dispatchEvent(new Event('ovo-pending-receipt-updated')); } catch (e) {}
           } catch (err) {

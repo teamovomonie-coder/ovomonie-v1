@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { motion } from 'framer-motion';
 
 export interface VirtualCard {
@@ -33,6 +34,13 @@ export function VirtualCardDisplay({
   onCopyToClipboard,
   onLoadBalance,
 }: VirtualCardDisplayProps) {
+  const { balance, user } = useAuth();
+  const { toast } = useToast();
+
+  // Prefer wallet balance (kobo) from auth context; fall back to card.balance
+  const displayBalanceKobo = typeof balance === 'number' && balance !== null ? balance : card.balance;
+  const displayBalance = (displayBalanceKobo / 100) || 0;
+  const cardholderName = user?.fullName || 'OVOMONIE VIRTUAL';
   const maskCardNumber = (cardNumber: string) => {
     return cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ').split('').map((char, idx) => idx < 12 ? '*' : char).join('');
   };
@@ -105,18 +113,18 @@ export function VirtualCardDisplay({
               <div>
                 <p className="text-xs opacity-75 mb-1">CARDHOLDER</p>
                 <p className="text-sm sm:text-base font-semibold uppercase tracking-wide truncate pr-2">
-                  OVOMONIE VIRTUAL
+                  {cardholderName.toUpperCase()}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs opacity-75 mb-1">EXPIRES</p>
+                <p className="text-xs opacity-75 " >EXPIRES</p>
                 <p className="text-sm sm:text-base font-mono font-bold">{card.expiryDate}</p>
               </div>
             </div>
           </div>
 
           {/* Visa Logo & Card Type */}
-          <div className="flex justify-between items-center mt-2">
+          <div className="flex justify-between items-center ">
             <div className="text-xs font-bold opacity-90">VIRTUAL</div>
             <div className="text-xl sm:text-2xl font-black tracking-wider">VISA</div>
           </div>
@@ -173,7 +181,7 @@ export function VirtualCardDisplay({
           >
             <p className="text-xs text-green-600 font-semibold mb-2">BALANCE</p>
             <p className="text-lg font-bold text-green-900">
-              ₦{(card.balance / 100).toLocaleString()}
+              ₦{displayBalance.toLocaleString()}
             </p>
           </motion.div>
 
@@ -212,11 +220,14 @@ export function VirtualCardDisplay({
             Copy Number
           </Button>
           <Button
-            onClick={() => onLoadBalance?.(card.id)}
+            onClick={() => {
+              toast({ title: 'Balance Synced', description: 'Card balance reflects your Ovomonie wallet balance.' });
+              onLoadBalance?.(card.id);
+            }}
             className="flex-1 h-12 font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
           >
             <Zap className="h-4 w-4 mr-2" />
-            Load Balance
+            Sync Wallet Balance
           </Button>
         </div>
       </div>
