@@ -37,25 +37,22 @@ export function QuickAccess() {
             key={feature.label}
             className="group relative h-full overflow-hidden rounded-lg sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-5 shadow-sm sm:shadow-md transition hover:-translate-y-1 hover:shadow-lg"
           >
-            <div className="flex items-start gap-2 sm:gap-3 h-full">
-              <div className="relative rounded-lg sm:rounded-2xl bg-white/80 p-2 sm:p-3.5 shadow-inner">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-80" />
-                <feature.icon className="relative h-5.5 w-5.5 sm:h-8 sm:w-8 text-[#050a1a]" />
-              </div>
-              <div className="flex-1 flex flex-col justify-between items-start min-h-[84px] sm:min-h-[90px]">
-                <div className="space-y-1">
-                  <p className="text-[11.5px] sm:text-[17px] font-black text-[#050a1a] leading-tight tracking-tight">{feature.label}</p>
-                  <p className="text-[9px] sm:text-xs text-[#050a1a]/85 flex items-center gap-1 leading-tight font-semibold">
-                    Instant, secure, PIN-first <ArrowUpRight className="h-3.5 w-3.5 text-[#050a1a]" />
-                  </p>
+            <div className="relative flex h-full flex-col items-center justify-between text-center">
+              <div className="flex flex-col items-center gap-2 sm:gap-3">
+                <div className="relative rounded-lg sm:rounded-2xl bg-white/80 p-2 sm:p-3 shadow-inner">
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-80" />
+                  <feature.icon className="relative h-5 w-5 sm:h-7 sm:w-7 text-[#050a1a]" />
                 </div>
-                <Badge
-                  variant="secondary"
-                  className="self-end text-[8px] sm:text-[10px] font-black uppercase tracking-[0.25em] bg-gradient-to-r from-[#0ea5e9] via-[#6366f1] to-[#a855f7] text-white px-2 py-1 rounded-full shadow-lg shadow-indigo-500/30 border border-white/30"
-                >
-                  FAST
-                </Badge>
+                <p className="text-[12px] sm:text-base font-black text-[#050a1a] leading-tight tracking-tight">
+                  {feature.label}
+                </p>
               </div>
+              <Badge
+                variant="secondary"
+                className="absolute top-[3px] right-[3px] text-[7px] sm:text-[9px] font-black uppercase tracking-[0.22em] bg-[#0b1a3a] text-white px-1.5 py-[3px] rounded-full shadow-md shadow-blue-900/40 border border-white/30"
+              >
+                FAST
+              </Badge>
             </div>
           </CustomLink>
         ))}
