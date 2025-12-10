@@ -2,8 +2,6 @@
 // Server-side user-data: migrated to Firebase Admin SDK
 import { getDb, admin } from '@/lib/firebaseAdmin';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface UserAccount {
     id?: string;
     userId: string;

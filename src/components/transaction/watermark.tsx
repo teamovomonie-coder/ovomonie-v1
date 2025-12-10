@@ -59,7 +59,7 @@ export default function Watermark({ variant = 'cover', opacity = 0.06, maxSize =
   return (
       <div className={containerClass} aria-hidden>
       {!triedAll && srcIndex < sources.length ? (
-        // eslint-disable-next-line jsx-a11y/alt-text
+        // eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element
         <img
           src={sources[srcIndex]}
           className={imgClass}
