@@ -25,6 +25,7 @@ interface VirtualCardDisplayProps {
   onToggleNumberVisibility: (cardId: string) => void;
   onCopyToClipboard: (text: string, label: string) => void;
   onLoadBalance?: (cardId: string) => void;
+  onSyncBalance?: (cardId: string) => Promise<void>;
 }
 
 export function VirtualCardDisplay({
@@ -33,7 +34,9 @@ export function VirtualCardDisplay({
   onToggleNumberVisibility,
   onCopyToClipboard,
   onLoadBalance,
+  onSyncBalance,
 }: VirtualCardDisplayProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
   const { balance, user } = useAuth();
   const { toast } = useToast();
 
@@ -220,14 +223,20 @@ export function VirtualCardDisplay({
             Copy Number
           </Button>
           <Button
-            onClick={() => {
-              toast({ title: 'Balance Synced', description: 'Card balance reflects your Ovomonie wallet balance.' });
-              onLoadBalance?.(card.id);
+            onClick={async () => {
+              if (!onSyncBalance) return;
+              setIsSyncing(true);
+              try {
+                await onSyncBalance(card.id);
+              } finally {
+                setIsSyncing(false);
+              }
             }}
+            disabled={isSyncing}
             className="flex-1 h-12 font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
           >
             <Zap className="h-4 w-4 mr-2" />
-            Sync Wallet Balance
+            {isSyncing ? 'Syncing...' : 'Sync Wallet Balance'}
           </Button>
         </div>
       </div>
