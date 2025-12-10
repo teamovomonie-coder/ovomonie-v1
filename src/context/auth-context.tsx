@@ -58,6 +58,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('ovo-auth-token');
     localStorage.removeItem('ovo-user-id');
     localStorage.removeItem('ovo-user-accountNumber');
+    localStorage.removeItem('ovo-user-fullName');
+    localStorage.removeItem('ovo-user-balance');
     setIsAuthenticated(false);
     setUser(null);
     setBalance(null);
@@ -79,8 +81,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [performLogout]);
 
   const fetchUserData = useCallback(async () => {
-    const token = localStorage.getItem('ovo-auth-token');
-    const userId = localStorage.getItem('ovo-user-id');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ovo-auth-token') : null;
+    const userId = typeof window !== 'undefined' ? localStorage.getItem('ovo-user-id') : null;
+    const cachedFullName = typeof window !== 'undefined' ? localStorage.getItem('ovo-user-fullName') : null;
+    const cachedAccountNumber = typeof window !== 'undefined' ? localStorage.getItem('ovo-user-accountNumber') : null;
+    const cachedBalance = typeof window !== 'undefined' ? localStorage.getItem('ovo-user-balance') : null;
+
     if (!token || !userId) {
         if (isAuthenticated !== false) performLogout();
         return;
@@ -113,11 +119,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             isAgent: userData.isAgent || false,
             kycTier: userData.kycTier || 1,
         });
-        setBalance(userData.balance);
+        setBalance(userData.balance ?? null);
+        localStorage.setItem('ovo-user-fullName', userData.fullName || '');
+        localStorage.setItem('ovo-user-accountNumber', userData.accountNumber || '');
+        if (typeof userData.balance !== 'undefined') {
+            localStorage.setItem('ovo-user-balance', String(userData.balance));
+        }
         setIsAuthenticated(true);
     } catch (error) {
-        console.error("Failed to fetch or validate user data:", error);
-        performLogout();
+        console.error("Failed to fetch or validate user data, falling back to cached session:", error);
+        setUser({
+            userId,
+            fullName: cachedFullName || '',
+            accountNumber: cachedAccountNumber || '',
+            isAgent: false,
+            kycTier: 1,
+        });
+        setBalance(cachedBalance ? Number(cachedBalance) : null);
+        setIsAuthenticated(true);
     }
 }, [performLogout, isAuthenticated, parseTokenTimestamps]);
 
@@ -138,10 +157,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error(errorData.message || 'Login failed.');
       }
       
-      const { token, userId, fullName, accountNumber } = await response.json();
+      const { token, userId, fullName, accountNumber, balance: serverBalance } = await response.json();
       localStorage.setItem('ovo-auth-token', token);
       localStorage.setItem('ovo-user-id', userId);
       localStorage.setItem('ovo-user-accountNumber', accountNumber);
+      localStorage.setItem('ovo-user-fullName', fullName || '');
+      if (typeof serverBalance !== 'undefined') {
+        localStorage.setItem('ovo-user-balance', String(serverBalance));
+      }
+      setUser({
+        userId,
+        fullName,
+        accountNumber,
+        isAgent: false,
+        kycTier: 1,
+      });
+      setBalance(typeof serverBalance !== 'undefined' ? serverBalance : null);
       setIsAuthenticated(true);
       await fetchUserData();
   }, [fetchUserData]);

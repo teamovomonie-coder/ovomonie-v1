@@ -62,7 +62,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Authentication is temporarily unavailable. Please try again later.' }, { status: 500 });
         }
 
-        return NextResponse.json({ token, userId: userDoc.id, fullName: userData.fullName, accountNumber: userData.accountNumber });
+        return NextResponse.json({
+            token,
+            userId: userDoc.id,
+            fullName: userData.fullName,
+            accountNumber: userData.accountNumber,
+            balance: userData.balance ?? 0,
+        });
 
     } catch (error) {
         logger.error("Login Error:", error);

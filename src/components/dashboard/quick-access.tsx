@@ -21,7 +21,7 @@ export function QuickAccess() {
   const gridRow = features.slice(3);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Quick access</p>
@@ -30,50 +30,51 @@ export function QuickAccess() {
         <Badge variant="secondary" className="hidden sm:inline-flex bg-primary/10 text-primary border-primary/20">Live</Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-1 sm:gap-3">
         {primaryRow.map((feature) => (
           <CustomLink
             href={feature.href}
             key={feature.label}
-            className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br ${feature.tone} p-4 shadow-lg shadow-primary/10 transition hover:-translate-y-1 hover:shadow-xl backdrop-blur`}
+            className="group relative h-full overflow-hidden rounded-lg sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-5 shadow-sm sm:shadow-md transition hover:-translate-y-1 hover:shadow-lg"
           >
-            <div className="absolute right-3 top-3">
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wide bg-white/70 text-foreground">
-                Fast
-              </Badge>
-            </div>
-            <div className="absolute -right-8 -bottom-8 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
-            <div className="flex items-center gap-3">
-              <div className="relative rounded-2xl bg-white/80 p-3 shadow-inner">
+            <div className="flex items-start gap-2 sm:gap-3 h-full">
+              <div className="relative rounded-lg sm:rounded-2xl bg-white/80 p-2 sm:p-3.5 shadow-inner">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-primary/5 opacity-80" />
-                <feature.icon className="relative h-7 w-7 text-primary" />
+                <feature.icon className="relative h-5.5 w-5.5 sm:h-8 sm:w-8 text-[#050a1a]" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{feature.label}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  Instant, secure, PIN-first <ArrowUpRight className="h-3 w-3 text-primary" />
-                </p>
+              <div className="flex-1 flex flex-col justify-between items-start min-h-[84px] sm:min-h-[90px]">
+                <div className="space-y-1">
+                  <p className="text-[11.5px] sm:text-[17px] font-black text-[#050a1a] leading-tight tracking-tight">{feature.label}</p>
+                  <p className="text-[9px] sm:text-xs text-[#050a1a]/85 flex items-center gap-1 leading-tight font-semibold">
+                    Instant, secure, PIN-first <ArrowUpRight className="h-3.5 w-3.5 text-[#050a1a]" />
+                  </p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="self-end text-[8px] sm:text-[10px] font-black uppercase tracking-[0.25em] bg-gradient-to-r from-[#0ea5e9] via-[#6366f1] to-[#a855f7] text-white px-2 py-1 rounded-full shadow-lg shadow-indigo-500/30 border border-white/30"
+                >
+                  FAST
+                </Badge>
               </div>
             </div>
           </CustomLink>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-4 gap-1 sm:gap-3">
         {gridRow.map((feature) => (
           <CustomLink
             href={feature.href}
             key={feature.label}
-            className={`group relative rounded-2xl border border-slate-200 bg-gradient-to-br ${feature.tone} p-3 shadow-sm shadow-primary/5 transition hover:-translate-y-1 hover:shadow-md`}
+            className="group relative rounded-lg sm:rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
           >
-            <div className="absolute -left-4 -top-4 h-14 w-14 rounded-full bg-primary/5 blur-xl" />
             <div className="flex h-full flex-col items-start gap-2">
-              <div className="rounded-xl bg-white/85 p-2.5 shadow-inner">
-                <feature.icon className="h-6 w-6 text-primary" />
+              <div className="rounded-lg bg-slate-100 p-1.5 shadow-inner">
+                <feature.icon className="h-5 w-5 text-[#050a1a]" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-foreground leading-tight">{feature.label}</p>
-                <p className="text-[11px] text-muted-foreground">Ready 24/7</p>
+                <p className="text-[10px] sm:text-sm font-black text-[#050a1a] leading-tight tracking-tight">{feature.label}</p>
+                <p className="text-[9px] sm:text-[11px] text-[#050a1a]/85 font-semibold">Ready 24/7</p>
               </div>
             </div>
           </CustomLink>
