@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 export default function BackButton() {
   const router = useRouter();
+  const pathname = usePathname();
   const [canGoBack, setCanGoBack] = useState(false);
+
+  // Hide back button on welcome page
+  const isWelcomePage = pathname === '/';
 
   useEffect(() => {
     try {
@@ -28,6 +32,10 @@ export default function BackButton() {
       router.push('/');
     }
   };
+
+  if (isWelcomePage) {
+    return null;
+  }
 
   return (
     <button

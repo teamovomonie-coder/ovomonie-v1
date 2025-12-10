@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet, Sparkles } from 'lucide-react';
+import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet, Sparkles, Copy, Eye, EyeOff, CreditCard, Zap, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,8 @@ import { generateCardDesign } from '@/ai/flows/generate-card-design-flow';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { VirtualCardDisplay } from './virtual-card-display';
+import type { VirtualCard } from './virtual-card-display';
 
 // --- Card Customization Data ---
 const templates = {
@@ -33,38 +35,31 @@ const templates = {
 
 interface CardDesign {
   type: 'color' | 'pattern' | 'upload';
-  value: string; // Hex, URL, or data URI
+  value: string;
 }
 
 // --- Card Preview Component ---
 const CardPreview = ({ design, name }: { design: CardDesign, name: string }) => {
   return (
     <div className="w-full max-w-sm aspect-[1.586] rounded-xl shadow-lg overflow-hidden bg-gray-800 relative select-none">
-      {/* Background Layer */}
       {design.type === 'color' && <div className={cn("w-full h-full", design.value)} />}
       {(design.type === 'pattern' || design.type === 'upload') && (
         <Image src={design.value} alt="Card background" layout="fill" objectFit="cover" data-ai-hint="background pattern" />
       )}
       
-      {/* Overlay for readability */}
       <div className="absolute inset-0 bg-black/20" />
 
-      {/* Protected Zones & Content */}
       <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
-        {/* Top Section: Bank Logo & Chip */}
         <div className="flex justify-between items-start">
-          {/* Chip (Protected Zone) */}
           <div className="w-12 h-10 bg-yellow-400/80 rounded-md border border-yellow-500/50 backdrop-blur-sm" data-protected="chip">
             <div className="w-1/2 h-full bg-yellow-300/50" />
           </div>
-          {/* Bank Logo (Protected Zone) */}
-           <div className="flex items-center gap-2" data-protected="bank-logo">
-              <Wallet className="w-7 h-7 text-white/90" />
-              <h3 className="text-white/90 font-bold text-lg">OVOMONIE</h3>
+          <div className="flex items-center gap-2" data-protected="bank-logo">
+            <Wallet className="w-7 h-7 text-white/90" />
+            <h3 className="text-white/90 font-bold text-lg">OVOMONIE</h3>
           </div>
         </div>
 
-        {/* Bottom Section: Card Details */}
         <div>
           <p className="text-white font-mono text-xl sm:text-2xl tracking-widest text-shadow">
             4000 1234 5678 9010
@@ -86,7 +81,7 @@ const CardPreview = ({ design, name }: { design: CardDesign, name: string }) => 
   );
 };
 
-// --- Zod Schemas for Validation ---
+// --- Zod Schemas ---
 const cardDetailsSchema = z.object({
   nameOnCard: z.string().min(3, "Name is too short").max(22, "Name is too long"),
   design: z.object({
@@ -105,8 +100,7 @@ const shippingSchema = z.object({
 
 type CardDetailsForm = z.infer<typeof cardDetailsSchema>;
 type ShippingForm = z.infer<typeof shippingSchema>;
-
-type View = 'customize' | 'review' | 'success';
+type View = 'customize' | 'review' | 'success' | 'virtual-card';
 
 // --- Main Customizer Component ---
 export function CardCustomizer() {
@@ -120,6 +114,13 @@ export function CardCustomizer() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Virtual Card State
+  const [virtualCards, setVirtualCards] = useState<VirtualCard[]>([]);
+  const [showVirtualCardNumbers, setShowVirtualCardNumbers] = useState<Set<string>>(new Set());
+  const [isActivatingCard, setIsActivatingCard] = useState(false);
+  const [virtualCardApiError, setVirtualCardApiError] = useState<string | null>(null);
+  const [isPinModalOpenForVirtual, setIsPinModalOpenForVirtual] = useState(false);
 
   const cardDetailsForm = useForm<CardDetailsForm>({
     resolver: zodResolver(cardDetailsSchema),
@@ -155,11 +156,10 @@ export function CardCustomizer() {
     }
   };
 
-
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         toast({ variant: "destructive", title: "Image Too Large", description: "Please upload an image smaller than 5MB." });
         return;
       }
@@ -245,6 +245,118 @@ export function CardCustomizer() {
     }
   };
 
+  const handleCreateVirtualCard = async () => {
+    if (balance === null || balance < 500_00) {
+      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦500 to create a virtual card.' });
+      return;
+    }
+    setIsPinModalOpenForVirtual(true);
+  };
+
+  const handleConfirmVirtualCard = async () => {
+    setIsActivatingCard(true);
+    setVirtualCardApiError(null);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await fetch('/api/cards/virtual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          clientReference: `virtual-card-${crypto.randomUUID()}`,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        const error: any = new Error(result.message || 'Failed to create virtual card.');
+        error.response = response;
+        throw error;
+      }
+
+      // Log for debugging
+      console.log('Virtual card created:', result);
+
+      const newCard: VirtualCard = {
+        id: result.cardId,
+        cardNumber: result.cardNumber,
+        expiryDate: result.expiryDate,
+        cvv: result.cvv,
+        isActive: true,
+        balance: 0,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      };
+
+      // Update states in sequence
+      setVirtualCards(prev => {
+        console.log('Setting virtual cards:', [newCard, ...prev]);
+        return [newCard, ...prev];
+      });
+      
+      updateBalance(result.newBalanceInKobo);
+
+      addNotification({
+        title: 'Virtual Card Created!',
+        description: 'Your new virtual card is ready to use.',
+        category: 'transaction',
+      });
+
+      toast({ title: "Virtual Card Created!", description: "Your card is ready to use for online transactions." });
+      
+      // Close modal and navigate to virtual card view
+      setIsPinModalOpenForVirtual(false);
+      
+      // Use setTimeout to ensure state updates propagate before changing view
+      setTimeout(() => {
+        console.log('Setting view to virtual-card');
+        setView('virtual-card');
+      }, 100);
+    } catch (error: any) {
+      let description = 'An unknown error occurred.';
+      if (error.response?.status === 401) {
+        description = 'Your session has expired. Please log in again.';
+        logout();
+      } else if (error.message) {
+        description = error.message;
+      }
+      console.error('Virtual card creation error:', error);
+      setVirtualCardApiError(description);
+      // Don't close modal on error
+    } finally {
+      setIsActivatingCard(false);
+    }
+  };
+
+  const toggleCardNumberVisibility = (cardId: string) => {
+    setShowVirtualCardNumbers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!", description: `${label} copied to clipboard.` });
+  };
+
+  const maskCardNumber = (cardNumber: string) => {
+    return cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ').split('').map((char, idx) => idx < 12 ? '*' : char).join('');
+  };
+
+  const handleLoadBalance = (cardId: string) => {
+    toast({ 
+      title: "Feature Coming Soon", 
+      description: "Load Balance feature will be available soon." 
+    });
+  };
+
   const resetFlow = () => {
       cardDetailsForm.reset({ 
         nameOnCard: "", 
@@ -252,12 +364,33 @@ export function CardCustomizer() {
       });
       shippingForm.reset();
       setView('customize');
-  }
+  };
 
   const renderContent = () => {
-    switch (view) {
-      case 'review':
-        return (
+    const showNavTabs = view === 'customize' || view === 'virtual-card';
+
+    return (
+      <>
+        {showNavTabs && (
+          <CardHeader className="border-b">
+            <div className="flex gap-2">
+              <Button
+                variant={view === 'customize' ? 'default' : 'outline'}
+                onClick={() => setView('customize')}
+              >
+                Physical Card
+              </Button>
+              <Button
+                variant={view === 'virtual-card' ? 'default' : 'outline'}
+                onClick={() => setView('virtual-card')}
+              >
+                Virtual Card
+              </Button>
+            </div>
+          </CardHeader>
+        )}
+        
+        {view === 'review' && (
           <motion.div key="review" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -294,9 +427,9 @@ export function CardCustomizer() {
                  </Button>
             </CardFooter>
           </motion.div>
-        );
-      case 'success':
-        return (
+        )}
+
+        {view === 'success' && (
           <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center">
             <CardHeader className="items-center">
               <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
@@ -316,10 +449,9 @@ export function CardCustomizer() {
               <Button onClick={resetFlow} className="w-full">Order Another Card</Button>
             </CardFooter>
           </motion.div>
-        );
-      case 'customize':
-      default:
-        return (
+        )}
+
+        {view === 'customize' && (
           <motion.div key="customize" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <CardHeader>
               <CardTitle>Customize Your ATM Card</CardTitle>
@@ -406,8 +538,70 @@ export function CardCustomizer() {
               <Button type="submit" form="customize-form" className="w-full md:w-auto ml-auto">Proceed to Review</Button>
             </CardFooter>
           </motion.div>
-        );
-    }
+        )}
+
+        {view === 'virtual-card' && (
+          <motion.div key="virtual-card" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <CardHeader>
+              <CardTitle>Virtual Card</CardTitle>
+              <CardDescription>Create and manage instant virtual cards for online transactions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-4">
+              {virtualCards.length === 0 ? (
+                <div className="text-center py-12">
+                  <CreditCard className="h-20 w-20 mx-auto mb-4 text-muted-foreground opacity-40" />
+                  <h3 className="text-xl font-semibold mb-2">No Virtual Cards Yet</h3>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">Create your first virtual card for instant online transactions. Get activated instantly with just a ₦500 one-time fee.</p>
+                  <div className="rounded-lg border border-dashed border-primary/30 p-6 bg-primary/5">
+                    <p className="text-sm font-medium mb-1 text-primary">Activation Fee</p>
+                    <p className="text-3xl font-bold text-primary mb-4">₦500</p>
+                    <p className="text-xs text-muted-foreground mb-6">One-time fee per virtual card</p>
+                    <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="w-full">
+                      {isActivatingCard ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Creating Card...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="mr-2 h-5 w-5" />
+                          Create Virtual Card
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-8">
+                    {virtualCards.map((card) => (
+                      <VirtualCardDisplay
+                        key={card.id}
+                        card={card}
+                        isNumberVisible={showVirtualCardNumbers.has(card.id)}
+                        onToggleNumberVisibility={toggleCardNumberVisibility}
+                        onCopyToClipboard={copyToClipboard}
+                        onLoadBalance={handleLoadBalance}
+                      />
+                    ))}
+                  </div>
+
+                  <Button 
+                    onClick={handleCreateVirtualCard} 
+                    disabled={isActivatingCard}
+                    size="lg"
+                    className="w-full h-12 font-semibold"
+                  >
+                    {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                    Create Another Card (₦500)
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </motion.div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -426,6 +620,16 @@ export function CardCustomizer() {
         onClearError={() => setApiError(null)}
         title="Confirm Card Order"
         description="A fee of ₦1,500 will be deducted from your wallet for the custom card."
+      />
+      <PinModal
+        open={isPinModalOpenForVirtual}
+        onOpenChange={setIsPinModalOpenForVirtual}
+        onConfirm={handleConfirmVirtualCard}
+        isProcessing={isActivatingCard}
+        error={virtualCardApiError}
+        onClearError={() => setVirtualCardApiError(null)}
+        title="Create Virtual Card"
+        description="A one-time fee of ₦500 will be deducted from your wallet to activate this virtual card."
       />
     </>
   );

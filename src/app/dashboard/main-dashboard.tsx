@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+
 export function MainDashboard() {
   const { balance } = useAuth();
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);

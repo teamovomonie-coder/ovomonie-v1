@@ -8,6 +8,8 @@ import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CustomLink from '@/components/layout/custom-link';
 
+
+
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
-import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles } from 'lucide-react';
+import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 const loginSchema = z.object({
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
@@ -31,6 +33,7 @@ function LoginFormContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPin, setShowPin] = useState(false);
   const trustSignals = useMemo(
     () => [
       {
@@ -155,9 +158,6 @@ function LoginFormContent() {
                 <Badge variant="secondary" className="text-xs text-primary">Secure PIN</Badge>
               </div>
               <CardTitle className="text-3xl font-semibold">Welcome back</CardTitle>
-              <CardDescription className="text-base">
-                Access your Nigerian microfinance account with your registered phone number and 6-digit PIN.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <Form {...form}>
@@ -187,7 +187,22 @@ function LoginFormContent() {
                       <FormItem>
                         <FormLabel>6-Digit PIN</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••" maxLength={6} inputMode="numeric" {...field} />
+                          <div className="relative">
+                            <Input
+                              type={showPin ? "text" : "password"}
+                              placeholder="••••••"
+                              maxLength={6}
+                              inputMode="numeric"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPin(!showPin)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

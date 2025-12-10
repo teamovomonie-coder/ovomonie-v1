@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Clock3, Smartphone, Building2 } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Clock3, Smartphone, Building2, Eye, EyeOff } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 
 const MOCK_OTP = "123456";
@@ -53,6 +53,10 @@ export default function RegisterPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
+  const [showLoginPin, setShowLoginPin] = useState(false);
+  const [showConfirmLoginPin, setShowConfirmLoginPin] = useState(false);
+  const [showTransactionPin, setShowTransactionPin] = useState(false);
+  const [showConfirmTransactionPin, setShowConfirmTransactionPin] = useState(false);
   const trustSignals = useMemo(
     () => [
       {
@@ -179,78 +183,11 @@ export default function RegisterPage() {
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-4 py-10 lg:flex-row lg:items-stretch lg:px-8 xl:px-12">
         <div className="lg:hidden space-y-4 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-md shadow-primary/10 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <OvoLogo width={40} height={40} />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">CBN Licensed</p>
-              <p className="text-base font-semibold text-foreground">PIN-first onboarding</p>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Create your OVOMONIE account with NDIC-backed protection, BVN-aligned flows, and device-aware security.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {trustSignals.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-100 bg-muted/40 p-3">
-                <div className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4 text-primary" aria-hidden />
-                  <p className="text-sm font-semibold">{item.title}</p>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="hidden w-full max-w-xl flex-col justify-between rounded-3xl bg-primary px-10 py-12 text-primary-foreground shadow-2xl shadow-primary/20 lg:flex">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <OvoLogo className="drop-shadow-lg" />
-              <div>
-                <p className="text-sm text-primary-foreground/80">OVOMONIE Microfinance</p>
-                <p className="text-lg font-semibold">Account Opening</p>
-              </div>
-            </div>
-            <Badge className="border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground">CBN Licensed</Badge>
-          </div>
-
-          <div className="mt-10 space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Secure Onboarding</p>
-              <h1 className="mt-3 text-3xl font-semibold leading-tight">Start saving and transacting in minutes.</h1>
-              <p className="mt-3 text-primary-foreground/80">
-                Built for Nigerians with NDIC-backed deposits, BVN-aligned flows, and PIN-first controls.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {trustSignals.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-primary-foreground/15 bg-primary-foreground/10 p-4 shadow-sm shadow-primary/10"
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5 text-primary-foreground" aria-hidden />
-                    <p className="text-sm font-semibold">{item.title}</p>
-                  </div>
-                  <p className="mt-2 text-sm text-primary-foreground/80">{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-10 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/10 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold">Need help enrolling?</p>
-                <p className="text-sm text-primary-foreground/80">Call 0700-OVO-CARE or reach out to your account officer.</p>
-              </div>
-              <Badge className="border-primary-foreground/30 bg-primary-foreground/20 text-[11px] text-primary-foreground" variant="secondary">
-                24/7 Support
-              </Badge>
-            </div>
-            <p className="mt-3 text-xs text-primary-foreground/80">Every step aligns with CBN/NDIC guidance and device-bound security.</p>
-          </div>
-        </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary mx-7" >
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                            Create an OVOMONIE account
+                          </div>
+           </div>
 
         <div className="flex flex-1 items-center pb-10 lg:pb-0">
           <motion.div
@@ -267,23 +204,16 @@ export default function RegisterPage() {
                       <div className="flex items-start gap-3">
                         <OvoLogo width={44} height={44} />
                         <div className="space-y-2">
-                          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                            <span className="h-2 w-2 rounded-full bg-primary" />
-                            Create an OVOMONIE account
-                          </div>
-                          <CardTitle className="text-3xl font-semibold leading-tight">PIN-first</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Clean, compliant onboarding with your phone, NIN, and secure PINs.
-                          </p>
+                          
+                        
+
                         </div>
                       </div>
                       <Badge className="bg-gradient-to-r from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20">
                         PIN-first
                       </Badge>
                     </div>
-                    <CardDescription className="text-base">
-                      Complete four guided steps in under 3 minutes. We validate your phone, verify your email, capture NIN, and lock in your login/transaction PINs.
-                    </CardDescription>
+                    
                     <div className="space-y-3 rounded-2xl border border-slate-100 bg-muted/40 p-3">
                       <Progress value={progressValue} className="!mt-0" />
                       {currentStep < steps.length && (
@@ -347,10 +277,10 @@ export default function RegisterPage() {
                         )}
                         {currentStep === 3 && (
                           <div className="space-y-4">
-                            <FormField control={form.control} name="loginPin" render={({ field }) => ( <FormItem><FormLabel>Create 6-Digit Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={form.control} name="confirmLoginPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Login PIN</FormLabel><FormControl><Input type="password" placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={form.control} name="transactionPin" render={({ field }) => ( <FormItem><FormLabel>Create 4-Digit Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={form.control} name="confirmTransactionPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Transaction PIN</FormLabel><FormControl><Input type="password" placeholder="••••" maxLength={4} inputMode="numeric" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="loginPin" render={({ field }) => ( <FormItem><FormLabel>Create 6-Digit Login PIN</FormLabel><FormControl><div className="relative"><Input type={showLoginPin ? "text" : "password"} placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /><button type="button" onClick={() => setShowLoginPin(!showLoginPin)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">{showLoginPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="confirmLoginPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Login PIN</FormLabel><FormControl><div className="relative"><Input type={showConfirmLoginPin ? "text" : "password"} placeholder="••••••" maxLength={6} inputMode="numeric" {...field} /><button type="button" onClick={() => setShowConfirmLoginPin(!showConfirmLoginPin)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">{showConfirmLoginPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="transactionPin" render={({ field }) => ( <FormItem><FormLabel>Create 4-Digit Transaction PIN</FormLabel><FormControl><div className="relative"><Input type={showTransactionPin ? "text" : "password"} placeholder="••••" maxLength={4} inputMode="numeric" {...field} /><button type="button" onClick={() => setShowTransactionPin(!showTransactionPin)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">{showTransactionPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="confirmTransactionPin" render={({ field }) => ( <FormItem><FormLabel>Confirm Transaction PIN</FormLabel><FormControl><div className="relative"><Input type={showConfirmTransactionPin ? "text" : "password"} placeholder="••••" maxLength={4} inputMode="numeric" {...field} /><button type="button" onClick={() => setShowConfirmTransactionPin(!showConfirmTransactionPin)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">{showConfirmTransactionPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></FormControl><FormMessage /></FormItem> )} />
                             <Button type="submit" className="w-full" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Account</Button>
                           </div>
                         )}
