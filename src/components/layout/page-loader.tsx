@@ -25,6 +25,7 @@ export function PageLoader() {
         <div className="fixed inset-0 bg-white dark:bg-slate-950 flex items-center justify-center z-50">
             <div className="relative w-24 h-24 flex items-center justify-center">
                 {/* Spinning logo */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src="/images/ovomonie-watermark.png"
                     alt="OVOMONIE Loading"

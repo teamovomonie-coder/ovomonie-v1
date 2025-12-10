@@ -1,5 +1,4 @@
 
-// @ts-nocheck
 // Server-side user-data: migrated to Firebase Admin SDK
 import { getDb, admin } from '@/lib/firebaseAdmin';
 

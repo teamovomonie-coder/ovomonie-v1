@@ -21,7 +21,7 @@ export default function Watermark({ variant = 'cover', opacity = 0.06, maxSize =
 
   useEffect(() => {
     if (srcIndex >= sources.length) setTriedAll(true);
-  }, [srcIndex]);
+  }, [srcIndex, sources.length]);
 
   const handleImgError = () => setSrcIndex((i) => i + 1);
 

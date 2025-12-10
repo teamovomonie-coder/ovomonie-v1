@@ -19,8 +19,7 @@ export async function POST(request: Request) {
         // Ensure Firestore Admin is initialized and available
         let db: FirebaseFirestore.Firestore;
         try {
-            // getDb throws with clear message if initialization failed
-            // eslint-disable-next-line @typescript-eslint/await-thenable
+            // getDb returns a promise that resolves to Firestore instance
             db = await getDb() as any;
         } catch (initErr) {
             const msg = initErr instanceof Error ? initErr.message : String(initErr);
