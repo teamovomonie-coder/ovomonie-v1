@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/layout/app-shell";
-import { InventoryDashboard } from "@/components/inventory/inventory-dashboard";
+import { ComingSoonInventory } from "@/components/inventory/coming-soon-inventory";
 
 export default function InventoryPage() {
   return (
     <AppShell>
-      <InventoryDashboard />
+      <ComingSoonInventory />
     </AppShell>
   );
 }
