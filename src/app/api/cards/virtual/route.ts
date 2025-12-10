@@ -80,7 +80,9 @@ export async function POST(request: Request) {
       expiryDate,
       cvv,
       isActive: true,
-      balance: 0,
+      // Persist the user's available wallet balance (after fee deduction)
+      // so the virtual card reflects the same available balance as the wallet.
+      balance: newBalance,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + CARD_VALIDITY_YEARS * 365 * 24 * 60 * 60 * 1000),
       clientReference,

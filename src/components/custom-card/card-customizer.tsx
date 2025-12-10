@@ -284,7 +284,8 @@ export function CardCustomizer() {
         expiryDate: result.expiryDate,
         cvv: result.cvv,
         isActive: true,
-        balance: 0,
+        // Use the wallet balance returned by the API (in kobo)
+        balance: typeof result.newBalanceInKobo === 'number' ? result.newBalanceInKobo : 0,
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       };
@@ -304,7 +305,25 @@ export function CardCustomizer() {
       });
 
       toast({ title: "Virtual Card Created!", description: "Your card is ready to use for online transactions." });
-      
+      // Persist a pending receipt for the virtual card so `/success` can render it
+      try {
+        const pendingReceipt = {
+          type: 'virtual-card',
+          data: {
+            cardId: result.cardId,
+            cardNumber: result.cardNumber,
+            expiryDate: result.expiryDate,
+            cvv: result.cvv,
+          },
+          transactionId: clientReference,
+          completedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        try { window.dispatchEvent(new Event('ovo-pending-receipt-updated')); } catch (e) {}
+      } catch (e) {
+        console.error('Failed to persist virtual-card pending receipt', e);
+      }
+
       // Close modal and navigate to virtual card view
       setIsPinModalOpenForVirtual(false);
       
