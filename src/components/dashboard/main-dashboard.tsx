@@ -35,30 +35,30 @@ export function MainDashboard() {
               <div className="absolute right-4 bottom-6 h-32 w-32 rounded-full bg-primary-foreground/15 blur-3xl" />
             </div>
             <CardContent className="relative p-5 md:p-6 flex flex-col gap-3">
-                <div className="flex justify-between items-center text-sm text-primary-foreground/80">
-                    <span className="uppercase tracking-[0.2em] text-xs">Available Balance</span>
-                    <CustomLink href="/statements" className="text-xs font-semibold flex items-center gap-1 underline-offset-4 hover:underline">
+                <div className="flex justify-between items-center text-xs text-primary-foreground/80">
+                    <span className="uppercase tracking-[0.2em] text-[11px]">Available Balance</span>
+                    <CustomLink href="/statements" className="text-[11px] font-semibold flex items-center gap-1 underline-offset-4 hover:underline">
                         Transaction History <ArrowRight className="h-3 w-3" />
                     </CustomLink>
                 </div>
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                        <div className="text-3xl font-semibold tracking-tight truncate">
+                        <div className="text-2xl font-semibold tracking-tight truncate">
                             {balance === null ? (
-                            <Skeleton className="h-9 w-36 bg-primary-foreground/20" />
+                            <Skeleton className="h-8 w-32 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (
                             new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(balance / 8)
                             ) : (
                             '******'
                             )}
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20 flex-shrink-0" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground hover:bg-primary-foreground/20 flex-shrink-0" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
                             {isBalanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                     </div>
                     <CustomLink
                       href="/add-money"
-                      className="group inline-flex items-center gap-2 bg-white text-primary text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 shadow-md shadow-black/10 transition hover:translate-y-[-1px] hover:shadow-lg hover:bg-primary-foreground/90 hover:text-primary-foreground"
+                      className="group inline-flex items-center gap-1.5 bg-white text-primary text-[11px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0 shadow-md shadow-black/10 transition hover:translate-y-[-1px] hover:shadow-lg hover:bg-primary-foreground/90 hover:text-primary-foreground"
                     >
                       <span className="inline-flex h-2 w-2 rounded-full bg-primary animate-pulse" />
                       Add Money
