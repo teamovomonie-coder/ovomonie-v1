@@ -10,7 +10,8 @@ import { logger } from '@/lib/logger';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -40,7 +41,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

@@ -10,12 +10,30 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        // Read headers from the incoming request directly to ensure we capture
+        // the Authorization header sent from the client fetch call.
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug logging for development: record whether Authorization header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('verify-pin request received', { authPresent: Boolean(authHeader), path: '/api/auth/verify-pin' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in verify-pin');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
         const { pin } = await request.json();
+
+        // Log the incoming body minimally in dev to help debugging (do not log sensitive tokens)
+        try {
+            logger.debug('verify-pin payload', { pinProvided: typeof pin === 'string' && pin.length > 0 });
+        } catch (e) {
+            logger.warn('Could not log verify-pin payload');
+        }
 
         if (!pin || String(pin).length !== 4) {
             return NextResponse.json({ message: 'A valid 4-digit transaction PIN is required.' }, { status: 400 });

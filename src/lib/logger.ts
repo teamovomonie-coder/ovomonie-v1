@@ -8,9 +8,15 @@ function log(level: LogLevel, message: unknown, ...meta: unknown[]) {
     };
 
     if (meta.length === 1) {
-        entry.meta = meta[0];
+        const m = meta[0];
+        if (m instanceof Error) {
+            entry.meta = { message: m.message, stack: m.stack };
+        } else {
+            entry.meta = m;
+        }
     } else if (meta.length > 1) {
-        entry.meta = meta;
+        // If any meta items are Errors, convert them to plain objects with stack/messages
+        entry.meta = meta.map(item => item instanceof Error ? { message: item.message, stack: item.stack } : item);
     }
 
     const serialized = JSON.stringify(entry);

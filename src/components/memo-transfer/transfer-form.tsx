@@ -234,6 +234,7 @@ export function TransferForm() {
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
       setStep('receipt');
+      return { success: true, data: result.data };
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';
@@ -256,6 +257,7 @@ export function TransferForm() {
     setSubmittedData(null);
     setPhotoPreview(null);
     setRecipientName(null);
+    try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     form.reset();
   };
 
@@ -283,7 +285,17 @@ export function TransferForm() {
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>Confirm Transfer</Button>
+            <Button className="w-full" onClick={() => {
+                // Save pending receipt so the global success page can render the same UI
+                try {
+                  if (submittedData && recipientName) {
+                    const receipt = { type: 'memo-transfer', data: submittedData, recipientName };
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify(receipt));
+                    console.debug('[TransferForm] set ovo-pending-receipt', receipt);
+                  }
+                } catch (e) { console.error('[TransferForm] failed to set receipt', e); }
+                setIsPinModalOpen(true);
+              }} disabled={isProcessing}>Confirm Transfer</Button>
           </CardFooter>
         </Card>
         <PinModal

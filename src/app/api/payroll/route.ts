@@ -10,9 +10,18 @@ import { logger } from '@/lib/logger';
 
 
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that payroll GET request arrived and whether auth header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('payroll GET request received', { authPresent: Boolean(authHeader), path: '/api/payroll' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in payroll GET');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -33,7 +42,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that payroll POST request arrived and whether auth header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('payroll POST request received', { authPresent: Boolean(authHeader), path: '/api/payroll' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in payroll POST');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

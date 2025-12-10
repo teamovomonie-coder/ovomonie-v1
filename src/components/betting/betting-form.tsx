@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -66,7 +67,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-// --- Receipt Component ---
+// --- Receipt Component (DEPRECATED - Using /success page instead) ---
 
 function BettingReceipt({ data, verifiedName, onReset }: { data: FormData; verifiedName: string; onReset: () => void }) {
   const { toast } = useToast();
@@ -127,10 +128,10 @@ function BettingReceipt({ data, verifiedName, onReset }: { data: FormData; verif
 // --- Main Form Component ---
 
 export function BettingForm() {
+  const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verifiedName, setVerifiedName] = useState<string | null>(null);
-  const [receiptData, setReceiptData] = useState<FormData | null>(null);
   const { toast } = useToast();
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -238,9 +239,20 @@ export function BettingForm() {
             description: `You funded your ${platformName} account with ₦${fundingData.amount.toLocaleString()}.`,
             category: 'transaction',
         });
-        setReceiptData(fundingData);
+        
+        // Save pending receipt and navigate to /success
+        const pendingReceipt = {
+          type: 'betting',
+          data: fundingData,
+          recipientName: verifiedName,
+          transactionId: clientReference,
+          completedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
         form.reset();
         setIsPinModalOpen(false);
+        setVerifiedName(null);
+        router.push('/success');
 
     } catch (error: any) {
         let description = "An unknown error occurred.";
@@ -263,9 +275,6 @@ export function BettingForm() {
     form.reset();
   }
 
-  if (receiptData && verifiedName) {
-    return <BettingReceipt data={receiptData} verifiedName={verifiedName} onReset={resetForm} />;
-  }
 
   return (
     <>

@@ -10,7 +10,16 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(await headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
+
+        // Debug: log that the internal transfer request arrived and whether auth header was present
+        try {
+            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
+            logger.debug('internal transfer request received', { authPresent: Boolean(authHeader), path: '/api/transfers/internal' });
+        } catch (e) {
+            logger.warn('Could not read authorization header for debug logging in internal transfer');
+        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -39,70 +40,11 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipientName: string; onReset: () => void }) {
-  const { toast } = useToast();
-  
-  const handleShare = () => {
-    toast({
-      title: "Shared!",
-      description: "Your memorable receipt has been shared.",
-    });
-  }
 
-  return (
-    <Card className="w-full max-w-sm mx-auto shadow-lg border-none bg-transparent">
-      <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
-        <h2 className="text-lg font-bold">MemoTransfer Receipt</h2>
-        <Wallet className="w-6 h-6" />
-      </div>
-      <CardContent className="p-4 bg-card">
-        <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
-          {data.photo && (
-            <div className="relative w-full aspect-video mb-4 rounded-lg overflow-hidden">
-              <Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" />
-            </div>
-          )}
-          <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">You sent</p>
-            <p className="text-4xl font-bold text-foreground">
-              ₦{data.amount.toLocaleString()}
-            </p>
-            <p className="text-sm text-muted-foreground">to</p>
-            <p className="text-lg font-semibold text-foreground">{recipientName}</p>
-            <p className="text-sm text-muted-foreground">Ovomonie</p>
-          </div>
-          {data.message && (
-            <blockquote className="mt-4 border-l-4 border-primary/20 pl-4 italic text-center text-muted-foreground">
-              "{data.message}"
-            </blockquote>
-          )}
-          <div className="text-xs text-muted-foreground pt-4 space-y-2">
-            <div className="flex justify-between">
-              <span>Date</span>
-              <span>{new Date().toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Ref ID</span>
-              <span>OVO-INT-{Date.now()}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col gap-2 p-4 pt-0">
-        <p className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
-        <Button className="w-full" onClick={handleShare}>
-          <Share2 className="mr-2 h-4 w-4" /> Share Receipt
-        </Button>
-        <Button variant="outline" className="w-full" onClick={onReset}>
-          Make Another Transfer
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
 
 export function InternalTransferForm() {
-  const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
+  const router = useRouter();
+  const [step, setStep] = useState<'form' | 'summary'>('form');
   const [isMemoTransfer, setIsMemoTransfer] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -241,6 +183,9 @@ export function InternalTransferForm() {
       
       const clientReference = `internal-transfer-${crypto.randomUUID()}`;
 
+      // Debug: log outgoing internal transfer request
+      console.debug('[InternalTransfer] internal transfer request', { url: '/api/transfers/internal', tokenPresent: Boolean(token), payload: { clientReference, recipientAccountNumber: submittedData.accountNumber, amount: submittedData.amount } });
+
       const response = await fetch('/api/transfers/internal', {
         method: 'POST',
         headers: {
@@ -256,6 +201,7 @@ export function InternalTransferForm() {
       });
 
       const result = await response.json();
+      console.debug('[InternalTransfer] internal transfer response', { status: response.status, ok: response.ok, body: result });
       if (!response.ok) {
         const error: any = new Error(result.message || 'An error occurred during the transfer.');
         error.response = response; 
@@ -275,7 +221,25 @@ export function InternalTransferForm() {
 
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
-      setStep('receipt');
+
+      // Save pending receipt to localStorage and navigate to success page
+      try {
+        const receiptType = isMemoTransfer ? 'memo-transfer' : 'internal-transfer';
+        const pendingReceipt = {
+          type: receiptType,
+          data: submittedData,
+          recipientName,
+          transactionId: result.data.transactionId || `OVO-INT-${Date.now()}`,
+          completedAt: new Date().toLocaleString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+      } catch (e) {
+        console.warn('[InternalTransfer] could not save pending receipt', e);
+      }
+
+      // Navigate to success page
+      router.push('/success');
+      return { success: true, data: result.data };
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';
@@ -293,7 +257,7 @@ export function InternalTransferForm() {
     } finally {
       setIsProcessing(false);
     }
-  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
+  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance, router, isMemoTransfer]);
 
   const resetForm = useCallback(() => {
     setStep('form');
@@ -301,12 +265,9 @@ export function InternalTransferForm() {
     setPhotoPreview(null);
     setRecipientName(null);
     setIsMemoTransfer(false);
+    try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     form.reset();
   }, [form]);
-
-  if (step === 'receipt' && submittedData && recipientName) {
-    return <MemoReceipt data={submittedData} recipientName={recipientName} onReset={resetForm} />;
-  }
 
   if (step === 'summary' && submittedData && recipientName) {
     return (
@@ -358,7 +319,14 @@ export function InternalTransferForm() {
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>
+            <Button className="w-full" onClick={() => {
+                try {
+                  if (submittedData && recipientName) {
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: submittedData, recipientName }));
+                  }
+                } catch (e) {}
+                setIsPinModalOpen(true);
+              }} disabled={isProcessing}>
               Confirm Transfer
             </Button>
           </CardFooter>

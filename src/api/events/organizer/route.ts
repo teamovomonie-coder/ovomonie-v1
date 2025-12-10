@@ -11,7 +11,8 @@ import { logger } from '@/lib/logger';
 
 
 export async function GET(request: Request) {
-    const userId = getUserIdFromToken(headers());
+    const reqHeaders = request.headers as { get(name: string): string | null };
+    const userId = getUserIdFromToken(reqHeaders);
     if (!userId) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

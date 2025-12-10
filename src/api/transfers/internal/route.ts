@@ -2,15 +2,15 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { performTransfer } from '@/lib/user-data';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { getDb } from '@/lib/firebaseAdmin';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
 
 
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(headers());
+        const reqHeaders = request.headers as { get(name: string): string | null };
+        const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -25,12 +25,12 @@ export async function POST(request: Request) {
              return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
         }
 
-        const senderRef = doc(db, "users", userId);
-        const senderDoc = await getDoc(senderRef);
-        if (!senderDoc.exists()) {
-            throw new Error("Sender account not found.");
+        const db = await getDb();
+        const senderDocSnap = await db.collection('users').doc(userId).get();
+        if (!senderDocSnap.exists) {
+            throw new Error('Sender account not found.');
         }
-        const senderAccountDetails = senderDoc.data();
+        const senderAccountDetails = senderDocSnap.data() as any;
         const senderAccountNumber = senderAccountDetails.accountNumber;
 
         if (recipientAccountNumber === senderAccountNumber) {

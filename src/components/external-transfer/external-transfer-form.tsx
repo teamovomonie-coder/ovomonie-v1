@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -111,7 +112,8 @@ const topBanks = nigerianBanks.filter(b => topBankCodes.includes(b.code));
 const otherBanks = nigerianBanks.filter(b => !topBankCodes.includes(b.code));
 
 export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: boolean }) {
-  const [step, setStep] = useState<'form' | 'summary' | 'receipt'>('form');
+  const router = useRouter();
+  const [step, setStep] = useState<'form' | 'summary'>('form');
   const [isMemoTransfer, setIsMemoTransfer] = useState(defaultMemo);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -285,7 +287,26 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
 
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
-      setStep('receipt');
+
+      // Save pending receipt to localStorage and navigate to success page
+      try {
+        const receiptType = isMemoTransfer ? 'memo-transfer' : 'external-transfer';
+        const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+        const pendingReceipt = {
+          type: receiptType,
+          data: submittedData,
+          recipientName,
+          bankName,
+          transactionId: result.data.transactionId || `OVO-EXT-${Date.now()}`,
+          completedAt: new Date().toLocaleString(),
+        };
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+      } catch (e) {
+        console.warn('[ExternalTransfer] could not save pending receipt', e);
+      }
+
+      // Navigate to success page
+      router.push('/success');
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';
@@ -304,7 +325,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     } finally {
       setIsProcessing(false);
     }
-  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance]);
+  }, [addNotification, logout, recipientName, submittedData, toast, updateBalance, router, isMemoTransfer]);
 
 
   const resetForm = useCallback(() => {
@@ -315,10 +336,6 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     setIsMemoTransfer(defaultMemo);
     form.reset();
   }, [defaultMemo, form]);
-
-  if (step === 'receipt' && submittedData && recipientName) {
-    return <MemoReceipt data={submittedData} recipientName={recipientName} onReset={resetForm} />;
-  }
 
   if (step === 'summary' && submittedData && recipientName) {
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';

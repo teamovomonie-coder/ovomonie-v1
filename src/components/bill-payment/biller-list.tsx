@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription as UICardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -176,14 +177,15 @@ export function BillerList() {
   const [verifiedName, setVerifiedName] = useState<string | null>(null);
   const [selectedBouquetId, setSelectedBouquetId] = useState<string>('');
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
-  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+    const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+    const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [dialogView, setDialogView] = useState<'form' | 'summary'>('form');
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { balance, updateBalance, logout } = useAuth();
   const { addNotification } = useNotifications();
+    const router = useRouter();
 
 
   const resetDialogState = () => {
@@ -303,15 +305,27 @@ export function BillerList() {
             category: 'transaction',
         });
 
-        const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
-        setReceiptData({
-            biller: selectedBiller!,
-            amount: paymentData.amount,
-            accountId: accountId,
-            verifiedName: verifiedName,
-            bouquet,
-        });
-        setIsPinModalOpen(false);
+                const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
+
+                // Save pending receipt and navigate to /success
+                const pendingReceipt = {
+                    type: 'bill-payment',
+                    data: {
+                        biller: { id: selectedBiller!.id, name: selectedBiller!.name },
+                        amount: paymentData.amount,
+                        accountId,
+                        verifiedName,
+                        bouquet: bouquet || null,
+                    },
+                    transactionId: clientReference,
+                    completedAt: new Date().toISOString(),
+                };
+                // Debug: log pending receipt payload to help diagnose malformed data issues
+                try { console.debug('[BillerList] pendingReceipt', pendingReceipt); } catch (e) {}
+                localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+                setIsPinModalOpen(false);
+                resetDialogState();
+                router.push('/success');
 
     } catch (error: any) {
         let description = "An unknown error occurred.";
@@ -550,7 +564,7 @@ export function BillerList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <PinModal 
+            <PinModal 
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmPayment}
@@ -558,7 +572,7 @@ export function BillerList() {
         error={apiError}
         onClearError={() => setApiError(null)}
       />
-      {receiptData && <PaymentReceipt data={receiptData} onDone={resetDialogState} />}
+            {/* receipts are now shown on /success page using pending receipt saved to localStorage */}
     </>
   );
 }
