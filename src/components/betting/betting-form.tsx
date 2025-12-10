@@ -270,7 +270,6 @@ export function BettingForm() {
 
   const resetForm = () => {
     setVerifiedName(null);
-    setReceiptData(null);
     setFundingData(null);
     form.reset();
   }

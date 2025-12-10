@@ -12,9 +12,12 @@ import { AirtimeReceipt } from '@/components/airtime/airtime-receipt';
 import { BillPaymentReceipt } from '@/components/bill-payment/bill-payment-receipt';
 
 type ReceiptStore = {
+  transactionId: string | undefined;
   type?: string;
   data: any;
   recipientName?: string;
+  completedAt?: string;
+  bankName?: string;
 };
 
 export default function SuccessPage() {

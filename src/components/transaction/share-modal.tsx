@@ -138,12 +138,12 @@ export default function ShareModal({ open, onOpenChange, targetRef, title = 'Rec
 
   const handleShareTo = async (platform: 'whatsapp' | 'twitter' | 'facebook') => {
     // Prefer sharing the PNG via native share (will surface installed apps)
-    if (navigator.share) {
+    if (supportsShareApi) {
       try {
         const canvas = await captureCanvas();
         const blob = await blobFromCanvas(canvas);
         const file = new File([blob], `${title.replace(/\s+/g, '-')}.png`, { type: 'image/png' });
-        if ((navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        if (supportsFileShare && (navigator as any).canShare({ files: [file] })) {
           await (navigator as any).share({ files: [file], title, text: `${title} - Receipt from Ovomonie` });
           onOpenChange(false);
           return;
