@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -60,7 +59,7 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
                 <TooltipTrigger asChild>
                     <CustomLink href={href} className={cn(
                         "flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors",
-                        isActive ? 'text-primary font-semibold' : 'text-muted-foreground hover:text-primary'
+                        isActive ? 'text-white font-semibold' : 'text-slate-200/80 hover:text-white'
                     )}>
                         <Icon className="h-6 w-6" />
                         <span>{label}</span>
@@ -124,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex flex-col min-h-screen bg-background">
             {showHeader && (
-                <header className="fixed top-0 left-0 right-0 h-16 bg-background text-foreground flex items-center justify-between px-4 z-50 border-b">
+                <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white flex items-center justify-between px-4 z-50 border-b border-[#13284d] shadow-[0_4px_12px_rgba(0,0,0,0.25)] backdrop-blur">
                      <div className="flex items-center gap-3">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -173,7 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {children}
             </main>
 
-            <footer className="fixed bottom-0 left-0 right-0 bg-background z-50 border-t">
+            <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white z-50 border-t border-[#13284d] shadow-[0_-6px_18px_rgba(0,0,0,0.25)] backdrop-blur">
                 <nav className="flex items-center h-16 max-w-2xl mx-auto">
                     {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
                 </nav>
