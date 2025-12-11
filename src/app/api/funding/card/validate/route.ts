@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       const snaps = await getDocs(q as any);
       if (!snaps.empty) {
         const txDoc = snaps.docs[0];
-        const txData = txDoc.data();
+        const txData = txDoc.data() as any;
         const userId = txData.userId;
         const amount = txData.amount;
         const txRef = doc(db, 'financialTransactions', txDoc.id);
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
           const userRef = doc(db, 'users', userId);
           const userSnap = await transaction.get(userRef as any);
           if (!userSnap.exists()) throw new Error('User not found');
-          const userData = userSnap.data();
+          const userData = userSnap.data() as any;
           const newBal = (userData.balance || 0) + amount;
           newBalanceInKobo = newBal;
           transaction.update(userRef, { balance: newBal });
