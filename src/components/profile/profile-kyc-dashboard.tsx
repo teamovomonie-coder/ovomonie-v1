@@ -134,8 +134,46 @@ export function ProfileKycDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="border border-slate-200 shadow-md rounded-2xl">
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <div className="space-y-4 order-1">
+          <Card className="border border-slate-200 shadow-md rounded-2xl">
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <User />
+                  <span>Full Name</span>
+                </div>
+                <span className="font-semibold">{user?.fullName}</span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail />
+                  <span>Email Address</span>
+                </div>
+                <span className="font-semibold">paago@example.com</span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone />
+                  <span>Phone Number</span>
+                </div>
+                <span className="font-semibold">08012345678</span>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" className="ml-auto" disabled>
+                Edit Profile
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+
+        <Card className="border border-slate-200 shadow-md rounded-2xl order-2 lg:order-1">
           <CardHeader>
             <CardTitle>KYC Verification</CardTitle>
             <CardDescription>Complete tiers to increase your transaction limits.</CardDescription>
@@ -175,7 +213,7 @@ export function ProfileKycDashboard() {
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
+        <div className="space-y-4 order-3 lg:col-span-2">
           <Card className="border border-slate-200 shadow-md rounded-2xl">
             <CardHeader>
               <CardTitle>Account</CardTitle>
@@ -203,42 +241,6 @@ export function ProfileKycDashboard() {
                 </CustomLink>
               </Button>
             </CardContent>
-          </Card>
-
-          <Card className="border border-slate-200 shadow-md rounded-2xl">
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <User />
-                  <span>Full Name</span>
-                </div>
-                <span className="font-semibold">{user?.fullName}</span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail />
-                  <span>Email Address</span>
-                </div>
-                <span className="font-semibold">paago@example.com</span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone />
-                  <span>Phone Number</span>
-                </div>
-                <span className="font-semibold">08012345678</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="ml-auto" disabled>
-                Edit Profile
-              </Button>
-            </CardFooter>
           </Card>
         </div>
       </div>
