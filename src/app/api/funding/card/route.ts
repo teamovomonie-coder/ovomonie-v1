@@ -83,7 +83,7 @@ export async function POST(request: Request) {
                 const userRef = doc(db, 'users', userId);
                 const userDoc = await tx.get(userRef as any);
                 if (!userDoc.exists()) throw new Error('User not found');
-                const userData = userDoc.data();
+                const userData = userDoc.data() as any;
                 newBalance = (userData.balance || 0) + amountInKobo;
                 tx.update(userRef, { balance: newBalance });
                 await updateDoc(pendingRef, { status: 'completed', completedAt: serverTimestamp(), balanceAfter: newBalance });
