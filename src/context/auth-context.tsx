@@ -18,6 +18,7 @@ interface AuthContextType {
   login: (phone: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUserData: () => Promise<void>;
+  updateBalance: (newBalanceInKobo: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,8 +116,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     performLogout();
   }, [performLogout]);
 
+  const updateBalance = useCallback((newBalanceInKobo: number) => {
+    setBalance(newBalanceInKobo);
+    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance }}>
       {children}
     </AuthContext.Provider>
   );
