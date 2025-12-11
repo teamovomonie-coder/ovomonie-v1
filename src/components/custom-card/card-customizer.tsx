@@ -482,6 +482,60 @@ export function CardCustomizer() {
     setIsPinModalOpenForVirtual(true);
   };
 
+  // Manage (deactivate/delete) modal state
+  const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [manageProcessing, setManageProcessing] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
+  const [pendingManageAction, setPendingManageAction] = useState<{ cardId: string; action: 'deactivate' | 'delete' } | null>(null);
+
+  const openDeactivateConfirm = (cardId: string) => {
+    setPendingManageAction({ cardId, action: 'deactivate' });
+    setManageError(null);
+    setManageModalOpen(true);
+  };
+
+  const openDeleteConfirm = (cardId: string) => {
+    setPendingManageAction({ cardId, action: 'delete' });
+    setManageError(null);
+    setManageModalOpen(true);
+  };
+
+  const handleConfirmManage = async () => {
+    if (!pendingManageAction) return;
+    const { cardId, action } = pendingManageAction;
+    setManageProcessing(true);
+    setManageError(null);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const res = await fetch(`/api/cards/virtual/${encodeURIComponent(cardId)}/manage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
+
+      if (action === 'deactivate') {
+        setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false } : c));
+        toast({ title: 'Card Deactivated', description: json.message || 'Card has been deactivated.' });
+      } else if (action === 'delete') {
+        setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+        toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
+      }
+
+      setManageModalOpen(false);
+      setPendingManageAction(null);
+    } catch (e: any) {
+      console.error('Manage action error', e);
+      setManageError(e?.message || 'An error occurred while performing the action.');
+      toast({ variant: 'destructive', title: 'Action Failed', description: e?.message || 'Could not complete the action.' });
+    } finally {
+      setManageProcessing(false);
+    }
+  };
+
   const renderContent = () => {
     const showNavTabs = view === 'customize' || view === 'virtual-card';
 
@@ -707,6 +761,8 @@ export function CardCustomizer() {
                         onCopyToClipboard={copyToClipboard}
                         onLoadBalance={handleLoadBalance}
                         onRetry={handleRetryVirtualCard}
+                        onDeactivate={openDeactivateConfirm}
+                        onDelete={openDeleteConfirm}
                       />
                     ))}
                   </div>
@@ -760,6 +816,21 @@ export function CardCustomizer() {
         title="Create Virtual Card"
         description="A one-time fee of ₦1,000 will be deducted from your wallet to activate this virtual card."
       />
+        <PinModal
+          open={manageModalOpen}
+          onOpenChange={setManageModalOpen}
+          successUrl={null}
+          onConfirm={handleConfirmManage}
+          isProcessing={manageProcessing}
+          error={manageError}
+          onClearError={() => setManageError(null)}
+          title={pendingManageAction?.action === 'delete' ? 'Confirm Delete' : 'Confirm Deactivate'}
+          description={
+            pendingManageAction?.action === 'delete'
+              ? 'Enter your PIN to permanently delete this virtual card.'
+              : 'Enter your PIN to deactivate this virtual card. Deactivated cards cannot be used for transactions.'
+          }
+        />
     </>
   );
 }

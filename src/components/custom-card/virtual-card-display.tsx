@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, Copy, AlertCircle, Clock } from 'lucide-react';
+import { Eye, EyeOff, Copy, AlertCircle, Clock, Trash2, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import Image from 'next/image';
@@ -28,6 +28,8 @@ interface VirtualCardDisplayProps {
   onCopyToClipboard: (text: string, label: string) => void;
   onLoadBalance?: (cardId: string) => void;
   onRetry?: (cardId: string) => void;
+  onDeactivate?: (cardId: string) => void;
+  onDelete?: (cardId: string) => void;
 }
 
 export function VirtualCardDisplay({
@@ -37,6 +39,8 @@ export function VirtualCardDisplay({
   onCopyToClipboard,
   onLoadBalance,
   onRetry,
+  onDeactivate,
+  onDelete,
 }: VirtualCardDisplayProps) {
   const { balance, user } = useAuth();
   const { toast } = useToast();
@@ -242,6 +246,33 @@ export function VirtualCardDisplay({
             <span className="hidden sm:inline">Copy Number</span>
             <span className="sm:hidden">Copy</span>
           </Button>
+
+          {/* Deactivate button (visible when active) */}
+          {card.isActive && onDeactivate && (
+            <Button
+              onClick={() => onDeactivate(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={card.pending || card.failed}
+            >
+              <Power className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Deactivate</span>
+              <span className="sm:hidden">Off</span>
+            </Button>
+          )}
+
+          {/* Delete button */}
+          {onDelete && (
+            <Button
+              onClick={() => onDelete(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white"
+              disabled={card.pending}
+            >
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Delete</span>
+              <span className="sm:hidden">Del</span>
+            </Button>
+          )}
+
           {card.failed && onRetry && (
             <Button
               onClick={() => onRetry(card.id)}
