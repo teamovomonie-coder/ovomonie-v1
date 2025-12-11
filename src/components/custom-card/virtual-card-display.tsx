@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, Copy } from 'lucide-react';
+import { Eye, EyeOff, Copy, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import Image from 'next/image';
@@ -17,14 +17,17 @@ export interface VirtualCard {
   balance: number;
   createdAt: Date;
   expiresAt: Date;
+  pending?: boolean;
+  failed?: boolean;
 }
 
 interface VirtualCardDisplayProps {
-  card: VirtualCard;
+  card: VirtualCard & { pending?: boolean; failed?: boolean };
   isNumberVisible: boolean;
   onToggleNumberVisibility: (cardId: string) => void;
   onCopyToClipboard: (text: string, label: string) => void;
   onLoadBalance?: (cardId: string) => void;
+  onRetry?: (cardId: string) => void;
 }
 
 export function VirtualCardDisplay({
@@ -33,6 +36,7 @@ export function VirtualCardDisplay({
   onToggleNumberVisibility,
   onCopyToClipboard,
   onLoadBalance,
+  onRetry,
 }: VirtualCardDisplayProps) {
   const { balance, user } = useAuth();
   const { toast } = useToast();
@@ -56,6 +60,23 @@ export function VirtualCardDisplay({
       exit={{ opacity: 0, y: -10 }}
       className="w-full px-2 sm:px-0"
     >
+      {/* Status Badge */}
+      {(card.pending || card.failed) && (
+        <div className="mb-3 flex justify-center">
+          {card.pending && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 border border-blue-300">
+              <Clock className="h-4 w-4 text-blue-600 animate-spin" />
+              <span className="text-sm font-medium text-blue-700">Pending Creation</span>
+            </div>
+          )}
+          {card.failed && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 border border-red-300">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-medium text-red-700">Creation Failed</span>
+            </div>
+          )}
+        </div>
+      )}
       {/* Virtual Card Visual */}
       <div className="relative w-full max-w-2xl mx-auto aspect-[1.586] rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl overflow-hidden mb-4 sm:mb-6">
         {/* Background Gradient */}
@@ -214,12 +235,21 @@ export function VirtualCardDisplay({
           <Button
             onClick={() => onCopyToClipboard(card.cardNumber, 'Card Number')}
             variant="outline"
+            disabled={card.pending || card.failed}
             className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base border-blue-200 hover:bg-blue-50"
           >
             <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Copy Number</span>
             <span className="sm:hidden">Copy</span>
           </Button>
+          {card.failed && onRetry && (
+            <Button
+              onClick={() => onRetry(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white"
+            >
+              Retry
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>

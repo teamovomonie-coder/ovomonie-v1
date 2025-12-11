@@ -476,6 +476,12 @@ export function CardCustomizer() {
       setView('customize');
   };
 
+  // Retry a failed virtual card creation by removing the failed card and opening create modal again
+  const handleRetryVirtualCard = (cardId: string) => {
+    setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+    setIsPinModalOpenForVirtual(true);
+  };
+
   const renderContent = () => {
     const showNavTabs = view === 'customize' || view === 'virtual-card';
 
@@ -700,6 +706,7 @@ export function CardCustomizer() {
                         onToggleNumberVisibility={toggleCardNumberVisibility}
                         onCopyToClipboard={copyToClipboard}
                         onLoadBalance={handleLoadBalance}
+                        onRetry={handleRetryVirtualCard}
                       />
                     ))}
                   </div>
