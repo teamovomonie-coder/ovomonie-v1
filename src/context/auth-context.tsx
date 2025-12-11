@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface User {
@@ -113,13 +113,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             throw new Error("Session expired due to security update.");
         }
 
+        // If user has no photoUrl, set a generated placeholder and persist it
+        let finalPhotoUrl = userData.photoUrl ?? null;
+        if (!finalPhotoUrl) {
+          try {
+            const nameForAvatar = encodeURIComponent(userData.fullName || 'User');
+            finalPhotoUrl = `https://ui-avatars.com/api/?name=${nameForAvatar}&background=0b1b3a&color=ffffff&rounded=true&size=128`;
+            // Persist placeholder into Firestore so header/avatar can rely on it
+            try {
+              const userRef = doc(db, 'users', userId);
+              await updateDoc(userRef, { photoUrl: finalPhotoUrl });
+            } catch (e) {
+              // Non-fatal: if we can't update, continue with the placeholder locally
+              console.warn('Could not persist placeholder photoUrl', e);
+            }
+          } catch (e) {
+            finalPhotoUrl = null;
+          }
+        }
+
         setUser({
           userId: userId,
           fullName: userData.fullName,
           accountNumber: userData.accountNumber,
           isAgent: userData.isAgent || false,
           kycTier: userData.kycTier || 1,
-          photoUrl: userData.photoUrl ?? null,
+          photoUrl: finalPhotoUrl,
         });
         setBalance(userData.balance ?? null);
         localStorage.setItem('ovo-user-fullName', userData.fullName || '');

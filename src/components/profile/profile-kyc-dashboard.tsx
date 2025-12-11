@@ -39,6 +39,9 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/auth-context";
+import { doc, updateDoc } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 import CustomLink from "../layout/custom-link";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -126,15 +129,20 @@ export function ProfileKycDashboard() {
                     const reader = new FileReader();
                     reader.onload = async () => {
                       const dataUrl = reader.result as string;
+                      // show a preview immediately while uploading
                       setLocalPreview(dataUrl);
                       try {
                         const token = localStorage.getItem('ovo-auth-token');
                         if (!token) throw new Error('Not authenticated');
-                        // update user document with photoUrl (data URL)
-                        const { doc, updateDoc } = await import('firebase/firestore');
-                        const { db } = await import('@/lib/firebase');
+
+                        const path = `users/${user.userId}/avatar-${Date.now()}`;
+                        const sRef = storageRef(storage, path);
+                        await uploadString(sRef, dataUrl, 'data_url');
+                        const downloadURL = await getDownloadURL(sRef);
+
                         const userRef = doc(db, 'users', user.userId);
-                        await updateDoc(userRef, { photoUrl: dataUrl });
+                        await updateDoc(userRef, { photoUrl: downloadURL });
+                        setLocalPreview(downloadURL);
                         await fetchUserData();
                       } catch (err) {
                         console.error('Failed to upload profile image', err);
