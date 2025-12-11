@@ -543,19 +543,32 @@ export function CardCustomizer() {
       <>
         {showNavTabs && (
           <CardHeader className="border-b">
-            <div className="flex gap-2">
-              <Button
-                variant={view === 'customize' ? 'default' : 'outline'}
-                onClick={() => setView('customize')}
-              >
-                Physical Card
-              </Button>
-              <Button
-                variant={view === 'virtual-card' ? 'default' : 'outline'}
-                onClick={() => setView('virtual-card')}
-              >
-                Virtual Card
-              </Button>
+            <div className="flex gap-2 w-full relative">
+              <motion.div
+                className="absolute inset-0 bg-primary rounded-md pointer-events-none"
+                layoutId="card-toggle-bg"
+                transition={{ duration: 0.6, ease: 'easeInOut' }}
+              />
+              
+              <div className="flex-1 relative z-10">
+                <Button
+                  className="w-full"
+                  variant={view === 'customize' ? 'default' : 'outline'}
+                  onClick={() => setView('customize')}
+                >
+                  Physical Card
+                </Button>
+              </div>
+
+              <div className="flex-1 relative z-10">
+                <Button
+                  className="w-full"
+                  variant={view === 'virtual-card' ? 'default' : 'outline'}
+                  onClick={() => setView('virtual-card')}
+                >
+                  Virtual Card
+                </Button>
+              </div>
             </div>
           </CardHeader>
         )}
