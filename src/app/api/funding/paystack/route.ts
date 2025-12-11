@@ -119,8 +119,9 @@ export async function POST(request: Request) {
         const userDoc = await tx.get(userRef as any);
         if (!userDoc.exists()) throw new Error('User not found');
 
-        const userData = userDoc.data();
-        newBalance = (userData.balance || 0) + amountInKobo;
+        const userData = userDoc.data() as { balance?: number };
+        const currentBalance = typeof userData.balance === 'number' ? userData.balance : 0;
+        newBalance = currentBalance + amountInKobo;
         tx.update(userRef, { balance: newBalance });
 
         // Update pending transaction to completed
