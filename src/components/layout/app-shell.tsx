@@ -129,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <DropdownMenuTrigger asChild>
                                 <button aria-label="User menu">
                                     <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                        <AvatarImage src="https://placehold.co/40x40.png" alt="User" data-ai-hint="person avatar" />
+                                        <AvatarImage src={user?.photoUrl || "https://placehold.co/40x40.png"} alt="User" data-ai-hint="person avatar" />
                                         <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                 </button>

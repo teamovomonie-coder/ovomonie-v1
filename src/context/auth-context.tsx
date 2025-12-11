@@ -11,6 +11,7 @@ interface User {
   accountNumber: string;
   isAgent?: boolean;
   kycTier?: number;
+  photoUrl?: string | null;
 }
 
 interface AuthContextType {
@@ -113,27 +114,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         setUser({
-            userId: userId,
-            fullName: userData.fullName,
-            accountNumber: userData.accountNumber,
-            isAgent: userData.isAgent || false,
-            kycTier: userData.kycTier || 1,
+          userId: userId,
+          fullName: userData.fullName,
+          accountNumber: userData.accountNumber,
+          isAgent: userData.isAgent || false,
+          kycTier: userData.kycTier || 1,
+          photoUrl: userData.photoUrl ?? null,
         });
         setBalance(userData.balance ?? null);
         localStorage.setItem('ovo-user-fullName', userData.fullName || '');
         localStorage.setItem('ovo-user-accountNumber', userData.accountNumber || '');
         if (typeof userData.balance !== 'undefined') {
-            localStorage.setItem('ovo-user-balance', String(userData.balance));
+          localStorage.setItem('ovo-user-balance', String(userData.balance));
+        }
+        if (userData.photoUrl) {
+          localStorage.setItem('ovo-user-photoUrl', userData.photoUrl);
         }
         setIsAuthenticated(true);
     } catch (error) {
         console.error("Failed to fetch or validate user data, falling back to cached session:", error);
         setUser({
-            userId,
-            fullName: cachedFullName || '',
-            accountNumber: cachedAccountNumber || '',
-            isAgent: false,
-            kycTier: 1,
+          userId,
+          fullName: cachedFullName || '',
+          accountNumber: cachedAccountNumber || '',
+          isAgent: false,
+          kycTier: 1,
+          photoUrl: typeof window !== 'undefined' ? localStorage.getItem('ovo-user-photoUrl') : null,
         });
         setBalance(cachedBalance ? Number(cachedBalance) : null);
         setIsAuthenticated(true);
