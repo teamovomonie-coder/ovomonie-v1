@@ -36,12 +36,10 @@ import {
   Phone,
   MessageCircle,
   ArrowLeftRight,
+  LogOut,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/auth-context";
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
-import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 import CustomLink from "../layout/custom-link";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -82,9 +80,7 @@ const tier3Schema = z.object({
 });
 
 export function ProfileKycDashboard() {
-  const { user, fetchUserData } = useAuth();
-  const [uploading, setUploading] = useState(false);
-  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const { user, fetchUserData, logout } = useAuth();
   const currentTier = user?.kycTier || 1;
 
   const [isTier2DialogOpen, setIsTier2DialogOpen] = useState(false);
@@ -106,64 +102,12 @@ export function ProfileKycDashboard() {
           <div className="absolute right-6 bottom-6 h-28 w-28 rounded-full bg-primary/30 blur-3xl" />
         </div>
         <CardContent className="relative flex flex-col gap-5 p-6 sm:p-8 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-14 w-14 border-2 border-white/40 shadow-sm">
-                <AvatarImage src={localPreview || user?.photoUrl || "https://placehold.co/64x64.png"} alt="Profile" />
-                <AvatarFallback>{user?.fullName?.[0] ?? "U"}</AvatarFallback>
-              </Avatar>
-              <input
-                id="profile-image-upload"
-                type="file"
-                accept="image/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !user?.userId) return;
-                  if (file.size > 5 * 1024 * 1024) {
-                    // 5MB limit
-                    alert('Please choose an image smaller than 5MB.');
-                    return;
-                  }
-                  setUploading(true);
-                  try {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                      const dataUrl = reader.result as string;
-                      // show a preview immediately while uploading
-                      setLocalPreview(dataUrl);
-                      try {
-                        const token = localStorage.getItem('ovo-auth-token');
-                        if (!token) throw new Error('Not authenticated');
-
-                        const path = `users/${user.userId}/avatar-${Date.now()}`;
-                        const sRef = storageRef(storage, path);
-                        await uploadString(sRef, dataUrl, 'data_url');
-                        const downloadURL = await getDownloadURL(sRef);
-
-                        const userRef = doc(db, 'users', user.userId);
-                        await updateDoc(userRef, { photoUrl: downloadURL });
-                        setLocalPreview(downloadURL);
-                        await fetchUserData();
-                      } catch (err) {
-                        console.error('Failed to upload profile image', err);
-                        alert('Failed to upload image.');
-                        setLocalPreview(null);
-                      }
-                    };
-                    reader.readAsDataURL(file);
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                className="absolute bottom-0 right-0 w-9 h-9 opacity-0 cursor-pointer"
-                title="Upload profile image"
-              />
-              <label htmlFor="profile-image-upload" className="absolute -bottom-1 -right-1 bg-white/90 rounded-full p-1 shadow-sm cursor-pointer">
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
-              </label>
-            </div>
+          <div className="flex items-center gap-4">
+            <Avatar className="h-14 w-14 border-2 border-white/40 shadow-sm">
+              <AvatarImage src="https://placehold.co/64x64.png" alt="Profile" />
+              <AvatarFallback>{user?.fullName?.[0] ?? "U"}</AvatarFallback>
+            </Avatar>
             <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/70">Profile</p>
               <p className="text-sm uppercase tracking-[0.2em] text-white/80">Profile & KYC</p>
               <h2 className="text-2xl font-semibold leading-tight">{user?.fullName || "User"}</h2>
               <div className="flex flex-wrap items-center gap-2 text-sm text-white">
@@ -295,6 +239,9 @@ export function ProfileKycDashboard() {
                 <CustomLink href="/support">
                   <MessageCircle /> Support
                 </CustomLink>
+              </Button>
+              <Button variant="destructive" className="w-full justify-start gap-3" onClick={logout}>
+                <LogOut className="h-4 w-4" /> Logout
               </Button>
             </CardContent>
           </Card>
