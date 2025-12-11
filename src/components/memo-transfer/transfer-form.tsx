@@ -59,10 +59,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
         <h2 className="text-lg font-bold">Transfer Successful!</h2>
         <Landmark className="w-6 h-6" />
       </div>
-      <CardContent className="p-4 bg-card relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-          <Image src="/images/ovomonie-watermark.png" alt="Ovomonie" width={80} height={80} style={{ objectFit: 'contain' }} />
-        </div>
+      <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4 relative z-10">
           {data.photo && (
             <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
