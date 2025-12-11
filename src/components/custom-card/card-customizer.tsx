@@ -110,7 +110,7 @@ export function CardCustomizer() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { toast } = useToast();
-  const { balance, updateBalance, logout } = useAuth();
+  const { balance, updateBalance, logout, user } = useAuth();
   const { addNotification } = useNotifications();
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -119,6 +119,7 @@ export function CardCustomizer() {
 
   // Virtual Card State
   const [virtualCards, setVirtualCards] = useState<VirtualCard[]>([]);
+  const [isFetchingVirtualCards, setIsFetchingVirtualCards] = useState(false);
   const [showVirtualCardNumbers, setShowVirtualCardNumbers] = useState<Set<string>>(new Set());
   const [isActivatingCard, setIsActivatingCard] = useState(false);
   const [virtualCardApiError, setVirtualCardApiError] = useState<string | null>(null);
@@ -259,6 +260,21 @@ export function CardCustomizer() {
     setIsActivatingCard(true);
     setVirtualCardApiError(null);
     const clientReference = `virtual-card-${crypto.randomUUID()}`;
+
+    // Optimistic UI: add a temporary pending card so user sees immediate result
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const tempCard: VirtualCard & { pending?: boolean } = {
+      id: tempId,
+      cardNumber: '•••• •••• •••• ••••',
+      expiryDate: '',
+      cvv: '',
+      isActive: false,
+      balance: typeof balance === 'number' ? balance : 0,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      pending: true,
+    } as any;
+    setVirtualCards(prev => [tempCard, ...prev]);
     try {
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) throw new Error('Authentication token not found.');
@@ -293,10 +309,10 @@ export function CardCustomizer() {
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       };
 
-      // Update states in sequence
+      // Replace the optimistic temp card with the server-provided card
       setVirtualCards(prev => {
-        console.log('Setting virtual cards:', [newCard, ...prev]);
-        return [newCard, ...prev];
+        console.log('Replacing temp card with server card', tempId, newCard);
+        return prev.map(c => c.id === tempId ? newCard : c);
       });
       
       updateBalance(result.newBalanceInKobo);
@@ -345,6 +361,8 @@ export function CardCustomizer() {
       }
       console.error('Virtual card creation error:', error);
       setVirtualCardApiError(description);
+      // Mark the optimistic card as failed so user can retry or see status
+      setVirtualCards(prev => prev.map(c => c.id === tempId ? { ...c, pending: false, failed: true } : c));
       // Don't close modal on error
     } finally {
       setIsActivatingCard(false);
@@ -377,6 +395,7 @@ export function CardCustomizer() {
     let mounted = true;
     const fetchCards = async () => {
       try {
+        setIsFetchingVirtualCards(true);
         const snap = await getDocs(collection(db, 'users', user.userId, 'virtualCards'));
         const cards = snap.docs.map((d) => {
           const data = d.data() as any;
@@ -391,12 +410,16 @@ export function CardCustomizer() {
             expiresAt: data.expiresAt && (data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)),
           } as VirtualCard;
         });
-        if (mounted && cards.length > 0) {
-          setVirtualCards(cards);
-          try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {}
+        if (mounted) {
+          if (cards.length > 0) {
+            setVirtualCards(cards);
+            try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {}
+          }
         }
       } catch (e) {
         console.error('Failed to fetch virtual cards from Firestore', e);
+      } finally {
+        setIsFetchingVirtualCards(false);
       }
     };
     fetchCards();
@@ -638,10 +661,10 @@ export function CardCustomizer() {
                 <div className="text-center py-12">
                   <CreditCard className="h-20 w-20 mx-auto mb-4 text-muted-foreground opacity-40" />
                   <h3 className="text-xl font-semibold mb-2">No Virtual Cards Yet</h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">Create your first virtual card for instant online transactions. Get activated instantly with just a ₦500 one-time fee.</p>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">Create your first virtual card for instant online transactions. Get activated instantly with just a ₦1,000 one-time fee.</p>
                   <div className="rounded-lg border border-dashed border-primary/30 p-6 bg-primary/5">
                     <p className="text-sm font-medium mb-1 text-primary">Activation Fee</p>
-                    <p className="text-3xl font-bold text-primary mb-4">₦500</p>
+                    <p className="text-3xl font-bold text-primary mb-4">₦1,000</p>
                     <p className="text-xs text-muted-foreground mb-6">One-time fee per virtual card</p>
                     <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="w-full">
                       {isActivatingCard ? (
@@ -659,7 +682,15 @@ export function CardCustomizer() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6">
+                  <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <div />
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={async () => { if (!user?.userId) return; try { setIsFetchingVirtualCards(true); const snap = await getDocs(collection(db, 'users', user.userId, 'virtualCards')); const cards = snap.docs.map(d => { const data = d.data() as any; return { id: d.id, cardNumber: data.cardNumber, expiryDate: data.expiryDate, cvv: data.cvv, isActive: data.isActive ?? true, balance: typeof data.balance === 'number' ? data.balance : 0, createdAt: data.createdAt && (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)), expiresAt: data.expiresAt && (data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)), } as VirtualCard }); setVirtualCards(cards); try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {} } catch (e) { console.error(e) } finally { setIsFetchingVirtualCards(false) } }}>
+                        {isFetchingVirtualCards ? (<Loader2 className="h-4 w-4 animate-spin"/>) : 'Refresh'}
+                      </Button>
+                    </div>
+                  </div>
                   <div className="grid gap-8">
                     {virtualCards.map((card) => (
                       <VirtualCardDisplay
@@ -680,7 +711,7 @@ export function CardCustomizer() {
                     className="w-full h-12 font-semibold"
                   >
                     {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                    Create Another Card (₦500)
+                    Create Another Card (₦1,000)
                   </Button>
                 </div>
               )}
@@ -720,7 +751,7 @@ export function CardCustomizer() {
         error={virtualCardApiError}
         onClearError={() => setVirtualCardApiError(null)}
         title="Create Virtual Card"
-        description="A one-time fee of ₦500 will be deducted from your wallet to activate this virtual card."
+        description="A one-time fee of ₦1,000 will be deducted from your wallet to activate this virtual card."
       />
     </>
   );
