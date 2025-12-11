@@ -61,8 +61,11 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
         <h2 className="text-lg font-bold">MemoTransfer Receipt</h2>
         <Wallet className="w-6 h-6" />
       </div>
-      <CardContent className="p-4 bg-card">
-        <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4">
+      <CardContent className="p-4 bg-card relative overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+          <Image src="/images/ovomonie-watermark.png" alt="Ovomonie" width={80} height={80} style={{ objectFit: 'contain' }} />
+        </div>
+        <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4 relative z-10">
           {data.photo && (
             <div className="relative w-full aspect-video mb-4 rounded-lg overflow-hidden">
               <Image src={data.photo as string} alt="Memorable moment" layout="fill" objectFit="cover" data-ai-hint="celebration event" />
@@ -96,12 +99,14 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4 pt-0">
         <p data-powered-by="ovomonie" className="text-xs text-muted-foreground mb-2">Powered by Ovomonie</p>
-        <Button className="w-full" onClick={handleShare}>
-          <Share2 className="mr-2 h-4 w-4" /> Share Receipt
-        </Button>
-        <Button variant="outline" className="w-full" onClick={onReset}>
-          Make Another Transfer
-        </Button>
+        <div className="no-capture space-y-2">
+          <Button className="w-full" onClick={handleShare}>
+            <Share2 className="mr-2 h-4 w-4" /> Share Receipt
+          </Button>
+          <Button variant="outline" className="w-full" onClick={onReset}>
+            Make Another Transfer
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
@@ -357,7 +362,25 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => setIsPinModalOpen(true)} disabled={isProcessing}>Confirm Transfer</Button>
+            <Button className="w-full" onClick={() => {
+                try {
+                  if (submittedData && recipientName) {
+                    const receiptType = isMemoTransfer ? 'memo-transfer' : 'external-transfer';
+                    const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+                    const pendingReceipt = {
+                      type: receiptType,
+                      data: submittedData,
+                      recipientName,
+                      bankName,
+                      createdAt: new Date().toISOString(),
+                      status: 'pending',
+                    };
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+                    console.debug('[ExternalTransfer] set provisional ovo-pending-receipt', pendingReceipt);
+                  }
+                } catch (e) { console.error('[ExternalTransfer] failed to set provisional pending receipt', e); }
+                setIsPinModalOpen(true);
+              }} disabled={isProcessing}>Confirm Transfer</Button>
           </CardFooter>
         </Card>
         <PinModal

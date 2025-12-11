@@ -4,6 +4,11 @@ import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    // Prevent uncontrolled -> controlled warning by ensuring value is defined
+    // For file inputs we must not set value
+    const isFile = type === 'file';
+    const { value, defaultValue, ...rest } = props as any;
+
     return (
       <input
         type={type}
@@ -12,7 +17,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        {...props}
+        {...(isFile ? { type, ...rest } : { type, ...rest, value: value ?? '' })}
       />
     )
   }

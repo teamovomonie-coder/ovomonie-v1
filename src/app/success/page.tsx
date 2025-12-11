@@ -63,8 +63,11 @@ export default function SuccessPage() {
         setPending(null);
       }
     };
+
     window.addEventListener('ovo-pending-receipt-updated', handler);
-    return () => window.removeEventListener('ovo-pending-receipt-updated', handler);
+    return () => {
+      window.removeEventListener('ovo-pending-receipt-updated', handler);
+    };
   }, []);
 
   const handleReset = () => {
