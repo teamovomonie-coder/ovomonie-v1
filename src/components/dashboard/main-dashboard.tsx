@@ -43,7 +43,7 @@ export function MainDashboard() {
                 </div>
                 <div className="flex items-end justify-between gap-4 flex-nowrap min-w-0">
                     <div className="flex items-center gap-3 min-w-[160px] flex-1">
-                        <div className="text-xl font-semibold tracking-tight truncate tabular-nums">
+                        <div className="text-lg font-semibold tracking-tight truncate tabular-nums">
                             {balance === null ? (
                             <Skeleton className="h-8 w-32 bg-primary-foreground/20" />
                             ) : isBalanceVisible ? (

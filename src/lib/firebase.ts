@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
+import { getAnalytics } from "firebase/analytics";
 import { clientEnv } from './env.client';
 
 const firebaseConfig = {
@@ -10,11 +11,13 @@ const firebaseConfig = {
   storageBucket: clientEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: clientEnv.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: clientEnv.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: clientEnv.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const storage = getStorage(app);
+const analytics = typeof window !== 'undefined' && clientEnv.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ? getAnalytics(app) : null;
 
-export { app, db, storage };
+export { app, db, storage, analytics };

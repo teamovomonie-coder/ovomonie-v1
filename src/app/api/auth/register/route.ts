@@ -21,10 +21,17 @@ const generateReferralCode = (length: number = 6): string => {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, phone, loginPin, fullName, transactionPin, ...rest } = body;
+        const { email, phone, loginPin, confirmLoginPin, fullName, transactionPin, confirmTransactionPin } = body;
 
         if (!email || !phone || !loginPin || !fullName || !transactionPin) {
             return NextResponse.json({ message: 'Missing required fields for registration.' }, { status: 400 });
+        }
+
+        if (confirmLoginPin && String(confirmLoginPin) !== String(loginPin)) {
+            return NextResponse.json({ message: 'Login PIN confirmation does not match.' }, { status: 400 });
+        }
+        if (confirmTransactionPin && String(confirmTransactionPin) !== String(transactionPin)) {
+            return NextResponse.json({ message: 'Transaction PIN confirmation does not match.' }, { status: 400 });
         }
 
         // Check if user already exists with the same email or phone
@@ -51,7 +58,6 @@ export async function POST(request: Request) {
 
         // Create new user document
         const newUser = {
-            ...rest,
             email,
             phone,
             fullName,

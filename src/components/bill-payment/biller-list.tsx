@@ -11,8 +11,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Lightbulb, Tv, Wifi, Droplet, Search, Loader2, Share2, CheckCircle, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
@@ -189,6 +187,7 @@ function PaymentReceipt({ data, onDone }: { data: ReceiptData; onDone: () => voi
 
 export function BillerList() {
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0].name);
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -372,25 +371,25 @@ export function BillerList() {
     }
   }
 
-  const filteredBillers = allBillers.filter(biller => 
+  const filteredBillers = allBillers.filter(biller =>
     biller.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const BillerCard = ({ biller }: { biller: Biller }) => (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
-        <div className="p-2 bg-muted rounded-md">
-            <biller.icon className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <CardTitle className="text-base">{biller.name}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardFooter>
-        <Button className="w-full" onClick={() => setSelectedBiller(biller)}>Pay Now</Button>
-      </CardFooter>
-    </Card>
+  const filteredCategories = categories.filter((cat) =>
+    allBillers.some(
+      (biller) =>
+        biller.category === cat.name &&
+        biller.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
+
+  useEffect(() => {
+    // keep selected category valid when search narrows options
+    if (!filteredCategories.find((c) => c.name === selectedCategory)) {
+      const next = filteredCategories[0]?.name || categories[0].name;
+      if (next !== selectedCategory) setSelectedCategory(next);
+    }
+  }, [filteredCategories, selectedCategory]);
 
   const renderDialogFormContent = () => {
     if (!selectedBiller) return null;
@@ -561,54 +560,67 @@ export function BillerList() {
 
   return (
     <>
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search for a biller (e.g., DStv, IKEDC)"
-            className="pl-10"
+      <div className="space-y-5">
+        <div className="relative max-w-2xl">
+          <Input
+            type="search"
+            placeholder="Search biller (e.g., IKEDC, DStv, Spectranet)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-2xl border-slate-200 bg-white shadow-inner"
           />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
-        
-        <Tabs defaultValue={searchQuery ? 'search' : 'Electricity'} className="w-full">
-            <TabsList className={cn("grid w-full", searchQuery ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-4")}>
-                {searchQuery ? (
-                    <TabsTrigger value="search">Search Results</TabsTrigger>
-                ) : (
-                    categories.map(cat => (
-                         <TabsTrigger key={cat.name} value={cat.name} className="gap-2">
-                            <cat.icon className="h-5 w-5"/> <span className="hidden sm:inline">{cat.name}</span>
-                        </TabsTrigger>
-                    ))
-                )}
-            </TabsList>
-            
-            {searchQuery ? (
-                 <TabsContent value="search" className="pt-4">
-                     {filteredBillers.length > 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredBillers.map((biller) => <BillerCard key={biller.id} biller={biller} />)}
-                        </div>
-                     ) : (
-                        <div className="text-center py-10 text-muted-foreground">
-                            <p>No billers found for "{searchQuery}"</p>
-                        </div>
-                     )}
-                 </TabsContent>
-            ) : (
-                 categories.map(cat => (
-                    <TabsContent key={cat.name} value={cat.name} className="pt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {allBillers.filter(b => b.category === cat.name).map((biller) => (
-                                <BillerCard key={biller.id} biller={biller} />
-                            ))}
-                        </div>
-                    </TabsContent>
-                 ))
-            )}
-        </Tabs>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-56 rounded-2xl border-slate-200 bg-white shadow-inner">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                {filteredCategories.map((cat) => (
+                  <SelectItem key={cat.name} value={cat.name}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">Pick a category, then choose your biller.</p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {allBillers
+            .filter((b) => b.category === selectedCategory && b.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            .map((biller) => {
+              const Icon = biller.icon;
+              return (
+                <Card
+                  key={biller.id}
+                  className="cursor-pointer rounded-2xl border border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-lg transition"
+                  onClick={() => setSelectedBiller(biller)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg bg-slate-100 p-2">
+                        <Icon className="h-5 w-5 text-slate-800" />
+                      </div>
+                      <CardTitle className="text-base">{biller.name}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <UICardDescription>{biller.fieldLabel}</UICardDescription>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          {allBillers.filter((b) => b.category === selectedCategory && b.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+            <div className="col-span-full text-center py-6 text-muted-foreground text-sm">
+              No billers found for this category.
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={!!selectedBiller} onOpenChange={(isOpen) => { if (!isOpen) resetDialogState() }}>
@@ -619,27 +631,27 @@ export function BillerList() {
               {dialogView === 'form' ? 'Enter the details below to complete your payment.' : 'Please review the details before confirming.'}
             </UICardDescription>
           </DialogHeader>
-            {dialogView === 'form' ? renderDialogFormContent() : renderDialogSummaryContent()}
+          {dialogView === 'form' ? renderDialogFormContent() : renderDialogSummaryContent()}
           <DialogFooter>
             {dialogView === 'form' ? (
-                <>
-                    <Button variant="outline" onClick={resetDialogState}>Cancel</Button>
-                    <Button onClick={handleProceedToSummary} disabled={isProceedDisabled()}>
-                        Proceed
-                    </Button>
-                </>
+              <>
+                <Button variant="outline" onClick={resetDialogState}>Cancel</Button>
+                <Button onClick={handleProceedToSummary} disabled={isProceedDisabled()}>
+                  Proceed
+                </Button>
+              </>
             ) : (
-                 <>
-                    <Button variant="outline" onClick={() => setDialogView('form')}>Back</Button>
-                    <Button onClick={handlePayment}>
-                        Confirm & Pay
-                    </Button>
-                </>
+              <>
+                <Button variant="outline" onClick={() => setDialogView('form')}>Back</Button>
+                <Button onClick={handlePayment}>
+                  Confirm & Pay
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-            <PinModal 
+      <PinModal 
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmPayment}
@@ -647,7 +659,7 @@ export function BillerList() {
         error={apiError}
         onClearError={() => setApiError(null)}
       />
-            {/* receipts are now shown on /success page using pending receipt saved to localStorage */}
+      {/* receipts are now shown on /success page using pending receipt saved to localStorage */}
     </>
   );
 }

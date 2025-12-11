@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, deleteField } from "firebase/firestore";
 import { createAuthToken, hashSecret, verifySecret } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { User as FirestoreUser } from '@/types/user';
 
 
 export async function POST(request: Request) {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
         }
 
         const userDoc = querySnapshot.docs[0];
-        const userData = userDoc.data();
+        const userData = userDoc.data() as Partial<FirestoreUser> & { loginPinHash?: string; loginPin?: string };
         
         if (!userData) {
              return NextResponse.json({ message: 'Authentication data is incomplete for this user.' }, { status: 401 });
