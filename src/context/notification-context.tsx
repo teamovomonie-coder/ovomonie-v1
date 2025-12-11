@@ -25,8 +25,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     const fetchNotifications = async () => {
       try {
         if (!isAuthenticated || !user?.userId) return;
-        const res = await fetch('/api/user/notifications');
-        if (!res.ok) throw new Error('Failed to fetch notifications');
+        const token = typeof window !== 'undefined' ? localStorage.getItem('ovo-auth-token') : null;
+        const res = await fetch('/api/user/notifications', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error(`Failed to fetch notifications: ${res.status}`);
         const data = await res.json();
         if (Array.isArray(data.notifications)) {
           // Map server notifications into UI shape; default icon by category
