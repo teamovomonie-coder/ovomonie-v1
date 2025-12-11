@@ -58,13 +58,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         accountNumber: data.accountNumber || "",
         isAgent: data.isAgent || false,
         kycTier: data.kycTier || 1,
-        balance: data.balance || 0,
+        balance: typeof data.balance === "number" ? data.balance : 0,
         email: data.email,
-        status: data.status || "pending",
+        status: data.status || "active",
         avatarUrl: data.avatarUrl,
         photoUrl: data.photoUrl,
       });
-      setBalance(data.balance || 0);
+      setBalance(typeof data.balance === "number" ? data.balance : 0);
       setIsAuthenticated(true);
     } catch (err) {
       // If we're offline, don't clear the token—just mark unauthenticated and let a later retry succeed.
