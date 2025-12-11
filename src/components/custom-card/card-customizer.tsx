@@ -377,44 +377,6 @@ export function CardCustomizer() {
     });
   };
 
-  const handleSyncBalance = async (cardId: string) => {
-    try {
-      const token = localStorage.getItem('ovo-auth-token');
-      if (!token) throw new Error('Authentication token not found.');
-
-      const response = await fetch(`/api/cards/virtual/${cardId}/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to sync balance.');
-      }
-
-      // Update the virtual card with new balance
-      setVirtualCards(prev =>
-        prev.map(card =>
-          card.id === cardId ? { ...card, balance: result.balance } : card
-        )
-      );
-
-      toast({
-        title: "Success",
-        description: `Balance synced: ₦${(result.balance / 100).toFixed(2)}`
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || 'Failed to sync balance.',
-        variant: "destructive"
-      });
-    }
-  };
-
   const resetFlow = () => {
       cardDetailsForm.reset({ 
         nameOnCard: "", 
@@ -640,7 +602,6 @@ export function CardCustomizer() {
                         onToggleNumberVisibility={toggleCardNumberVisibility}
                         onCopyToClipboard={copyToClipboard}
                         onLoadBalance={handleLoadBalance}
-                        onSyncBalance={handleSyncBalance}
                       />
                     ))}
                   </div>
