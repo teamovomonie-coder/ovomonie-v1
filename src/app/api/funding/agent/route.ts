@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (existing && !(existing as any).empty) {
       const userRef = doc(db, 'users', userId);
       const userSnapshot = await (await import('firebase/firestore')).getDoc(userRef as any);
-      const currentBal = userSnapshot.exists() ? userSnapshot.data().balance : null;
+      const currentBal = userSnapshot.exists() ? (userSnapshot.data() as any)?.balance : null;
       return NextResponse.json({ message: 'Already processed', newBalanceInKobo: currentBal }, { status: 200 });
     }
 
