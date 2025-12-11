@@ -4,7 +4,7 @@ import { collection, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
 
-const VIRTUAL_CARD_FEE = 500_00; // ₦500 in kobo
+const VIRTUAL_CARD_FEE = 1000_00; // ₦1,000 in kobo
 const CARD_VALIDITY_YEARS = 1;
 
 function generateCardNumber(): string {

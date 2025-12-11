@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -246,8 +246,8 @@ export function CardCustomizer() {
   };
 
   const handleCreateVirtualCard = async () => {
-    if (balance === null || balance < 500_00) {
-      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦500 to create a virtual card.' });
+    if (balance === null || balance < 1000_00) {
+      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦1,000 to create a virtual card.' });
       return;
     }
     setIsPinModalOpenForVirtual(true);
@@ -348,6 +348,39 @@ export function CardCustomizer() {
       setIsActivatingCard(false);
     }
   };
+
+  // Persist virtual cards to localStorage so they remain across navigation
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ovo-virtual-cards');
+      if (raw) {
+        const parsed = JSON.parse(raw) as any[];
+        const hydrated = parsed.map((c) => ({
+          ...c,
+          createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
+          expiresAt: c.expiresAt ? new Date(c.expiresAt) : new Date(),
+        })) as VirtualCard[];
+        setVirtualCards(hydrated);
+      }
+    } catch (e) {
+      console.error('Failed to load virtual cards from localStorage', e);
+    }
+    // we only want to run this once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      const toStore = virtualCards.map((c) => ({
+        ...c,
+        createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+        expiresAt: c.expiresAt instanceof Date ? c.expiresAt.toISOString() : c.expiresAt,
+      }));
+      localStorage.setItem('ovo-virtual-cards', JSON.stringify(toStore));
+    } catch (e) {
+      console.error('Failed to save virtual cards to localStorage', e);
+    }
+  }, [virtualCards]);
 
   const toggleCardNumberVisibility = (cardId: string) => {
     setShowVirtualCardNumbers(prev => {
