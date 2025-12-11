@@ -6,7 +6,7 @@ import { verifyAuthToken } from '@/lib/auth';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { cardId: string } }
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
   try {
     // Verify authentication
@@ -23,7 +23,7 @@ export async function PATCH(
     }
 
     const userId = decoded.sub;
-    const { cardId } = params;
+    const { cardId } = await params;
     const body = await request.json();
     const { action } = body; // 'deactivate' or 'delete'
 
