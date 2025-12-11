@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         throw new Error('User document does not exist.');
       }
 
-      const userData = userDoc.data();
+      const userData = userDoc.data() as any;
       newBalance = userData.balance + amountInKobo;
 
       transaction.update(userRef, { balance: newBalance });
