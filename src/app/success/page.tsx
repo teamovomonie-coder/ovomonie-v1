@@ -10,6 +10,7 @@ import GeneralReceipt from '@/components/transaction/general-receipt';
 import { BettingReceipt } from '@/components/betting/betting-receipt';
 import { AirtimeReceipt } from '@/components/airtime/airtime-receipt';
 import { BillPaymentReceipt } from '@/components/bill-payment/bill-payment-receipt';
+import VirtualCardReceipt from '@/components/custom-card/virtual-card-receipt';
 
 type ReceiptStore = {
   transactionId: string | undefined;
@@ -150,6 +151,18 @@ export default function SuccessPage() {
         </div>
       );
     }
+
+      if (pending.type === 'virtual-card') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <VirtualCardReceipt
+              data={pending.data}
+              transactionId={pending.transactionId}
+              onReset={handleReset}
+            />
+          </div>
+        );
+      }
 
     // Always show a general receipt if any pending receipt exists
     return (

@@ -1,10 +1,11 @@
 "use client";
 
-import { Eye, EyeOff, Copy, Zap } from 'lucide-react';
+import { Eye, EyeOff, Copy, AlertCircle, Clock, Trash2, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { motion } from 'framer-motion';
 
 export interface VirtualCard {
@@ -16,14 +17,19 @@ export interface VirtualCard {
   balance: number;
   createdAt: Date;
   expiresAt: Date;
+  pending?: boolean;
+  failed?: boolean;
 }
 
 interface VirtualCardDisplayProps {
-  card: VirtualCard;
+  card: VirtualCard & { pending?: boolean; failed?: boolean };
   isNumberVisible: boolean;
   onToggleNumberVisibility: (cardId: string) => void;
   onCopyToClipboard: (text: string, label: string) => void;
   onLoadBalance?: (cardId: string) => void;
+  onRetry?: (cardId: string) => void;
+  onDeactivate?: (cardId: string) => void;
+  onDelete?: (cardId: string) => void;
 }
 
 export function VirtualCardDisplay({
@@ -32,7 +38,17 @@ export function VirtualCardDisplay({
   onToggleNumberVisibility,
   onCopyToClipboard,
   onLoadBalance,
+  onRetry,
+  onDeactivate,
+  onDelete,
 }: VirtualCardDisplayProps) {
+  const { balance, user } = useAuth();
+  const { toast } = useToast();
+
+  // Prefer wallet balance (kobo) from auth context; fall back to card.balance
+  const displayBalanceKobo = typeof balance === 'number' && balance !== null ? balance : card.balance;
+  const displayBalance = (displayBalanceKobo / 100) || 0;
+  const cardholderName = user?.fullName || 'OVOMONIE VIRTUAL';
   const maskCardNumber = (cardNumber: string) => {
     return cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ').split('').map((char, idx) => idx < 12 ? '*' : char).join('');
   };
@@ -46,10 +62,27 @@ export function VirtualCardDisplay({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="w-full"
+      className="w-full px-2 sm:px-0"
     >
+      {/* Status Badge */}
+      {(card.pending || card.failed) && (
+        <div className="mb-3 flex justify-center">
+          {card.pending && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 border border-blue-300">
+              <Clock className="h-4 w-4 text-blue-600 animate-spin" />
+              <span className="text-sm font-medium text-blue-700">Pending Creation</span>
+            </div>
+          )}
+          {card.failed && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 border border-red-300">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-medium text-red-700">Creation Failed</span>
+            </div>
+          )}
+        </div>
+      )}
       {/* Virtual Card Visual */}
-      <div className="relative w-full max-w-2xl mx-auto aspect-[1.586] rounded-2xl shadow-2xl overflow-hidden mb-6">
+      <div className="relative w-full max-w-2xl mx-auto aspect-[1.586] rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl overflow-hidden mb-4 sm:mb-6">
         {/* Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900" />
         
@@ -61,11 +94,11 @@ export function VirtualCardDisplay({
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
 
         {/* Card Content */}
-        <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8 text-white z-10">
+        <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-6 md:p-8 text-white z-10">
           {/* Header: Chip & Logo */}
           <div className="flex justify-between items-start">
             {/* Chip Design */}
-            <div className="relative w-16 h-12 rounded-lg overflow-hidden shadow-lg" data-protected="chip">
+            <div className="relative w-12 h-9 sm:w-16 sm:h-12 rounded-lg overflow-hidden shadow-lg" data-protected="chip">
               <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 to-yellow-500" />
               <div className="absolute inset-0.5 bg-gradient-to-b from-yellow-200 via-yellow-300 to-yellow-400 rounded" />
               {/* Chip Lines */}
@@ -78,7 +111,7 @@ export function VirtualCardDisplay({
 
             {/* Logo Section */}
             <div className="flex flex-col items-end gap-1">
-              <div className="relative w-20 h-10">
+              <div className="relative w-16 h-8 sm:w-20 sm:h-10">
                 <Image
                   src="/images/ovomonie-watermark.png"
                   alt="Ovomonie Logo"
@@ -105,18 +138,18 @@ export function VirtualCardDisplay({
               <div>
                 <p className="text-xs opacity-75 mb-1">CARDHOLDER</p>
                 <p className="text-sm sm:text-base font-semibold uppercase tracking-wide truncate pr-2">
-                  OVOMONIE VIRTUAL
+                  {cardholderName.toUpperCase()}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs opacity-75 mb-1">EXPIRES</p>
+                <p className="text-xs opacity-75 " >EXPIRES</p>
                 <p className="text-sm sm:text-base font-mono font-bold">{card.expiryDate}</p>
               </div>
             </div>
           </div>
 
           {/* Visa Logo & Card Type */}
-          <div className="flex justify-between items-center mt-2">
+          <div className="flex justify-between items-center ">
             <div className="text-xs font-bold opacity-90">VIRTUAL</div>
             <div className="text-xl sm:text-2xl font-black tracking-wider">VISA</div>
           </div>
@@ -124,15 +157,15 @@ export function VirtualCardDisplay({
       </div>
 
       {/* Card Actions */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Visibility Toggle & CVV Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
           {/* Toggle Visibility */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onToggleNumberVisibility(card.id)}
-            className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:border-blue-300 transition-colors"
+            className="flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:border-blue-300 transition-colors text-sm sm:text-base"
           >
             <span className="font-medium text-blue-900">
               {isNumberVisible ? 'Hide Card Number' : 'Show Card Number'}
@@ -145,10 +178,10 @@ export function VirtualCardDisplay({
           </motion.button>
 
           {/* CVV Display */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200">
+          <div className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200">
             <p className="text-xs text-purple-600 font-semibold mb-2">SECURITY CODE (CVV)</p>
             <div className="flex items-center justify-between">
-              <p className="text-lg sm:text-xl font-mono font-bold text-purple-900">
+              <p className="text-base sm:text-lg font-mono font-bold text-purple-900">
                 {isNumberVisible ? card.cvv : '***'}
               </p>
               {isNumberVisible && (
@@ -166,33 +199,33 @@ export function VirtualCardDisplay({
         </div>
 
         {/* Card Stats Grid */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
           <motion.div
             whileHover={{ y: -2 }}
-            className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200"
+            className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200"
           >
             <p className="text-xs text-green-600 font-semibold mb-2">BALANCE</p>
-            <p className="text-lg font-bold text-green-900">
-              ₦{(card.balance / 100).toLocaleString()}
+            <p className="text-base sm:text-lg font-bold text-green-900">
+              ₦{displayBalance.toLocaleString()}
             </p>
           </motion.div>
 
           <motion.div
             whileHover={{ y: -2 }}
-            className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200"
+            className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200"
           >
             <p className="text-xs text-blue-600 font-semibold mb-2">STATUS</p>
-            <p className="text-lg font-bold text-blue-900">
+            <p className="text-base sm:text-lg font-bold text-blue-900">
               {card.isActive ? '✓ Active' : 'Inactive'}
             </p>
           </motion.div>
 
           <motion.div
             whileHover={{ y: -2 }}
-            className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200"
+            className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 col-span-2 sm:col-span-1"
           >
             <p className="text-xs text-amber-600 font-semibold mb-2">EXPIRES</p>
-            <p className="text-sm font-bold text-amber-900">
+            <p className="text-xs sm:text-sm font-bold text-amber-900">
               {new Date(card.expiresAt).toLocaleDateString('en-US', {
                 month: 'short',
                 year: 'numeric',
@@ -202,22 +235,52 @@ export function VirtualCardDisplay({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <Button
             onClick={() => onCopyToClipboard(card.cardNumber, 'Card Number')}
             variant="outline"
-            className="flex-1 h-12 font-semibold border-blue-200 hover:bg-blue-50"
+            disabled={card.pending || card.failed}
+            className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base border-blue-200 hover:bg-blue-50"
           >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Number
+            <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Copy Number</span>
+            <span className="sm:hidden">Copy</span>
           </Button>
-          <Button
-            onClick={() => onLoadBalance?.(card.id)}
-            className="flex-1 h-12 font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Load Balance
-          </Button>
+
+          {/* Deactivate button (visible when active) */}
+          {card.isActive && onDeactivate && (
+            <Button
+              onClick={() => onDeactivate(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={card.pending || card.failed}
+            >
+              <Power className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Deactivate</span>
+              <span className="sm:hidden">Off</span>
+            </Button>
+          )}
+
+          {/* Delete button */}
+          {onDelete && (
+            <Button
+              onClick={() => onDelete(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white"
+              disabled={card.pending}
+            >
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Delete</span>
+              <span className="sm:hidden">Del</span>
+            </Button>
+          )}
+
+          {card.failed && onRetry && (
+            <Button
+              onClick={() => onRetry(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white"
+            >
+              Retry
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>
