@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -368,6 +370,38 @@ export function CardCustomizer() {
     // we only want to run this once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load persisted virtual cards from Firestore for the logged-in user
+  useEffect(() => {
+    if (!user?.userId) return;
+    let mounted = true;
+    const fetchCards = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users', user.userId, 'virtualCards'));
+        const cards = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            cardNumber: data.cardNumber,
+            expiryDate: data.expiryDate,
+            cvv: data.cvv,
+            isActive: data.isActive ?? true,
+            balance: typeof data.balance === 'number' ? data.balance : 0,
+            createdAt: data.createdAt && (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)),
+            expiresAt: data.expiresAt && (data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)),
+          } as VirtualCard;
+        });
+        if (mounted && cards.length > 0) {
+          setVirtualCards(cards);
+          try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {}
+        }
+      } catch (e) {
+        console.error('Failed to fetch virtual cards from Firestore', e);
+      }
+    };
+    fetchCards();
+    return () => { mounted = false; };
+  }, [user?.userId]);
 
   useEffect(() => {
     try {
