@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         kycTier: data.kycTier || 1,
         balance: data.balance || 0,
         email: data.email,
-        status: data.status,
+        status: data.status || "pending",
         avatarUrl: data.avatarUrl,
         photoUrl: data.photoUrl,
       });
