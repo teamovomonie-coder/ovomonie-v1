@@ -10,6 +10,7 @@ import {
     query,
     where,
     getDocs,
+    getDoc,
 } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
@@ -43,19 +44,23 @@ export async function POST(request: Request) {
         
         let newBalance = 0;
 
-        await runTransaction(db, async (transaction) => {
-            const cardOrdersRef = collection(db, 'cardOrders');
-            const idempotencyQuery = query(cardOrdersRef, where("clientReference", "==", clientReference));
-            const existingOrderSnapshot = await (transaction.get as any)(idempotencyQuery as any);
+        // Idempotency: check if this clientReference was already processed
+        const cardOrdersRef = collection(db, 'cardOrders');
+        const idempotencyQuery = query(cardOrdersRef, where("clientReference", "==", clientReference));
+        const existingOrderSnapshot = await getDocs(idempotencyQuery);
 
-            if (!(existingOrderSnapshot as any).empty) {
-                logger.info(`Idempotent request for card order: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) newBalance = userDoc.data().balance;
-                return;
+        if (!existingOrderSnapshot.empty) {
+            logger.info(`Idempotent request for card order: ${clientReference} already processed.`);
+            const userRef = doc(db, 'users', userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap && userSnap.exists()) {
+                const ud = userSnap.data() as any;
+                newBalance = typeof ud.balance === 'number' ? ud.balance : 0;
             }
-            
+            return NextResponse.json({ message: 'Card order already processed.', newBalanceInKobo: newBalance }, { status: 200 });
+        }
+
+        await runTransaction(db, async (transaction) => {
             const userRef = doc(db, "users", userId);
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists()) throw new Error("User not found.");

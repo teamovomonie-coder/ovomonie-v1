@@ -1,36 +1,29 @@
-
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import { db } from '@/lib/firebase';
 import {
     collection,
-    runTransaction,
     doc,
-    serverTimestamp,
     query,
     where,
+    getDocs,
+    getDoc,
+    addDoc,
+    updateDoc,
+    runTransaction,
+    serverTimestamp,
 } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
-
+import { initiateCardPayment } from '@/lib/vfd';
 
 export async function POST(request: Request) {
     try {
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
+        if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-        // Debug: log that the funding/card request arrived and whether auth header was present
-        try {
-            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
-            logger.debug('funding/card request received', { authPresent: Boolean(authHeader), path: '/api/funding/card' });
-        } catch (e) {
-            logger.warn('Could not read authorization header for debug logging in funding/card');
-        }
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { amount, clientReference } = await request.json();
+        const body = await request.json();
+        const { amount, clientReference, cardNumber, cardPin, cvv, expiry } = body;
 
         if (!amount || typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json({ message: 'A valid positive amount is required.' }, { status: 400 });
@@ -38,66 +31,70 @@ export async function POST(request: Request) {
         if (!clientReference) {
             return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
         }
-        
-        let newBalance = 0;
 
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
+        // Idempotency
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where('reference', '==', clientReference));
+        const existing = await getDocs(idempotencyQuery as any).catch(() => null);
+        if (existing && !(existing as any).empty) {
+            const userRef = doc(db, 'users', userId);
+            const userSnapshot = await getDoc(userRef as any);
+            const currentBal = userSnapshot.exists() ? userSnapshot.data().balance : null;
+            return NextResponse.json({ message: 'Already processed', newBalanceInKobo: currentBal }, { status: 200 });
+        }
 
-            if (!(existingTxnSnapshot as any).empty) {
-                logger.info(`Idempotent request for card funding: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) {
-                    newBalance = userDoc.data().balance;
-                }
-                return;
-            }
+        const amountInKobo = Math.round(amount * 100);
+        const pending = {
+            userId,
+            category: 'deposit',
+            type: 'credit',
+            amount: amountInKobo,
+            reference: clientReference,
+            narration: 'Card deposit (pending)',
+            party: { name: 'VFD Card' },
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        };
+        const pendingRef = await addDoc(financialTransactionsRef, pending as any);
 
-            // In a real app, you would process the payment via a payment gateway (e.g., Paystack, Stripe) here.
-            // For this simulation, we'll assume the payment was successful.
+        if (!cardNumber || !cardPin || !cvv || !expiry) {
+            return NextResponse.json({ message: 'Card details (number, pin, cvv, expiry) are required for card funding.' }, { status: 400 });
+        }
 
-            const amountInKobo = Math.round(amount * 100);
+        const [mm, yy] = expiry.split('/');
+        const expiryYyMm = `${yy}${mm}`;
 
-            const userRef = doc(db, "users", userId);
-            const userDoc = await transaction.get(userRef);
-
-            if (!userDoc.exists()) {
-                throw new Error("User document does not exist.");
-            }
-
-            const userData = userDoc.data();
-            newBalance = userData.balance + amountInKobo;
-
-            transaction.update(userRef, { balance: newBalance });
-
-            // Log the credit transaction
-            const creditLog = {
-                userId: userId,
-                category: 'deposit',
-                type: 'credit',
-                amount: amountInKobo,
-                reference: clientReference,
-                narration: 'Card deposit to wallet',
-                party: { name: 'Card Deposit' },
-                timestamp: serverTimestamp(),
-                balanceAfter: newBalance,
-            };
-            transaction.set(doc(financialTransactionsRef), creditLog);
+        const initiation = await initiateCardPayment({
+            amount: Math.round(amount),
+            reference: clientReference,
+            cardNumber,
+            cardPin,
+            cvv2: cvv,
+            expiryDate: expiryYyMm,
+            shouldTokenize: false,
         });
 
-        return NextResponse.json({
-            message: 'Funding successful!',
-            newBalanceInKobo: newBalance,
-        }, { status: 200 });
+        logger.debug('VFD initiation', { initiation });
 
-    } catch (error) {
-        logger.error("Card Funding Error:", error);
-        if (error instanceof Error) {
-            return NextResponse.json({ message: error.message }, { status: 400 });
+        if (initiation.ok && initiation.data && initiation.data.data && initiation.data.data.serviceResponseCodes === 'COMPLETED') {
+            // finalize
+            let newBalance = 0;
+            await runTransaction(db, async (tx) => {
+                const userRef = doc(db, 'users', userId);
+                const userDoc = await tx.get(userRef as any);
+                if (!userDoc.exists()) throw new Error('User not found');
+                const userData = userDoc.data();
+                newBalance = (userData.balance || 0) + amountInKobo;
+                tx.update(userRef, { balance: newBalance });
+                await updateDoc(pendingRef, { status: 'completed', completedAt: serverTimestamp(), balanceAfter: newBalance });
+            });
+
+            return NextResponse.json({ message: 'Funding successful!', newBalanceInKobo: newBalance, vfd: initiation.data }, { status: 200 });
         }
-        return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+
+        return NextResponse.json({ message: 'VFD initiation requires further action', vfd: initiation.data || initiation }, { status: initiation.status || 200 });
+    } catch (err) {
+        logger.error('funding/card error', err);
+        return NextResponse.json({ message: err instanceof Error ? err.message : 'An internal server error occurred.' }, { status: 500 });
     }
 }

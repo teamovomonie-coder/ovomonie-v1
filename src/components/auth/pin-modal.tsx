@@ -28,7 +28,7 @@ const pinSchema = z.object({
 interface PinModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<any> | void;
+  onConfirm?: (pin?: string) => Promise<any> | void;
   /**
    * Optional URL to navigate to immediately after PIN verification.
    * Workaround: navigate to a success page while the transaction runs in background.
@@ -94,7 +94,7 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
           try {
             let res: any = null;
             if (onConfirm) {
-              res = await Promise.resolve(onConfirm());
+              res = await Promise.resolve(onConfirm(data.pin));
               console.debug('[PinModal] onConfirm result', res);
             }
 

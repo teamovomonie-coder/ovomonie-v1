@@ -600,23 +600,70 @@ export function CardCustomizer() {
         )}
 
         {view === 'success' && (
-          <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center">
-            <CardHeader className="items-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-              <CardTitle>Order Placed Successfully!</CardTitle>
-              <CardDescription>Your custom card is being printed and will be shipped soon.</CardDescription>
+          <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center">
+            <CardHeader className="items-center pb-4">
+              <CheckCircle className="w-16 h-16 text-green-500 mb-4 animate-bounce" />
+              <CardTitle className="text-2xl">Order Confirmed!</CardTitle>
+              <CardDescription>Your custom card has been successfully ordered.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 bg-muted p-4 rounded-lg">
-                <Truck className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="font-semibold">Estimated Delivery: Dec 15, 2024</p>
-                  <p className="text-sm text-muted-foreground">You will be notified once it's shipped.</p>
+            <CardContent className="space-y-6">
+              {/* Order Confirmation Details */}
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold text-green-900 mb-4">Order Summary</h3>
+                  <div className="space-y-3 text-sm text-green-800">
+                    <div className="flex justify-between">
+                      <span>Card Name:</span>
+                      <span className="font-mono font-semibold">{cardDetailsForm.getValues('nameOnCard')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Full Name:</span>
+                      <span className="font-mono font-semibold">{shippingForm.getValues('fullName')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Delivery Address:</span>
+                      <span className="font-mono font-semibold text-right max-w-xs">{shippingForm.getValues('address')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>City / State:</span>
+                      <span className="font-mono font-semibold">{shippingForm.getValues('city')}, {shippingForm.getValues('state')}</span>
+                    </div>
+                    <div className="border-t border-green-300 pt-3 mt-3 flex justify-between font-semibold">
+                      <span>Order Fee:</span>
+                      <span>₦1,500</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Shipping Status */}
+              <div className="flex items-start gap-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <Truck className="h-8 w-8 text-blue-600 flex-shrink-0 mt-1" />
+                <div className="text-left">
+                  <p className="font-semibold text-blue-900">Order Status: Processing</p>
+                  <p className="text-sm text-blue-700 mt-1">Your order has been confirmed and will be prepared for transport to your location.</p>
+                  <p className="text-xs text-blue-600 mt-2">📍 Estimated Delivery: 3-5 business days</p>
+                  <p className="text-xs text-blue-600">🔔 You will receive a notification once it ships</p>
                 </div>
               </div>
+
+              {/* What Happens Next */}
+              <Alert className="bg-amber-50 border-amber-200">
+                <Info className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">What Happens Next</AlertTitle>
+                <AlertDescription className="text-amber-700 text-sm">
+                  <ul className="list-disc list-inside space-y-1 mt-2">
+                    <li>Your card design will be reviewed and approved</li>
+                    <li>Once approved, your physical card will be printed</li>
+                    <li>You'll receive a shipping notification via SMS and in-app</li>
+                    <li>Track your card delivery through the app</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
             </CardContent>
-            <CardFooter>
-              <Button onClick={resetFlow} className="w-full">Order Another Card</Button>
+            <CardFooter className="flex gap-3">
+              <Button variant="outline" onClick={resetFlow} className="flex-1">Order Another Card</Button>
+              <Button onClick={() => setView('customize')} className="flex-1">Continue Shopping</Button>
             </CardFooter>
           </motion.div>
         )}
@@ -793,7 +840,10 @@ export function CardCustomizer() {
       </AnimatePresence>
     </Card>
      <PinModal
-        open={isPinModalOpen}
+
+       successUrl={null}
+
+       open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handleConfirmOrder}
         isProcessing={isProcessing}
@@ -834,3 +884,4 @@ export function CardCustomizer() {
     </>
   );
 }
+

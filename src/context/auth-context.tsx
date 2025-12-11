@@ -202,9 +202,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await fetchUserData();
   }, [fetchUserData]);
 
-  const updateBalance = (newBalanceInKobo: number) => {
+  const updateBalance = useCallback(async (newBalanceInKobo: number) => {
     setBalance(newBalanceInKobo);
-  };
+    localStorage.setItem('ovo-user-balance', String(newBalanceInKobo));
+    
+    // Persist to Firebase
+    const userId = localStorage.getItem('ovo-user-id');
+    if (userId) {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { balance: newBalanceInKobo });
+      } catch (error) {
+        console.error('Failed to update balance in Firebase:', error);
+      }
+    }
+  }, []);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, updateBalance, fetchUserData }}>
