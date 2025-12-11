@@ -18,6 +18,7 @@ interface AuthContextType {
   login: (phone: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUserData: () => Promise<void>;
+  updateBalance: (newBalanceInKobo: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,13 +58,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         accountNumber: data.accountNumber || "",
         isAgent: data.isAgent || false,
         kycTier: data.kycTier || 1,
-        balance: data.balance ?? null,
+        balance: typeof data.balance === "number" ? data.balance : 0,
         email: data.email,
-        status: data.status,
+        status: data.status || "active",
         avatarUrl: data.avatarUrl,
         photoUrl: data.photoUrl,
       });
-      setBalance(data.balance ?? null);
+      setBalance(typeof data.balance === "number" ? data.balance : 0);
       setIsAuthenticated(true);
     } catch (err) {
       // If we're offline, don't clear the token—just mark unauthenticated and let a later retry succeed.
@@ -115,8 +116,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     performLogout();
   }, [performLogout]);
 
+  const updateBalance = useCallback((newBalanceInKobo: number) => {
+    setBalance(newBalanceInKobo);
+    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance }}>
       {children}
     </AuthContext.Provider>
   );
