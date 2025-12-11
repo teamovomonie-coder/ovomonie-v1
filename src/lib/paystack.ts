@@ -89,4 +89,6 @@ export async function verifyPaystackTransaction(reference: string) {
   }
 }
 
-export default { initiatePaystackTransaction, verifyPaystackTransaction };
+const paystackAPI = { initiatePaystackTransaction, verifyPaystackTransaction };
+
+export default paystackAPI;

@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { cardId: string } }
 ) {
   try {

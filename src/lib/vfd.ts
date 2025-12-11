@@ -238,4 +238,6 @@ export async function paymentDetails(reference: string) {
   return { status: res.status, ok: res.ok, data };
 }
 
-export default { initiateCardPayment, validateOtp, paymentDetails };
+const vfdAPI = { initiateCardPayment, validateOtp, paymentDetails };
+
+export default vfdAPI;
