@@ -82,6 +82,7 @@ function LoginFormContent() {
           variant: 'destructive',
           title: 'Login Failed',
           description: error.message,
+          className: "bg-[#0b1a3a] text-white border border-[#0b1a3a]",
         });
       }
     } finally {

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from "firebase/analytics";
 import { clientEnv } from './env.client';
@@ -16,7 +16,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+// Use long-polling to be proxy/VPN friendly
+const db = initializeFirestore(app, {
+  // Force long polling to be proxy/VPN friendly; do not combine with auto detect.
+  experimentalForceLongPolling: true,
+});
 const storage = getStorage(app);
 const analytics = typeof window !== 'undefined' && clientEnv.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ? getAnalytics(app) : null;
 

@@ -72,6 +72,16 @@ export interface User {
   lastLoginIp?: string;
   lastLoginDevice?: string;      // e.g. "iPhone 14 / Chrome / Android"
 
+  // Notifications (optional)
+  notifications?: Array<{
+    id: string;
+    title: string;
+    body: string;
+    read: boolean;
+    createdAt: Timestamp;
+    category?: string;
+  }>;
+
   // Extras
   mfaEnabled?: boolean;
   preferredLanguage?: string;    // e.g. "en", "fr", "yo"
