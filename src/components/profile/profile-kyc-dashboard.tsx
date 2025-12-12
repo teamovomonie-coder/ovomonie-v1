@@ -158,7 +158,7 @@ export function ProfileKycDashboard() {
             <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
               <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">Secure • NDIC</Badge>
               <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">KYC {currentTier}/3</Badge>
-              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">{user?.accountNumber || "Account"}</Badge>
+              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">Acct/No • {user?.accountNumber || "Account"}</Badge>
               <Button asChild size="sm" variant="secondary" className="bg-white/15 text-white hover:bg-white/25">
                 <CustomLink href="/security">Security</CustomLink>
               </Button>

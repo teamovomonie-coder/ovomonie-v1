@@ -882,7 +882,7 @@ function FundWithPaystack() {
         <div className="space-y-4">
             <Label>Amount (₦)</Label>
             <Input type="number" placeholder="e.g., 5000" value={amount === '' ? '' : amount} onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))} />
-            <p className="text-sm text-muted-foreground">Paystack test mode powered by your test public key.</p>
+            <p className="text-sm text-muted-foreground">Powered by Ovomonie</p>
             <div className="flex gap-2">
                 <Button onClick={handlePay} disabled={isProcessing} className="w-full">
                     {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Pay with Paystack (Test)'}
