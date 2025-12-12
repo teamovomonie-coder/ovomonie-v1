@@ -115,6 +115,21 @@ export async function POST(request: Request) {
             };
             const newTxnRef = db.collection('financialTransactions').doc();
             transaction.set(newTxnRef, debitLog);
+
+            // Add a notification record for sender
+            const notifRef = db.collection('notifications').doc();
+            const notif = {
+                userId: userId,
+                title: 'External Transfer',
+                body: `You sent ₦${(transferAmountInKobo/100).toLocaleString()} to ${recipientName} (${bank.name}).`,
+                category: 'transfer',
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                amount: transferAmountInKobo,
+                recipientName,
+                bank: bank.name,
+            } as any;
+            transaction.set(notifRef, notif);
         });
         
                 if (newSenderBalance === 0 && clientReference) {
