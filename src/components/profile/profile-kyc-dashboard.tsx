@@ -90,8 +90,8 @@ export function ProfileKycDashboard() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editProfile, setEditProfile] = useState({
     fullName: user?.fullName || "",
-    email: "paago@example.com",
-    phone: "08012345678",
+    email: user?.email || "",
+    phone: user?.phone || "",
     photoName: "",
   });
 
@@ -101,8 +101,10 @@ export function ProfileKycDashboard() {
     setEditProfile((prev) => ({
       ...prev,
       fullName: user?.fullName || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
     }));
-  }, [user?.fullName]);
+  }, [user?.fullName, user?.email, user?.phone]);
 
   const handleSaveProfile = () => {
     toast({
@@ -156,6 +158,7 @@ export function ProfileKycDashboard() {
             <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
               <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">Secure • NDIC</Badge>
               <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">KYC {currentTier}/3</Badge>
+              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">{user?.accountNumber || "Account"}</Badge>
               <Button asChild size="sm" variant="secondary" className="bg-white/15 text-white hover:bg-white/25">
                 <CustomLink href="/security">Security</CustomLink>
               </Button>
@@ -187,7 +190,7 @@ export function ProfileKycDashboard() {
                   </div>
                   <span className="hidden sm:inline text-sm font-medium text-slate-600">Email Address</span>
                 </div>
-                <span className="font-semibold">paago@example.com</span>
+                <span className="font-semibold">{user?.email || "Not provided"}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
                 <div className="flex items-center gap-3 text-muted-foreground">
@@ -196,7 +199,7 @@ export function ProfileKycDashboard() {
                   </div>
                   <span className="hidden sm:inline text-sm font-medium text-slate-600">Phone Number</span>
                 </div>
-                <span className="font-semibold">08012345678</span>
+                <span className="font-semibold">{user?.phone || "Not provided"}</span>
               </div>
             </CardContent>
             <CardFooter>
