@@ -89,6 +89,36 @@ export async function verifyPaystackTransaction(reference: string) {
   }
 }
 
-const paystackAPI = { initiatePaystackTransaction, verifyPaystackTransaction };
+/**
+ * Resolve bank account using Paystack API
+ * Returns account name for a given bank code + account number
+ */
+export async function resolveBankAccount(accountNumber: string, bankCode: string) {
+  const secretKey = getSecretKey();
+  if (!secretKey || secretKey.startsWith('sk_test_xxx')) {
+    return {
+      status: 400,
+      ok: false,
+      data: { message: 'Paystack secret key not configured.' },
+    };
+  }
+  const url = `${PAYSTACK_API_BASE}/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+    const data = await res.json();
+    return { status: res.status, ok: res.ok, data };
+  } catch (err) {
+    return {
+      status: 500,
+      ok: false,
+      data: { message: err instanceof Error ? err.message : 'Paystack resolve failed' },
+    };
+  }
+}
+
+const paystackAPI = { initiatePaystackTransaction, verifyPaystackTransaction, resolveBankAccount };
 
 export default paystackAPI;

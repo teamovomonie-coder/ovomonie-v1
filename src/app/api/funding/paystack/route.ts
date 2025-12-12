@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
-import { initiatePaystackTransaction, verifyPaystackTransaction } from '@/lib/paystack';
+import { initiatePaystackTransaction, verifyPaystackTransaction, resolveBankAccount } from '@/lib/paystack';
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +23,19 @@ export async function POST(request: Request) {
     if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { action, amount, reference, email, clientReference } = body;
+    const { action, amount, reference, email, clientReference, accountNumber, bankCode } = body;
+
+    // Action: Resolve bank account and return account name
+    if (action === 'resolveAccount') {
+      if (!accountNumber || !bankCode) {
+        return NextResponse.json({ message: 'accountNumber and bankCode are required.' }, { status: 400 });
+      }
+      const resolved = await resolveBankAccount(accountNumber, bankCode);
+      if (!resolved.ok) {
+        return NextResponse.json(resolved.data || { message: 'Unable to resolve account' }, { status: resolved.status });
+      }
+      return NextResponse.json({ ok: true, data: resolved.data }, { status: 200 });
+    }
 
     // Action 1: Initialize a Paystack transaction
     if (action === 'initialize') {

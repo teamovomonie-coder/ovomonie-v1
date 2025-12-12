@@ -152,27 +152,34 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     }
     
     if (watchedAccountNumber?.length === 10 && watchedBankCode) {
-        setIsVerifying(true);
-        debounceRef.current = setTimeout(async () => {
-            await new Promise(resolve => setTimeout(resolve, 1500)); 
-
-            const mockAccounts: {[key: string]: {[key: string]: string}} = {
-                '058': { '0123456789': 'JANE DOE', '1234567890': 'MARY ANNE' },
-                '044': { '0987654321': 'JOHN SMITH', '9876543210': 'ADAMU CIROMA' },
-                '033': { '1122334455': 'ALICE WONDER', '2233445566': 'NGOZI OKONJO' },
-                '011': { '5566778899': 'PETER JONES', '6677889900': 'BOLANLE AUSTEN-PETERS' },
-                '057': { '1112223334': 'CHIOMA AKINWUMI' }
-            };
-
-            if (mockAccounts[watchedBankCode] && mockAccounts[watchedBankCode][watchedAccountNumber]) {
-                setRecipientName(mockAccounts[watchedBankCode][watchedAccountNumber]);
-                clearErrors('accountNumber');
-            } else {
-                setRecipientName(null);
-                setError('accountNumber', { type: 'manual', message: 'Account not found. Please check the details and try again.' });
-            }
-            setIsVerifying(false);
-        }, 500);
+      setIsVerifying(true);
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const token = localStorage.getItem('ovo-auth-token');
+          const res = await fetch('/api/funding/paystack', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ action: 'resolveAccount', accountNumber: watchedAccountNumber, bankCode: watchedBankCode })
+          });
+          const data = await res.json();
+          if (res.ok && data.ok && data.data && (data.data.data?.account_name || data.data.account_name)) {
+            const accountName = (data.data.data?.account_name || data.data.account_name) as string;
+            setRecipientName(accountName);
+            clearErrors('accountNumber');
+          } else {
+            setRecipientName(null);
+            setError('accountNumber', { type: 'manual', message: data?.message || 'Account not found. Please check the details and try again.' });
+          }
+        } catch (err) {
+          setRecipientName(null);
+          setError('accountNumber', { type: 'manual', message: 'Failed to validate account. Check your connection.' });
+        } finally {
+          setIsVerifying(false);
+        }
+      }, 500);
     } else {
         setIsVerifying(false);
     }
