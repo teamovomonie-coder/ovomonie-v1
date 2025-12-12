@@ -92,7 +92,7 @@ export default function SuccessPage() {
     if (pending.type === 'memo-transfer' && pending.recipientName) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
-          <MemoReceipt data={pending.data} recipientName={pending.recipientName} onReset={handleReset} transactionId={pending.transactionId} date={pending.completedAt || pending.data?.date} />
+          <MemoReceipt data={pending.data} recipientName={pending.recipientName} onReset={handleReset} transactionId={pending.transactionId} date={pending.completedAt || pending.data?.date} isInternalTransfer={pending.data?.isInternalTransfer} />
         </div>
       );
     }

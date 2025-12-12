@@ -8,6 +8,7 @@ import { Landmark, Share2 } from 'lucide-react';
 import ShareModal from '@/components/transaction/share-modal';
 import { useToast } from '@/hooks/use-toast';
 import { nigerianBanks } from '@/lib/banks';
+import { motion } from 'framer-motion';
 
 type ReceiptData = {
   bankCode: string;
@@ -18,25 +19,31 @@ type ReceiptData = {
   photo?: string | null;
 };
 
-export default function MemoReceipt({ data, recipientName, onReset, transactionId, date }: { data: ReceiptData; recipientName: string; onReset: () => void; transactionId?: string; date?: string }) {
+export default function MemoReceipt({ data, recipientName, onReset, transactionId, date, isInternalTransfer }: { data: ReceiptData; recipientName: string; onReset: () => void; transactionId?: string; date?: string; isInternalTransfer?: boolean }) {
   const { toast } = useToast();
-  const bankName = nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank';
+  const bankName = isInternalTransfer ? 'Ovomonie' : (nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank');
 
   const receiptRef = useRef<HTMLDivElement | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
     <>
-      <div ref={receiptRef}>
-        <Card className="w-full max-w-sm mx-auto shadow-lg border-2 border-primary/20">
-          <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
+      <motion.div 
+        ref={receiptRef}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
+        <div className="w-full max-w-xs mx-auto rounded-xl p-2" style={{ boxShadow: '0 0 30px rgba(59, 130, 246, 0.14)' }}>
+          <Card className="w-full border-0 relative bg-white transform hover:-translate-y-1 transition-all duration-300" style={{ boxShadow: '0 10px 40px rgba(59, 130, 246, 0.25)' }}>
+            <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
         <h2 className="text-lg font-bold">Transfer Successful!</h2>
         <Landmark className="w-6 h-6" />
       </div>
       <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4 relative z-10">
           {data.photo && (
-            <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden">
+            <div className="relative w-full h-56 mb-4 rounded-lg overflow-hidden">
               <Image src={data.photo as string} alt="Memorable moment" fill style={{ objectFit: 'cover' }} />
             </div>
           )}
@@ -74,7 +81,8 @@ export default function MemoReceipt({ data, recipientName, onReset, transactionI
             </div>
           </CardFooter>
         </Card>
-      </div>
+          </div>
+        </motion.div>
       <ShareModal open={isShareOpen} onOpenChange={setIsShareOpen} targetRef={receiptRef} title={`Transfer Receipt`} />
     </>
   );

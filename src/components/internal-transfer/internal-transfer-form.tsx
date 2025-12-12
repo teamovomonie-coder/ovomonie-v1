@@ -227,7 +227,7 @@ export function InternalTransferForm() {
         const receiptType = isMemoTransfer ? 'memo-transfer' : 'internal-transfer';
         const pendingReceipt = {
           type: receiptType,
-          data: submittedData,
+          data: { ...submittedData, isInternalTransfer: true },
           recipientName,
           transactionId: result.data.transactionId || `OVO-INT-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
@@ -322,7 +322,7 @@ export function InternalTransferForm() {
             <Button className="w-full" onClick={() => {
                 try {
                   if (submittedData && recipientName) {
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: submittedData, recipientName }));
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: { ...submittedData, isInternalTransfer: true }, recipientName }));
                   }
                 } catch (e) {}
                 setIsPinModalOpen(true);
