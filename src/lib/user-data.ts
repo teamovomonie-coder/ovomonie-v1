@@ -127,6 +127,33 @@ export const performTransfer = async (
             transaction.set(db.collection('financialTransactions').doc(), debitLog);
             transaction.set(db.collection('financialTransactions').doc(), creditLog);
 
+            // Create notifications for both users
+            const debitNotification = {
+              userId: senderUserId,
+              title: 'Money Sent',
+              body: `Debited to ${recipientData.fullName}`,
+              category: 'transfer',
+              read: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              type: 'debit',
+              amount: amountInKobo,
+              recipientName: recipientData.fullName,
+            };
+            const creditNotification = {
+              userId: recipientDocRef.id,
+              title: 'Money Received',
+              body: `Account credited by ${senderData.fullName}`,
+              category: 'transfer',
+              read: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              type: 'credit',
+              amount: amountInKobo,
+              senderName: senderData.fullName,
+            };
+
+            transaction.set(db.collection('notifications').doc(), debitNotification);
+            transaction.set(db.collection('notifications').doc(), creditNotification);
+
             finalSenderBalance = newSenderBalance;
         });
 
