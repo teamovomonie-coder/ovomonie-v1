@@ -85,6 +85,10 @@ export function ProfileKycDashboard() {
   const { toast } = useToast();
   const currentTier = user?.kycTier || 1;
 
+  const firstName = user?.fullName.split(' ')[0] || '';
+  const lastName = user?.fullName.split(' ').slice(-1)[0] || '';
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
   const [isTier2DialogOpen, setIsTier2DialogOpen] = useState(false);
   const [isTier3DialogOpen, setIsTier3DialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -103,6 +107,7 @@ export function ProfileKycDashboard() {
       fullName: user?.fullName || "",
       email: user?.email || "",
       phone: user?.phone || "",
+      photoName: "",
     }));
   }, [user?.fullName, user?.email, user?.phone]);
 
@@ -131,9 +136,9 @@ export function ProfileKycDashboard() {
         </div>
         <CardContent className="relative flex flex-col gap-6 p-6 sm:p-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <Avatar className="h-14 w-14 border-2 border-white/40 shadow-sm">
-              <AvatarImage src="https://placehold.co/64x64.png" alt="Profile" />
-              <AvatarFallback>{user?.fullName?.[0] ?? "U"}</AvatarFallback>
+            <Avatar className="h-14 w-14 border-2 border-gray-400 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a]">
+              <AvatarImage src={user?.photoUrl} alt="Profile" />
+              <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
             </Avatar>
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">

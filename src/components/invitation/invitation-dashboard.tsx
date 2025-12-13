@@ -95,10 +95,9 @@ export function InvitationDashboard() {
       }
   };
 
-  const referralLink = `https://ovomonie.ng/signup?ref=${referralCode || ''}`;
+  const referralLink = 'https://ovomonie-v1-pgrm.vercel.app/register';
 
   const handleCopyToClipboard = (message?: string) => {
-    if (!referralCode) return;
     const textToCopy = message || referralLink;
     navigator.clipboard.writeText(textToCopy);
     toast({ 
@@ -108,7 +107,6 @@ export function InvitationDashboard() {
   };
 
   const handleUniversalShare = async () => {
-    if (!referralCode) return;
       const shareData = {
           title: 'Join Ovomonie',
           text: `Join Ovomonie and earn while you bank. Sign up with my link.`,
@@ -137,8 +135,7 @@ export function InvitationDashboard() {
   };
   
   const handleShareToContact = async () => {
-    if (!referralCode) return;
-    const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: ${referralLink}`;
+    const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: https://ovomonie-v1-pgrm.vercel.app/register`;
 
     if ('contacts' in navigator && 'select' in (navigator as any).contacts) {
         try {
@@ -156,7 +153,7 @@ export function InvitationDashboard() {
                 toast({ 
                     variant: 'destructive', 
                     title: 'Could Not Share to Contacts', 
-                    description: 'There was an error accessing your contacts. The message has been copied instead.' 
+                    description: 'Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: https://ovomonie-v1-pgrm.vercel.app/register' 
                 });
                 handleCopyToClipboard(message);
             }
@@ -164,7 +161,7 @@ export function InvitationDashboard() {
     } else {
         toast({
             title: "Feature Not Supported",
-            description: "Sharing to contacts directly is not supported on your browser. The message has been copied instead.",
+            description: "Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: https://ovomonie-v1-pgrm.vercel.app/register",
         });
         handleCopyToClipboard(message);
     }
@@ -211,17 +208,17 @@ export function InvitationDashboard() {
                 <>
                 <div className="bg-muted p-4 rounded-lg">
                     <Users className="mx-auto h-8 w-8 text-primary mb-2" />
-                    <p className="text-2xl font-bold">{stats?.invites || 0}</p>
+                    <p className="text-2xl font-bold">0</p>
                     <p className="text-sm text-muted-foreground">Invites Sent</p>
                 </div>
                 <div className="bg-muted p-4 rounded-lg">
                     <Award className="mx-auto h-8 w-8 text-primary mb-2" />
-                    <p className="text-2xl font-bold">{stats?.signups || 0}</p>
+                    <p className="text-2xl font-bold">0</p>
                     <p className="text-sm text-muted-foreground">Successful Signups</p>
                 </div>
                 <div className="bg-muted p-4 rounded-lg">
                     <div className="mx-auto h-8 w-8 flex items-center justify-center text-primary mb-2 font-bold text-xl">₦</div>
-                    <p className="text-2xl font-bold">{(stats?.earnings || 0).toLocaleString()}</p>
+                    <p className="text-2xl font-bold">0</p>
                     <p className="text-sm text-muted-foreground">Rewards Earned</p>
                 </div>
                 </>
@@ -230,12 +227,12 @@ export function InvitationDashboard() {
           
           <div className="text-center space-y-2">
              <p className="text-sm font-medium text-muted-foreground">Share your link via</p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button size="lg" className="flex-1" onClick={handleUniversalShare} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Share2 className="mr-2 h-5 w-5" />} Share Link
+              <div className="flex flex-col sm:flex-row justify-center gap-4" style={{ width: 'calc(70% - 60px)', margin: '0 auto' }}>
+                  <Button size="lg" className="flex-1" onClick={handleUniversalShare} disabled={isLoading} style={{ height: '52px' }}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Share2 className="mr-2" style={{ height: '16px', width: '16px' }} />} Share Link
                   </Button>
-                  <Button variant="secondary" size="lg" className="flex-1" onClick={handleShareToContact} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Contact className="mr-2 h-5 w-5" />} Share to Contact
+                  <Button variant="secondary" size="lg" className="flex-1" onClick={handleShareToContact} disabled={isLoading} style={{ height: '52px', backgroundColor: 'rgba(0, 0, 0, 0.08)' }}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Contact className="mr-2" style={{ height: '16px', width: '16px' }} />} Share to Contact
                   </Button>
               </div>
           </div>
@@ -247,8 +244,11 @@ export function InvitationDashboard() {
         </p>
         <Button variant="outline" size="sm" onClick={handleClaimReward} disabled={isLoading || isClaiming}>
             {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Simulate Receiving a ₦500 Reward
+            Receive a ₦500 Reward
         </Button>
+        <p className="text-xs text-muted-foreground text-center w-full mt-2">
+          Powered by Ovomonie
+        </p>
       </CardFooter>
     </Card>
   );

@@ -105,14 +105,17 @@ const getLabelText = (node: React.ReactNode): string => {
 
 const ServiceTile = ({ service }: { service: Service }) => {
   const { toast } = useToast();
-  const tileClassName = "bg-card p-4 rounded-xl shadow-sm flex flex-col items-center justify-center text-center hover:bg-muted transition-colors h-full";
+  const tileClassName = "p-3 rounded-2xl border-2 border-slate-200 bg-white text-[#0b1b3a] shadow-sm flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg h-full";
+  const iconColor = "#0a56ff"; // dashboard accent
+  const iconBg = "bg-[#0a56ff]/10";
   
   const tileContent = (
     <>
-      <div className="bg-primary-light-bg text-primary p-3 rounded-full mb-2">
-        <service.icon className="h-6 w-6" />
+      <div className={`${iconBg} text-white p-3 rounded-2xl mb-3 shadow-inner`}
+           style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }}>
+        <service.icon className="h-6 w-6" color={iconColor} />
       </div>
-      <span className="text-sm font-semibold text-foreground leading-tight">{service.label}</span>
+      <span className="text-sm font-black text-[#000c99] leading-tight tracking-tight">{service.label}</span>
     </>
   );
   
@@ -175,38 +178,47 @@ export default function MorePage() {
 
   return (
     <AppShell>
-      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6 bg-background">
-        <h2 className="text-3xl font-bold tracking-tight text-primary">All Services</h2>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search services..." 
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      <div className="flex-1 space-y-6 p-4 sm:p-8 pt-6 bg-white text-[#0b1b3a]">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-[#0b1b3a]/70">Explore</p>
+              <h2 className="text-3xl font-bold tracking-tight text-[#0b1b3a]">All Services</h2>
+              <p className="text-sm text-[#0b1b3a]/80">Utilities, transfers, payments, and more.</p>
+            </div>
+          </div>
 
-        {filteredServiceData.length > 0 ? (
-            <div className="space-y-8">
-            {filteredServiceData.map((category) => (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#0b1b3a]/60" />
+            <Input 
+              placeholder="Search services..." 
+              className="pl-10 rounded-2xl"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {filteredServiceData.length > 0 ? (
+              <div className="space-y-8">
+              {filteredServiceData.map((category) => (
                 <section key={category.title}>
-                <h3 className="text-xl font-semibold mb-4 text-primary">{category.title}</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {category.services.map((service, index) => (
-                    <ServiceTile key={`${getLabelText(service.label)}-${index}`} service={service} />
-                    ))}
+                <h3 className="text-xl font-semibold mb-4 text-[#0b1b3a]">{category.title}</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                  {category.services.map((service, index) => (
+                  <ServiceTile key={`${getLabelText(service.label)}-${index}`} service={service} />
+                  ))}
                 </div>
                 </section>
-            ))}
-            </div>
-        ) : (
-            <div className="text-center py-16 text-muted-foreground">
-                <Search className="mx-auto h-12 w-12 mb-4" />
-                <p className="font-semibold">No services found</p>
-                <p className="text-sm">Your search for "{searchQuery}" did not match any services.</p>
-            </div>
-        )}
+              ))}
+              </div>
+          ) : (
+                <div className="text-center py-16 text-[#0b1b3a]/70">
+                  <Search className="mx-auto h-12 w-12 mb-4 text-[#0b1b3a]/60" />
+                  <p className="font-semibold text-[#0b1b3a]">No services found</p>
+                  <p className="text-sm text-[#0b1b3a]/80">Your search for "{searchQuery}" did not match any services.</p>
+              </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );
