@@ -105,17 +105,16 @@ const getLabelText = (node: React.ReactNode): string => {
 
 const ServiceTile = ({ service }: { service: Service }) => {
   const { toast } = useToast();
-  const tileClassName = "p-3 rounded-2xl border-2 border-slate-200 bg-white text-[#0b1b3a] shadow-sm flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg h-full";
+  const tileClassName = "p-2 rounded-lg sm:rounded-2xl border border-slate-200 bg-white text-[#0b1b3a] shadow-sm flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md h-full";
   const iconColor = "#0a56ff"; // dashboard accent
-  const iconBg = "bg-[#0a56ff]/10";
+  const iconBg = "bg-[#e9f1ff]";
   
   const tileContent = (
     <>
-      <div className={`${iconBg} text-white p-3 rounded-2xl mb-3 shadow-inner`}
-           style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }}>
-        <service.icon className="h-6 w-6" color={iconColor} />
+      <div className={`${iconBg} p-1.5 rounded-lg mb-2 shadow-inner`}>
+        <service.icon className="h-5 w-5" color="#000c99" />
       </div>
-      <span className="text-sm font-black text-[#000c99] leading-tight tracking-tight">{service.label}</span>
+      <span className="text-[11px] sm:text-[13px] font-black text-[#000c99] leading-tight tracking-tight">{service.label}</span>
     </>
   );
   
@@ -203,7 +202,7 @@ export default function MorePage() {
               {filteredServiceData.map((category) => (
                 <section key={category.title}>
                 <h3 className="text-xl font-semibold mb-4 text-[#0b1b3a]">{category.title}</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-4 gap-1 sm:gap-3">
                   {category.services.map((service, index) => (
                   <ServiceTile key={`${getLabelText(service.label)}-${index}`} service={service} />
                   ))}

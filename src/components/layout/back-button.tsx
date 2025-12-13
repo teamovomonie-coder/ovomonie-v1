@@ -41,9 +41,9 @@ export default function BackButton() {
     <button
       aria-label="Go back"
       onClick={handleClick}
-      className="fixed top-4 left-4 z-50 inline-flex items-center justify-center w-9 h-9 rounded-full bg-card/90 text-foreground shadow-md hover:scale-105 transition-transform"
+      className="fixed top-4 left-4 z-50 inline-flex items-center justify-center transition-transform hover:scale-105"
     >
-      <ArrowLeft className="w-4 h-4" />
+      <ArrowLeft className="w-5 h-5 text-foreground" />
     </button>
   );
 }
