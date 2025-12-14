@@ -62,6 +62,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   const [otp, setOtp] = useState('');
   const [cardData, setCardData] = useState<CardFormData | null>(null);
   const [pin, setPin] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   const form = useForm<CardFormData>({
     resolver: zodResolver(cardSchema),
@@ -123,7 +125,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       }
 
       // Verify account PIN
-      vfdPayment.setLoading(true);
+      setIsProcessing(true);
+      setProcessingError(null);
       const pinVerifyRes = await fetch('/api/auth/verify-pin', {
         method: 'POST',
         headers: {
@@ -136,7 +139,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       const pinVerifyData = await pinVerifyRes.json();
       
       if (!pinVerifyData.valid) {
-        vfdPayment.setLoading(false);
+        setIsProcessing(false);
         toast({
           title: 'Error',
           description: 'Incorrect authorization PIN',
@@ -166,10 +169,10 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       });
 
       const data = await res.json();
-      vfdPayment.setLoading(false);
+      setIsProcessing(false);
 
       if (!data.ok) {
-        vfdPayment.setError(data.message || 'Payment initiation failed');
+        setProcessingError(data.message || 'Payment initiation failed');
         onError?.(data.message || 'Payment failed');
         return;
       }
@@ -181,12 +184,12 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       } else if (data.data?.status === 'success') {
         handlePaymentSuccess(cardData.amount);
       } else {
-        vfdPayment.setError(data.data?.message || 'Unknown payment status');
+        setProcessingError(data.data?.message || 'Unknown payment status');
       }
     } catch (err) {
-      vfdPayment.setLoading(false);
+      setIsProcessing(false);
       const message = err instanceof Error ? err.message : 'Payment failed';
-      vfdPayment.setError(message);
+      setProcessingError(message);
       onError?.(message);
     }
   };
@@ -221,7 +224,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         return;
       }
 
-      vfdPayment.setLoading(true);
+      setIsProcessing(true);
+      setProcessingError(null);
       const res = await fetch('/api/vfd/cards/authorize-otp', {
         method: 'POST',
         headers: {
@@ -235,10 +239,10 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       });
 
       const data = await res.json();
-      vfdPayment.setLoading(false);
+      setIsProcessing(false);
 
       if (!data.ok) {
-        vfdPayment.setError(data.message || 'OTP validation failed');
+        setProcessingError(data.message || 'OTP validation failed');
         toast({
           title: 'Error',
           description: data.message || 'OTP validation failed',
@@ -252,9 +256,9 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         handlePaymentSuccess(cardData.amount);
       }
     } catch (err) {
-      vfdPayment.setLoading(false);
+      setIsProcessing(false);
       const message = err instanceof Error ? err.message : 'OTP validation failed';
-      vfdPayment.setError(message);
+      setProcessingError(message);
       toast({
         title: 'Error',
         description: message,
@@ -286,10 +290,10 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {vfdPayment.error && (
+          {processingError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{vfdPayment.error}</AlertDescription>
+              <AlertDescription>{processingError}</AlertDescription>
             </Alert>
           )}
 
@@ -306,7 +310,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                     {...field}
                     value={field.value === 0 ? '' : field.value}
                     onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-                    disabled={vfdPayment.isLoading}
+                    disabled={isProcessing || vfdPayment.isLoading}
                   />
                 </FormControl>
                 <FormMessage />
@@ -324,7 +328,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                   <Input
                     placeholder="0000 0000 0000 0000"
                     {...field}
-                    disabled={vfdPayment.isLoading}
+                    disabled={isProcessing || vfdPayment.isLoading}
                   />
                 </FormControl>
                 <FormMessage />
@@ -343,7 +347,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                     <Input
                       placeholder="YYMM (e.g., 5003) or MM/YY"
                       {...field}
-                      disabled={vfdPayment.isLoading}
+                      disabled={isProcessing || vfdPayment.isLoading}
                     />
                   </FormControl>
                   <p className="text-xs text-muted-foreground">VFD format: 5003 = March 2050</p>
@@ -364,7 +368,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                       placeholder="111"
                       maxLength={4}
                       {...field}
-                      disabled={vfdPayment.isLoading}
+                      disabled={isProcessing || vfdPayment.isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -385,7 +389,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                     placeholder="1111"
                     maxLength={4}
                     {...field}
-                    disabled={vfdPayment.isLoading}
+                    disabled={isProcessing || vfdPayment.isLoading}
                   />
                 </FormControl>
                 <p className="text-xs text-muted-foreground">4-digit card PIN</p>
@@ -397,9 +401,9 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           <Button
             type="submit"
             className="w-full"
-            disabled={vfdPayment.isLoading}
+            disabled={isProcessing || vfdPayment.isLoading}
           >
-            {vfdPayment.isLoading ? (
+            {isProcessing || vfdPayment.isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
@@ -416,7 +420,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handlePinConfirm}
-        isProcessing={vfdPayment.isLoading}
+        isProcessing={isProcessing || vfdPayment.isLoading}
         title="Authorize Card Deposit"
         description="Enter your 4-digit PIN to authorize this card deposit"
       />
