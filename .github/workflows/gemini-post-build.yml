@@ -1,30 +1,117 @@
-name: Trigger Gemini Workflow After Build
+name: Gemini Code Analysis
 
 on:
   workflow_run:
     workflows: ["CI — Lint, Test, Build"]
     types:
       - completed
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
 
 jobs:
-  trigger_gemini:
-    name: Post-Build Gemini Analysis
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  gemini_analysis:
+    name: AI Code Review
+    if: ${{ github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Call Gemini API to run post-build analysis
-        run: |
-          echo "Triggering Gemini to run post-build jobs..."
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-          curl -sS -X POST "${{ secrets.GEMINI_BASE_URL }}/v1/ci/hooks" \
-            -H "Authorization: Bearer ${{ secrets.GEMINI_API_KEY }}" \
+      - name: Get changed files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' | head -20)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD -- '*.ts' '*.tsx' | head -20)
+          fi
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changed files: $CHANGED_FILES"
+
+      - name: Prepare code for analysis
+        id: code
+        run: |
+          # Get diff content for changed files (limit to 10KB to fit API limits)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF=$(git diff origin/main...HEAD -- '*.ts' '*.tsx' | head -c 10000)
+          else
+            DIFF=$(git diff HEAD~1 HEAD -- '*.ts' '*.tsx' | head -c 10000)
+          fi
+          
+          # Escape for JSON
+          DIFF_ESCAPED=$(echo "$DIFF" | jq -sRr @json)
+          echo "diff=$DIFF_ESCAPED" >> $GITHUB_OUTPUT
+
+      - name: Analyze with Gemini
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "🤖 Running Gemini code analysis..."
+          
+          # Prepare the prompt
+          PROMPT="You are reviewing code changes for Ovomonie, a Next.js fintech app using Firebase, Supabase, and Genkit.
+          
+          Analyze these code changes and provide:
+          1. **Summary**: Brief description of what changed
+          2. **Quality**: Any code quality issues (bugs, security, performance)
+          3. **Suggestions**: Improvements or best practices
+          
+          Keep response under 500 words. Be constructive.
+          
+          Code diff:
+          ${{ steps.code.outputs.diff }}"
+          
+          # Call Gemini API
+          RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "repository": "'"${{ github.repository }}"'",
-              "ref": "'"${{ github.ref }}"'",
-              "commit": "'"${{ github.sha }}"'",
-              "workflow": "CI — Lint, Test, Build",
-              "status": "success",
-              "source": "github-actions"
-            }'
+            -d "{
+              \"contents\": [{
+                \"parts\": [{
+                  \"text\": $(echo "$PROMPT" | jq -sR .)
+                }]
+              }],
+              \"generationConfig\": {
+                \"temperature\": 0.3,
+                \"maxOutputTokens\": 1024
+              }
+            }" 2>/dev/null)
+          
+          # Extract the response text
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "Analysis unavailable"')
+          
+          echo "## 🤖 Gemini Code Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$ANALYSIS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Analyzed commit: ${{ github.sha }}*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = process.env.GITHUB_STEP_SUMMARY;
+            
+            // Read the step summary file
+            let analysisContent = '';
+            try {
+              analysisContent = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+            } catch (e) {
+              analysisContent = '🤖 Gemini analysis completed. Check the workflow summary for details.';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🤖 Gemini Code Review\n\nAI-powered code analysis has been completed for this PR.\n\n[View full analysis](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
