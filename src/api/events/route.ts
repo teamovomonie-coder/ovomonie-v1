@@ -41,16 +41,18 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { clientReference, ...eventData } = body;
+
+        // Check for duplicate request before transaction
+        const idempotencyQuery = query(collection(db, 'financialTransactions'), where("reference", "==", clientReference));
+        const existingTxn = await getDocs(idempotencyQuery);
+        if (!existingTxn.empty) {
+            return NextResponse.json({ message: 'Duplicate request. This event has already been processed.' }, { status: 409 });
+        }
         
         let newBalance = 0;
         const newEventRef = doc(collection(db, "events"));
 
         await runTransaction(db, async (transaction) => {
-             const idempotencyQuery = query(collection(db, 'financialTransactions'), where("reference", "==", clientReference));
-             const existingTxn = await transaction.get(idempotencyQuery);
-             if (!existingTxn.empty) {
-                 throw new Error("Duplicate request. This event has already been processed.");
-             }
 
             const userRef = doc(db, 'users', userId);
             const userDoc = await transaction.get(userRef);

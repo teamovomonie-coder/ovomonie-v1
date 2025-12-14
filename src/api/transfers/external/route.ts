@@ -10,6 +10,7 @@ import {
     query,
     where,
     getDoc,
+    getDocs,
 } from 'firebase/firestore';
 import { nigerianBanks } from '@/lib/banks';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
@@ -42,21 +43,17 @@ export async function POST(request: Request) {
         
         const transferAmountInKobo = Math.round(amount * 100);
         let newSenderBalance = 0;
+
+        // Check for duplicate request before transaction
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+        const existingTxnSnapshot = await getDocs(idempotencyQuery);
+        if (!existingTxnSnapshot.empty) {
+            logger.info(`Idempotent request for external transfer: ${clientReference} already processed.`);
+            return NextResponse.json({ message: 'Transfer already processed.' }, { status: 200 });
+        }
         
         await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
-
-            if (!existingTxnSnapshot.empty) {
-                logger.info(`Idempotent request for external transfer: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) {
-                    newSenderBalance = userDoc.data().balance;
-                }
-                return;
-            }
 
             const senderRef = doc(db, "users", userId);
             const senderDoc = await transaction.get(senderRef);

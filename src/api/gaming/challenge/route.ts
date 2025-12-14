@@ -12,6 +12,7 @@ import {
     query,
     where,
     getDoc,
+    getDocs,
 } from 'firebase/firestore';
 import { logger } from '@/lib/logger';
 
@@ -35,20 +36,16 @@ export async function POST(request: Request) {
         
         let newBalance = 0;
 
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+        // Check for duplicate request before transaction
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+        const existingTxnSnapshot = await getDocs(idempotencyQuery);
+        if (!existingTxnSnapshot.empty) {
+            logger.info(`Idempotent request for game entry: ${clientReference} already processed.`);
+            return NextResponse.json({ message: 'Transaction already processed.' }, { status: 200 });
+        }
 
-            if (!existingTxnSnapshot.empty) {
-                logger.info(`Idempotent request for game entry: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) {
-                    newBalance = userDoc.data().balance;
-                }
-                return;
-            }
+        await runTransaction(db, async (transaction) => {
 
             const amountInKobo = Math.round(entryFee * 100);
             const userRef = doc(db, "users", userId);
@@ -112,19 +109,16 @@ export async function PUT(request: Request) {
         
         let newBalance = 0;
 
+        // Check for duplicate request before transaction
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+        const existingTxnSnapshot = await getDocs(idempotencyQuery);
+        if (!existingTxnSnapshot.empty) {
+            logger.info(`Idempotent request for game prize: ${clientReference} already processed.`);
+            return NextResponse.json({ message: 'Transaction already processed.' }, { status: 200 });
+        }
+
         await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
-
-            if (!existingTxnSnapshot.empty) {
-                logger.info(`Idempotent request for game prize: ${clientReference} already processed.`);
-                 const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if(userDoc.exists()) newBalance = userDoc.data().balance;
-                return;
-            }
-
             const amountInKobo = Math.round(prize * 100);
             const userRef = doc(db, "users", userId);
             const userDoc = await transaction.get(userRef);

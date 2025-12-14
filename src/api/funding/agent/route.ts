@@ -39,20 +39,16 @@ export async function POST(request: Request) {
         
         let newBalance = 0;
 
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
+        // Check for duplicate request before transaction
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+        const existingTxnSnapshot = await getDocs(idempotencyQuery);
+        if (!existingTxnSnapshot.empty) {
+            logger.info(`Idempotent request for agent funding: ${clientReference} already processed.`);
+            return NextResponse.json({ message: 'Transaction already processed.' }, { status: 200 });
+        }
 
-            if (!existingTxnSnapshot.empty) {
-                logger.info(`Idempotent request for agent funding: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-                if(userDoc.exists()) {
-                     newBalance = userDoc.data().balance;
-                }
-                return;
-            }
+        await runTransaction(db, async (transaction) => {
 
             const amountInKobo = Math.round(amount * 100);
             const userRef = doc(db, "users", userId);

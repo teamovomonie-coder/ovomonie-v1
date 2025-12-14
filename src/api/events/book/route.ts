@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
@@ -24,16 +24,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Missing required booking fields.' }, { status: 400 });
         }
 
+        // Check for duplicate request before transaction
+        const idempotencyQuery = query(collection(db, 'financialTransactions'), where("reference", "==", clientReference));
+        const existingTxn = await getDocs(idempotencyQuery);
+        if (!existingTxn.empty) {
+            return NextResponse.json({ message: 'Duplicate request. This booking has already been processed.' }, { status: 409 });
+        }
+
         const totalCostKobo = Math.round(totalAmount * 100);
         let newBalance = 0;
         const bookingRef = doc(collection(db, 'eventBookings'));
 
         await runTransaction(db, async (transaction) => {
-            const idempotencyQuery = query(collection(db, 'financialTransactions'), where("reference", "==", clientReference));
-            const existingTxn = await transaction.get(idempotencyQuery);
-            if (!existingTxn.empty) {
-                throw new Error("Duplicate request. This booking has already been processed.");
-            }
 
             const userRef = doc(db, 'users', userId);
             const eventRef = doc(db, 'events', eventId);

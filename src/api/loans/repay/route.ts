@@ -9,6 +9,7 @@ import {
     query,
     where,
     getDoc,
+    getDocs,
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
@@ -40,25 +41,16 @@ export async function POST(request: Request) {
         let newLoanBalance = 0;
         let newUserBalance = 0;
 
+        // Check for duplicate request before transaction
+        const financialTransactionsRef = collection(db, 'financialTransactions');
+        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
+        const existingTxnSnapshot = await getDocs(idempotencyQuery);
+        if (!existingTxnSnapshot.empty) {
+            logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
+            return NextResponse.json({ message: 'Transaction already processed.' }, { status: 200 });
+        }
+
         await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await transaction.get(idempotencyQuery);
-
-            if (!existingTxnSnapshot.empty) {
-                logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const loanRef = doc(db, "loans", loanId);
-
-                const [userDoc, loanDoc] = await Promise.all([
-                    transaction.get(userRef),
-                    transaction.get(loanRef)
-                ]);
-
-                if (userDoc.exists()) newUserBalance = userDoc.data().balance;
-                if (loanDoc.exists()) newLoanBalance = loanDoc.data().balance;
-                return;
-            }
 
             const loanRef = doc(db, "loans", loanId);
             const userRef = doc(db, "users", userId);
