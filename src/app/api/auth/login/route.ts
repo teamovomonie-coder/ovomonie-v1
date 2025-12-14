@@ -62,8 +62,7 @@ export async function POST(request: Request) {
             .eq('id', userData.id)
             .then(() => {
                 logger.info('Last login timestamp updated');
-            })
-            .catch(err => logger.warn('Failed to update last login:', err));
+            }, (err) => logger.warn('Failed to update last login:', err));
 
         return NextResponse.json({
             token,
