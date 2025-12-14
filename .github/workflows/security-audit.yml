@@ -1,0 +1,31 @@
+name: Security — npm audit
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 5 * * *'  # run daily at 5 AM UTC
+
+jobs:
+  npm-audit:
+    name: NPM Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run security audit
+        run: |
+          npm audit --audit-level=high || (echo "⚠️ High severity vulnerabilities found" && exit 1)
+
+      - name: Check for critical vulnerabilities
+        run: |
+          npm audit --audit-level=critical || (echo "🚨 Critical vulnerabilities found!" && exit 1)
