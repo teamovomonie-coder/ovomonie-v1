@@ -1,0 +1,30 @@
+name: Trigger Gemini Workflow After Build
+
+on:
+  workflow_run:
+    workflows: ["CI — Lint, Test, Build"]
+    types:
+      - completed
+
+jobs:
+  trigger_gemini:
+    name: Post-Build Gemini Analysis
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Gemini API to run post-build analysis
+        run: |
+          echo "Triggering Gemini to run post-build jobs..."
+
+          curl -sS -X POST "${{ secrets.GEMINI_BASE_URL }}/v1/ci/hooks" \
+            -H "Authorization: Bearer ${{ secrets.GEMINI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repository": "'"${{ github.repository }}"'",
+              "ref": "'"${{ github.ref }}"'",
+              "commit": "'"${{ github.sha }}"'",
+              "workflow": "CI — Lint, Test, Build",
+              "status": "success",
+              "source": "github-actions"
+            }'
