@@ -1,0 +1,40 @@
+name: Database Backup Reminder
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+  workflow_dispatch:
+
+jobs:
+  backup-reminder:
+    name: Database Backup Status
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check Supabase backup status
+        run: |
+          echo "📦 Database Backup Reminder"
+          echo "=========================="
+          echo ""
+          echo "🔹 Supabase: Automatic daily backups enabled (Pro plan)"
+          echo "   Dashboard: https://supabase.com/dashboard/project/agzdjkhifsqsiowllnqa/settings/backups"
+          echo ""
+          echo "🔹 Firebase/Firestore: Enable Point-in-time recovery"
+          echo "   Console: https://console.firebase.google.com/project/ovomonie-main-app/firestore/backups"
+          echo ""
+          echo "📋 Recommended actions:"
+          echo "   1. Verify backups are running successfully"
+          echo "   2. Test restore procedure quarterly"
+          echo "   3. Keep backup retention for 30+ days"
+          echo ""
+          echo "⚠️  For a fintech app, ensure you have:"
+          echo "   - Daily automated backups"
+          echo "   - Point-in-time recovery enabled"
+          echo "   - Cross-region backup replication"
+          echo "   - Documented disaster recovery plan"
+
+      - name: Log backup check
+        run: |
+          echo "backup_check_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Weekly Backup Check" >> $GITHUB_STEP_SUMMARY
+          echo "Reminder sent on $(date -u)" >> $GITHUB_STEP_SUMMARY

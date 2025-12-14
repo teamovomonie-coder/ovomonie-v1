@@ -22,6 +22,7 @@ export interface NotificationPayload {
   reference?: string;
   senderName?: string;
   recipientName?: string;
+  metadata?: Record<string, unknown>; // Additional context for the notification
 }
 
 /**

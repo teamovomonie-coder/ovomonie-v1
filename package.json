@@ -1,5 +1,5 @@
 {
-  "name": "nextn",
+  "name": "ovomonie",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,6 +11,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "npm run lint && npm run typecheck",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "fix:auth": "node scripts/fix-auth.js"
   },
   "dependencies": {

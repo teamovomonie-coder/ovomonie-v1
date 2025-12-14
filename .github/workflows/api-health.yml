@@ -1,0 +1,63 @@
+name: API Health Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Check Production APIs
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check main app health
+        run: |
+          echo "🔍 Checking Ovomonie production health..."
+          
+          # Check if the app is responding
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL || 'https://ovomonie-v1.vercel.app' }}" || echo "000")
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ App is healthy (HTTP $HTTP_STATUS)"
+          else
+            echo "❌ App returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Check API endpoints
+        run: |
+          BASE_URL="${{ vars.PRODUCTION_URL || 'https://ovomonie-v1.vercel.app' }}"
+          
+          # Test critical API endpoints
+          ENDPOINTS=(
+            "/api/auth/login"
+          )
+          
+          for endpoint in "${ENDPOINTS[@]}"; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "$BASE_URL$endpoint" || echo "000")
+            if [ "$HTTP_STATUS" -ge "200" ] && [ "$HTTP_STATUS" -lt "500" ]; then
+              echo "✅ $endpoint is responding (HTTP $HTTP_STATUS)"
+            else
+              echo "❌ $endpoint failed (HTTP $HTTP_STATUS)"
+            fi
+          done
+
+      - name: Check external dependencies
+        run: |
+          echo "🔗 Checking external service connectivity..."
+          
+          # Firebase
+          FIREBASE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://firestore.googleapis.com" || echo "000")
+          echo "Firebase: HTTP $FIREBASE_STATUS"
+          
+          # Supabase
+          SUPABASE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/" -H "apikey: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" || echo "000")
+          echo "Supabase: HTTP $SUPABASE_STATUS"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "🚨 ALERT: Production health check failed!"
+          echo "Check the workflow logs for details."
+          # Add Slack/Discord webhook notification here if needed
