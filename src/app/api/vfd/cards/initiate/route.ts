@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
       cvv,
       cardPin,
       amount,
-      currency = 'NGN',
       reference,
     } = body;
 
@@ -25,10 +24,9 @@ export async function POST(req: NextRequest) {
     const res = await initiateCardPayment({
       cardNumber,
       expiryDate,
-      cvv,
-      pin: cardPin,
+      cvv2: cvv,
+      cardPin: cardPin,
       amount,
-      currency,
       reference,
     });
 
