@@ -1,8 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 interface UserAccount {
     id?: string;
@@ -23,17 +28,33 @@ export async function GET(
         return NextResponse.json({ message: 'Account number is required.' }, { status: 400 });
     }
 
-    const q = query(collection(db, "users"), where("accountNumber", "==", accountNumber));
-    const querySnapshot = await getDocs(q);
+    if (!supabase) {
+        return NextResponse.json({ message: 'Database not configured' }, { status: 500 });
+    }
+
+    // Query Supabase for user by account number
+    const { data: userData, error } = await supabase
+        .from('users')
+        .select('id, phone, full_name, account_number, balance, referral_code')
+        .eq('account_number', accountNumber)
+        .single();
     
-    if (querySnapshot.empty) {
+    if (error || !userData) {
+        logger.warn('User not found by account number:', accountNumber, error);
         return NextResponse.json({ message: 'User not found.' }, { status: 404 });
     }
     
-    const userDoc = querySnapshot.docs[0];
-    const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
+    // Map Supabase column names to frontend expected format
+    const mappedUser: UserAccount = {
+        id: userData.id,
+        userId: userData.id,
+        accountNumber: userData.account_number,
+        fullName: userData.full_name,
+        balance: userData.balance,
+        referralCode: userData.referral_code || undefined,
+    };
     
-    return NextResponse.json(userData);
+    return NextResponse.json(mappedUser);
 
   } catch (error) {
     logger.error("Error fetching user data:", error);

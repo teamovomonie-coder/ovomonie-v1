@@ -170,8 +170,12 @@ export function InternalTransferForm() {
     setStep('summary');
   }
 
-  const handleFinalSubmit = useCallback(async () => {
+  const handleFinalSubmit = useCallback(async (pin?: string) => {
     if (!submittedData || !recipientName) return;
+    if (!pin || pin.length !== 4) {
+      setApiError('Please enter your 4-digit transaction PIN.');
+      return;
+    }
 
     setIsProcessing(true);
     setApiError(null);
@@ -197,6 +201,7 @@ export function InternalTransferForm() {
           recipientAccountNumber: submittedData.accountNumber,
           amount: submittedData.amount,
           narration: submittedData.narration,
+          senderPin: pin,
         }),
       });
 
@@ -227,7 +232,7 @@ export function InternalTransferForm() {
         const receiptType = isMemoTransfer ? 'memo-transfer' : 'internal-transfer';
         const pendingReceipt = {
           type: receiptType,
-          data: { ...submittedData, isInternalTransfer: true },
+          data: submittedData,
           recipientName,
           transactionId: result.data.transactionId || `OVO-INT-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
@@ -322,7 +327,7 @@ export function InternalTransferForm() {
             <Button className="w-full" onClick={() => {
                 try {
                   if (submittedData && recipientName) {
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: { ...submittedData, isInternalTransfer: true }, recipientName }));
+                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: submittedData, recipientName }));
                   }
                 } catch (e) {}
                 setIsPinModalOpen(true);
@@ -347,6 +352,18 @@ export function InternalTransferForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>For Testing</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">Use one of these Ovomonie account numbers for successful verification:</p>
+              <ul className="list-disc pl-5 space-y-1 text-xs">
+                <li>0987654321</li>
+                <li>1122334455</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+          
         <div className="flex items-center space-x-2 justify-end">
           <Label htmlFor="memo-switch">Use MemoTransfer</Label>
           <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
@@ -366,17 +383,11 @@ export function InternalTransferForm() {
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
                   )}
               </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                {isVerifying ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0a56ff]/10 to-[#0b1b3a]/10 px-2.5 py-1 text-[#0b1b3a] border border-[#0a56ff]/20 shadow-inner">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying account…
-                  </span>
-                ) : recipientName ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700 border border-emerald-100 shadow-inner">
-                    <Check className="h-3.5 w-3.5" /> {recipientName}
-                  </span>
-                ) : null}
-            </div>
+              {recipientName && !isVerifying && (
+                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                     <Check className="h-4 w-4" /> {recipientName}
+                  </div>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -389,17 +400,7 @@ export function InternalTransferForm() {
             <FormItem>
               <FormLabel>Amount (₦)</FormLabel>
               <FormControl>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="e.g., 5000"
-                  value={field.value === 0 ? '' : String(field.value)}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/,/g, '');
-                    const parsed = Number(raw);
-                    field.onChange(Number.isFinite(parsed) ? parsed : 0);
-                  }}
-                />
+                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
               </FormControl>
               <FormMessage />
             </FormItem>

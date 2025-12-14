@@ -1,10 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { FirebaseError } from "firebase/app";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@supabase/supabase-js";
 import { User as FirestoreUser } from "@/types/user";
+
+// Initialize Supabase client (use public/anon key for client-side)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 type ClientUser = Pick<
   FirestoreUser,
@@ -45,36 +51,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      const ref = doc(db, "users", userId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
+      if (!supabase) {
+        throw new Error("Supabase not configured");
+      }
+
+      // Fetch user from Supabase
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('id, phone, full_name, account_number, balance, kyc_tier, is_agent, email, status, avatar_url')
+        .eq('id', userId)
+        .single();
+
+      if (error || !userData) {
         throw new Error("User not found.");
       }
-      const data = snap.data() as Partial<FirestoreUser> & { photoUrl?: string | null };
+
       setUser({
         userId,
-        phone: data.phone || "",
-        fullName: data.fullName || "",
-        accountNumber: data.accountNumber || "",
-        isAgent: data.isAgent || false,
-        kycTier: data.kycTier || 1,
-        balance: typeof data.balance === "number" ? data.balance : 0,
-        email: data.email,
-        status: data.status || "active",
-        avatarUrl: data.avatarUrl,
-        photoUrl: data.photoUrl,
+        phone: userData.phone || "",
+        fullName: userData.full_name || "",
+        accountNumber: userData.account_number || "",
+        isAgent: userData.is_agent || false,
+        kycTier: userData.kyc_tier || 1,
+        balance: typeof userData.balance === "number" ? userData.balance : 0,
+        email: userData.email,
+        status: userData.status || "active",
+        avatarUrl: userData.avatar_url,
       });
-      setBalance(typeof data.balance === "number" ? data.balance : 0);
+      setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);
     } catch (err) {
-      // If we're offline, don't clear the token—just mark unauthenticated and let a later retry succeed.
-      if (err instanceof FirebaseError && (err.code === "unavailable" || err.message?.toLowerCase().includes("offline"))) {
-        console.warn("Auth fetch offline, will retry when back online.");
-        setIsAuthenticated(false);
-        setUser(null);
-        setBalance(null);
-        return;
-      }
       console.error("Auth fetch failed:", err);
       performLogout();
     }

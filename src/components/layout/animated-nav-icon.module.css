@@ -1,0 +1,115 @@
+/* Animated Navigation Icons */
+
+.animationContainer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
+/* Home - Icon zooms in and out */
+.iconFloat {
+  animation: float 3s linear infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Inventory - Box rolls like a dice continuously */
+.iconBounce {
+  animation: bounce 2s linear infinite;
+  transform-origin: center center;
+}
+
+@keyframes bounce {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Card - Slides left to right continuously */
+.iconWave {
+  animation: cardWave 3s linear infinite;
+  transform-origin: center center;
+}
+
+@keyframes cardWave {
+  0% {
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+  100% {
+    transform: translateX(-8px);
+  }
+}
+
+/* Agent - Briefcase lifts up and down */
+.agentAnimation {
+  animation: briefcaseLift 3s linear infinite;
+}
+
+@keyframes briefcaseLift {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Me - Human shakes head and body */
+.iconPulse {
+  animation: humanShake 3s linear infinite;
+}
+
+@keyframes humanShake {
+  0% {
+    transform: rotate(0deg) translateX(0);
+  }
+  10% {
+    transform: rotate(-3deg) translateX(0);
+  }
+  20% {
+    transform: rotate(3deg) translateX(0);
+  }
+  30% {
+    transform: rotate(-2deg) translateX(0);
+  }
+  40% {
+    transform: rotate(0deg) translateX(0);
+  }
+  50% {
+    transform: rotate(0deg) translateX(-6px);
+  }
+  60% {
+    transform: rotate(0deg) translateX(6px);
+  }
+  70% {
+    transform: rotate(0deg) translateX(-4px);
+  }
+  80% {
+    transform: rotate(0deg) translateX(4px);
+  }
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+}
+
+/* Add a glow effect when active */
+.animationContainer {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+}

@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import CustomLink from '@/components/layout/custom-link';
 import { useForm, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,6 +50,7 @@ const steps: { id: number, name: string, fields: FieldPath<FullFormData>[] }[] =
 ];
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -155,6 +157,8 @@ export default function RegisterPage() {
             title: 'Registration Successful!',
             description: 'Your account has been created.',
         });
+        
+        // Show success screen - wait for user to click button
         setCurrentStep(prev => prev + 1);
 
       } catch (error) {
@@ -295,8 +299,13 @@ export default function RegisterPage() {
                               <p className="text-sm text-muted-foreground">Your Account Number</p>
                               <p className="text-3xl font-bold tracking-widest text-foreground">{accountNumber}</p>
                             </div>
-                            <Button asChild className="w-full">
-                              <CustomLink href="/login">Go to Login</CustomLink>
+                            <p className="text-xs text-muted-foreground mt-2">Save your account number. You'll need it to log in.</p>
+                            <Button 
+                              type="button" 
+                              className="w-full mt-4" 
+                              onClick={() => router.push('/login')}
+                            >
+                              Go to Login
                             </Button>
                           </div>
                         )}

@@ -2,8 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getAiAssistantResponse, AiAssistantFlowOutput } from '@/ai/flows/ai-assistant-flow';
-import { textToSpeech, type SupportedLanguage } from '@/ai/flows/tts-flow';
+import { type AiAssistantFlowOutput } from '@/types/ai-flows';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -68,8 +67,17 @@ export function ChatInterface() {
             setIsLoading(true);
             const greetingText = `Hello ${userName}, I am OVO, your personal banking assistant. How can I help you today?`;
             try {
-                const ttsResult = await textToSpeech(greetingText, 'English');
-                setMessages([{ sender: 'bot', text: greetingText, audioUrl: ttsResult?.media }]);
+                const ttsResponse = await fetch('/api/ai/text-to-speech', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: greetingText, language: 'English' })
+                });
+                if (ttsResponse.ok) {
+                    const ttsResult = await ttsResponse.json();
+                    setMessages([{ sender: 'bot', text: greetingText, audioUrl: ttsResult?.media }]);
+                } else {
+                    setMessages([{ sender: 'bot', text: greetingText }]);
+                }
             } catch (error) {
                 console.error("TTS initialization failed", error);
                 setMessages([{ sender: 'bot', text: greetingText }]);
@@ -124,12 +132,22 @@ export function ChatInterface() {
     }));
 
     try {
-      const result = await getAiAssistantResponse({
-        history: historyForAI,
-        query: text,
-        userName: userName,
-        userId: user.userId,
+      const aiResponse = await fetch('/api/ai/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: historyForAI,
+          query: text,
+          userName: userName,
+          userId: user.userId,
+        })
       });
+
+      if (!aiResponse.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const result = await aiResponse.json();
 
       if (result.action) {
           setPendingAction(result.action);
@@ -137,9 +155,14 @@ export function ChatInterface() {
       
       let audioUrl: string | undefined;
       try {
-        const ttsResult = await textToSpeech(result.response, result.detectedLanguage);
-        if (ttsResult) {
-            audioUrl = ttsResult.media;
+        const ttsResponse = await fetch('/api/ai/text-to-speech', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: result.response, language: result.detectedLanguage })
+        });
+        if (ttsResponse.ok) {
+            const ttsResult = await ttsResponse.json();
+            audioUrl = ttsResult?.media;
         } else {
              toast({
                 variant: 'destructive',

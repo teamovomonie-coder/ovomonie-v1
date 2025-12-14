@@ -1,0 +1,96 @@
+mutation SeedData @transaction @auth(level: NO_ACCESS) {
+  user_insertMany(data: [
+    {
+      id: "6b29c995-5984-4188-b34f-63454565372c",
+      displayName: "demouser1",
+      email: "demouser1@example.com",
+      createdAt: "2024-04-26T12:00:00Z"
+    },
+    {
+      id: "7e9d6723-78fd-44a2-b4e2-3f842c33b5c3",
+      displayName: "demouser2",
+      email: "demouser2@example.com",
+      createdAt: "2024-04-26T13:00:00Z"
+    }
+  ])
+  account_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-4789-90ab-cdef01234567",
+      userId: "6b29c995-5984-4188-b34f-63454565372c",
+      accountType: "Checking",
+      createdAt: "2024-04-26T14:00:00Z",
+      initialBalance: 1000.00,
+      name: "Demo Checking Account 1"
+    },
+    {
+      id: "f8g9h0i1-j2k3-4l5m-6789-0abcdef01234",
+      userId: "7e9d6723-78fd-44a2-b4e2-3f842c33b5c3",
+      accountType: "Savings",
+      createdAt: "2024-04-26T15:00:00Z",
+      initialBalance: 5000.00,
+      name: "Demo Savings Account 2"
+    }
+  ])
+  category_insertMany(data: [
+    {
+      id: "bc95b387-f7c9-4924-8289-6da0b3aa12c5",
+      userId: "6b29c995-5984-4188-b34f-63454565372c",
+      categoryType: "Expense",
+      createdAt: "2024-04-26T16:00:00Z",
+      name: "Demo Groceries"
+    },
+    {
+      id: "f166636b-0d3d-4f82-b083-87efdcae8725",
+      userId: "7e9d6723-78fd-44a2-b4e2-3f842c33b5c3",
+      categoryType: "Income",
+      createdAt: "2024-04-26T17:00:00Z",
+      name: "Demo Salary"
+    }
+  ])
+  transaction_insertMany(data: [
+    {
+      id: "3a8f053e-1049-45d5-b1a7-ca2a1e2a6925",
+      accountId: "a1b2c3d4-e5f6-4789-90ab-cdef01234567",
+      categoryId: "bc95b387-f7c9-4924-8289-6da0b3aa12c5",
+      userId: "6b29c995-5984-4188-b34f-63454565372c",
+      amount: -50.00,
+      createdAt: "2024-04-26T18:00:00Z",
+      transactionDate: "2024-04-25",
+      transactionType: "Debit",
+      description: "Demo Grocery Purchase"
+    },
+    {
+      id: "8e20d77c-1389-4279-905a-4a85421a9f9a",
+      accountId: "f8g9h0i1-j2k3-4l5m-6789-0abcdef01234",
+      categoryId: "f166636b-0d3d-4f82-b083-87efdcae8725",
+      userId: "7e9d6723-78fd-44a2-b4e2-3f842c33b5c3",
+      amount: 5000.00,
+      createdAt: "2024-04-26T19:00:00Z",
+      transactionDate: "2024-04-25",
+      transactionType: "Credit",
+      description: "Demo Salary Deposit"
+    }
+  ])
+  financialGoal_insertMany(data: [
+    {
+      id: "d57cfd68-532d-4b1c-a009-470943686188",
+      userId: "6b29c995-5984-4188-b34f-63454565372c",
+      createdAt: "2024-04-26T20:00:00Z",
+      targetDate: "2024-12-31",
+      goalType: "Savings",
+      targetAmount: 10000.00,
+      name: "Demo Savings Goal 1",
+      description: "Demo saving up for a rainy day."
+    },
+    {
+      id: "b59ae1a4-9a9f-4b0d-8925-73671726289e",
+      userId: "7e9d6723-78fd-44a2-b4e2-3f842c33b5c3",
+      createdAt: "2024-04-26T21:00:00Z",
+      targetDate: "2025-06-01",
+      goalType: "Investment",
+      targetAmount: 20000.00,
+      name: "Demo Investment Goal 2",
+      description: "Demo investing for the future."
+    }
+  ])
+}

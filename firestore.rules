@@ -1,81 +1,41 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check ownership based on a userId field in a document
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    // Users can read and update their own user document.
-    // New users can create their own document.
+    // Allow anyone to create a new user document (registration)
     match /users/{userId} {
-      allow read, update: if isOwner(userId);
-      allow create: if isOwner(userId);
-    }
-    
-    // Allow users to read their own financial transactions, but not create/update/delete them directly.
-    // Transactions should only be created by trusted server-side code (like our API routes).
-    match /financialTransactions/{transactionId} {
-      allow read: if isOwner(resource.data.userId);
-      // Deny client-side writes for security.
-      allow write: if false; 
-    }
-    
-    // Users can read their own loans. Updates/Creations are handled by the server.
-    match /loans/{loanId} {
-      allow read: if isOwner(resource.data.userId);
-       // Deny client-side writes for security.
-      allow write: if false;
-    }
-    
-    // Users can read their own investments. Updates/Creations are handled by the server.
-    match /investments/{investmentId} {
-      allow read: if isOwner(resource.data.userId);
-       // Deny client-side writes for security.
-      allow write: if false;
+      allow create: if request.data.email != null && request.data.phone != null;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Notifications: users can read/write their own docs only.
-    match /notifications/{notificationId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
+    // Allow authenticated users to create and read documents in collections
+    match /financialTransactions/{docId} {
+      allow create, read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Payroll batches scoped to userId.
-    match /payrollBatches/{batchId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
+    match /notifications/{docId} {
+      allow read, create: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Inventory collections are server-managed; block client writes.
-    match /products/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-    match /categories/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-    match /suppliers/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-    match /locations/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-    match /inventoryTransactions/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+    match /invoices/{docId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Default deny for anything not explicitly matched above.
-    match /{document=**} {
-      allow read, write: if false;
+    match /loans/{docId} {
+      allow read, create: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    match /investments/{docId} {
+      allow read, create: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Default rule: authenticated users can read most collections
+    match /{collection}/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
     }
   }
 }
+

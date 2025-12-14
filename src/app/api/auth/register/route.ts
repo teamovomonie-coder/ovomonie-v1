@@ -1,12 +1,17 @@
-
-import { db } from '@/lib/firebase';
+import { createClient } from '@supabase/supabase-js';
 import { hashSecret } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-
 import { NextResponse } from 'next/server';
 
-import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper function to generate a unique referral code
 const generateReferralCode = (length: number = 6): string => {
@@ -35,19 +40,15 @@ export async function POST(request: Request) {
         }
 
         // Check if user already exists with the same email or phone
-        const usersRef = collection(db, "users");
-        const emailQuery = query(usersRef, where("email", "==", email));
-        const phoneQuery = query(usersRef, where("phone", "==", phone));
-
-        const [emailSnapshot, phoneSnapshot] = await Promise.all([
-            getDocs(emailQuery),
-            getDocs(phoneQuery)
+        const [emailCheck, phoneCheck] = await Promise.all([
+            supabase.from('users').select('id').eq('email', email).limit(1),
+            supabase.from('users').select('id').eq('phone', phone).limit(1)
         ]);
 
-        if (!emailSnapshot.empty) {
+        if (emailCheck.data && emailCheck.data.length > 0) {
             return NextResponse.json({ message: 'An account with this email already exists.' }, { status: 409 });
         }
-        if (!phoneSnapshot.empty) {
+        if (phoneCheck.data && phoneCheck.data.length > 0) {
             return NextResponse.json({ message: 'An account with this phone number already exists.' }, { status: 409 });
         }
 
@@ -56,31 +57,29 @@ export async function POST(request: Request) {
         const accountNumber = lastTenDigits.split('').reverse().join('');
         const referralCode = generateReferralCode();
 
-        // Create new user document
-        const newUser = {
+        // Create new user document in Supabase
+        const { data, error } = await supabase.from('users').insert({
             email,
             phone,
-            fullName,
-            accountNumber,
-            referralCode,
-            loginPinHash: hashSecret(String(loginPin)),
-            transactionPinHash: hashSecret(String(transactionPin)),
-            balance: 0.0, // Initial balance in kobo (e.g., ₦1,250,345.00)
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        };
+            full_name: fullName,
+            account_number: accountNumber,
+            referral_code: referralCode,
+            login_pin_hash: hashSecret(String(loginPin)),
+            transaction_pin_hash: hashSecret(String(transactionPin)),
+            balance: 0,
+        }).select().single();
 
-        const docRef = await addDoc(usersRef, newUser);
+        if (error) {
+            logger.error("Supabase Registration Error:", error);
+            return NextResponse.json({ message: 'Failed to create user account.' }, { status: 500 });
+        }
         
-        return NextResponse.json({ message: 'Registration successful!', userId: docRef.id }, { status: 201 });
+        return NextResponse.json({ message: 'Registration successful!', userId: data.id }, { status: 201 });
 
     } catch (error) {
         logger.error("Registration Error:", error);
         let errorMessage = 'An internal server error occurred.';
-        // Check if the error message is about a missing Firestore index
-        if (error instanceof Error && error.message.includes('The query requires an index')) {
-            errorMessage = "The database is missing a required index for user registration. Please check the server logs for a link to create it in the Firebase Console.";
-        } else if (error instanceof Error) {
+        if (error instanceof Error) {
             errorMessage = `An internal server error occurred: ${error.message}`;
         }
         return NextResponse.json({ message: errorMessage }, { status: 500 });

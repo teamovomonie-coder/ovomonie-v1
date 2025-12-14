@@ -1,11 +1,18 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
-import { hashSecret, verifySecret } from '@/lib/auth';
+import { hashSecret } from '@/lib/auth';
+import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
+
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 
 
@@ -27,19 +34,24 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'New PIN must be 4 digits.' }, { status: 400 });
         }
 
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await getDoc(userRef);
+        if (!supabase) {
+            return NextResponse.json({ message: 'Database not configured' }, { status: 500 });
+        }
 
-        if (!userDoc.exists()) {
+        // Get user from Supabase
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('transaction_pin_hash')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !userData) {
+            logger.error('User not found:', userError);
             return NextResponse.json({ message: 'User not found.' }, { status: 404 });
         }
 
-        const userData = userDoc.data();
-        
-        const transactionPinHash = userData.transactionPinHash as string | undefined;
-        const currentMatches = transactionPinHash
-            ? verifySecret(String(currentPin), transactionPinHash)
-            : String(userData.transactionPin) === String(currentPin);
+        // Validate current PIN
+        const currentMatches = validateTransactionPin(String(currentPin), userData.transaction_pin_hash || '');
 
         if (!currentMatches) {
             return NextResponse.json({ message: 'Incorrect current PIN.' }, { status: 401 });
@@ -49,10 +61,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'New PIN cannot be the same as the old PIN.' }, { status: 400 });
         }
 
-        await updateDoc(userRef, {
-            transactionPinHash: hashSecret(String(newPin)),
-            transactionPin: deleteField(),
-        });
+        // Update PIN in Supabase
+        const { error: updateError } = await supabase!
+            .from('users')
+            .update({ transaction_pin_hash: hashSecret(String(newPin)) })
+            .eq('id', userId);
+
+        if (updateError) {
+            logger.error('Failed to update PIN:', updateError);
+            return NextResponse.json({ message: 'Failed to update PIN.' }, { status: 500 });
+        }
 
         return NextResponse.json({ message: 'Transaction PIN changed successfully.' });
 

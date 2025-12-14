@@ -8,15 +8,20 @@ function getBase() {
 // Token exchange/cache
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function getAccessToken(): Promise<string | null> {
+async function getAccessToken(forceRefresh: boolean = false): Promise<string | null> {
   // 1) If explicit token provided via env, prefer it
   if (process.env.VFD_ACCESS_TOKEN && process.env.VFD_ACCESS_TOKEN.trim()) {
     return process.env.VFD_ACCESS_TOKEN.trim();
   }
 
-  // 2) If we have a cached token and it's not expired, return it
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 5000) {
+  // 2) If we have a cached token and it's not expired, return it (unless forcing refresh)
+  if (!forceRefresh && cachedToken && Date.now() < cachedToken.expiresAt - 60000) { // 1 minute buffer
     return cachedToken.token;
+  }
+
+  // Clear cache if forcing refresh
+  if (forceRefresh) {
+    cachedToken = null;
   }
 
   // 3) Attempt client credentials exchange using consumer key/secret
@@ -24,10 +29,14 @@ async function getAccessToken(): Promise<string | null> {
   const secret = process.env.VFD_CONSUMER_SECRET;
   const tokenUrl = process.env.VFD_TOKEN_URL || 'https://api-devapps.vfdbank.systems/vfd-tech/baas-portal/v1/baasauth/token';
 
-  if (!key || !secret) return null;
+  if (!key || !secret) {
+    console.error('[VFD] Missing VFD_CONSUMER_KEY or VFD_CONSUMER_SECRET');
+    return null;
+  }
 
   // Try OAuth2 client_credentials style request (common pattern)
   try {
+    console.log('[VFD] Requesting new access token...');
     const basic = Buffer.from(`${key}:${secret}`).toString('base64');
     const res = await fetch(tokenUrl, {
       method: 'POST',
@@ -52,8 +61,9 @@ async function getAccessToken(): Promise<string | null> {
     const expiresIn = Number(data?.expires_in || data?.expires || 0) || 0;
 
     if (token) {
-      const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : Date.now() + 15 * 60 * 1000;
+      const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : Date.now() + 14 * 60 * 1000; // Default 14 min
       cachedToken = { token, expiresAt };
+      console.log('[VFD] Access token obtained, expires in', expiresIn || 840, 'seconds');
       return token;
     }
 
@@ -148,7 +158,7 @@ export async function initiateCardPayment(payload: {
   shouldTokenize?: boolean;
 }) {
   const base = getBase();
-  const token = await getAccessToken();
+  let token = await getAccessToken();
   const key = process.env.VFD_CONSUMER_KEY;
   const secret = process.env.VFD_CONSUMER_SECRET;
   if (!token && !(key && secret)) {
@@ -167,23 +177,34 @@ export async function initiateCardPayment(payload: {
     shouldTokenize: !!payload.shouldTokenize,
   };
 
-  const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
+  const makeRequest = async (accessToken: string | null) => {
+    const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
+    const headersObj: any = { 'Content-Type': 'application/json' };
+    if (accessToken) headersObj.AccessToken = accessToken;
+    else if (basic) {
+      headersObj.Authorization = `Basic ${basic}`;
+      headersObj['X-Consumer-Key'] = key;
+      headersObj['X-Consumer-Secret'] = secret;
+    }
 
-  const headersObj: any = { 'Content-Type': 'application/json' };
-  if (token) headersObj.AccessToken = token;
-  else if (basic) {
-    headersObj.Authorization = `Basic ${basic}`;
-    headersObj['X-Consumer-Key'] = key;
-    headersObj['X-Consumer-Secret'] = secret;
+    return await fetch(url, {
+      method: 'POST',
+      headers: headersObj,
+      body: JSON.stringify(body),
+    });
+  };
+
+  let res = await makeRequest(token);
+  let data = await res.json();
+
+  // If token expired, retry with fresh token
+  if (data?.message?.toLowerCase().includes('expired') || data?.message?.toLowerCase().includes('invalid token')) {
+    console.log('[VFD] Token expired, fetching new token and retrying...');
+    token = await getAccessToken(true); // Force refresh
+    res = await makeRequest(token);
+    data = await res.json();
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: headersObj,
-    body: JSON.stringify(body),
-  });
-
-  const data = await res.json();
   return { status: res.status, ok: res.ok, data };
 }
 

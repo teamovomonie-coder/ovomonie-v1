@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AiAssistantFlowOutput } from '@/ai/flows/ai-assistant-flow';
+import { type AiAssistantFlowOutput } from '@/types/ai-flows';
 
 type Action = AiAssistantFlowOutput['action'];
 

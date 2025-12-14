@@ -1,11 +1,17 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from "firebase/firestore";
+import { createClient } from '@supabase/supabase-js';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
-import { verifySecret } from '@/lib/auth';
+import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
+
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 
 export async function POST(request: Request) {
@@ -39,20 +45,26 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'A valid 4-digit transaction PIN is required.' }, { status: 400 });
         }
 
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
+        if (!supabase) {
+            return NextResponse.json({ message: 'Database not configured' }, { status: 500 });
+        }
 
-        if (!userDoc.exists()) {
+        // Get user from Supabase
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('transaction_pin_hash')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !userData) {
+            logger.error('User not found:', userError);
             return NextResponse.json({ message: 'User not found.' }, { status: 404 });
         }
 
-        const userData = userDoc.data();
-        const transactionPinHash = userData.transactionPinHash as string | undefined;
-        const matches = transactionPinHash
-            ? verifySecret(String(pin), transactionPinHash)
-            : String(userData.transactionPin) === String(pin);
+        // Validate transaction PIN using pin-validator
+        const isValid = validateTransactionPin(String(pin), userData.transaction_pin_hash || '');
 
-        if (matches) {
+        if (isValid) {
             return NextResponse.json({ success: true, message: 'PIN verified.' });
         } else {
             return NextResponse.json({ success: false, message: 'The PIN you entered is incorrect.' }, { status: 401 });

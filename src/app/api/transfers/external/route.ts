@@ -1,3 +1,5 @@
+import { createNotification, NotificationTemplates } from '@/lib/notification-helper';
+
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
@@ -116,7 +118,26 @@ export async function POST(request: Request) {
             const newTxnRef = db.collection('financialTransactions').doc();
             transaction.set(newTxnRef, debitLog);
 
-            // Add a notification record for sender
+            // Create notification using helper with template
+            const notifSuccess = await createNotification({
+                userId,
+                ...NotificationTemplates.externalTransferSent(recipientName, bank.name, transferAmountInKobo),
+                reference: clientReference,
+                metadata: {
+                    recipientName,
+                    accountNumber,
+                    bankName: bank.name,
+                    narration: narration || `Transfer to ${recipientName}`,
+                },
+            });
+
+            if (!notifSuccess) {
+                logger.warn('[EXTERNAL-TRANSFER] Failed to create Supabase notification (non-blocking)');
+            } else {
+                logger.info('[EXTERNAL-TRANSFER] Notification created successfully');
+            }
+
+            // Add a notification record for sender in Firestore (legacy)
             const notifRef = db.collection('notifications').doc();
             const notif = {
                 userId: userId,

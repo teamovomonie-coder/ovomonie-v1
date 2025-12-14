@@ -10,7 +10,14 @@ async function initAdmin(): Promise<void> {
     return;
   }
 
-  const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  let credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // Fallback: if env var not set, try local service-account.json in project root
+  if (!credsPath) {
+    const localPath = `${process.cwd()}/service-account.json`;
+    if (fs.existsSync(localPath)) {
+      credsPath = localPath;
+    }
+  }
   try {
     if (credsPath && fs.existsSync(credsPath)) {
       const raw = fs.readFileSync(credsPath, 'utf8');

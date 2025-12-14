@@ -1,0 +1,33 @@
+mutation CreateFinancialGoal($userId: UUID!, $name: String!, $targetAmount: Float!, $targetDate: Date!, $goalType: String!, $description: String) @auth(level: USER) {
+  financialGoal_insert(data: {
+    userId: $userId,
+    name: $name,
+    targetAmount: $targetAmount,
+    targetDate: $targetDate,
+    goalType: $goalType,
+    description: $description
+  })
+}
+
+query GetTransactionsForAccount($accountId: UUID!) @auth(level: USER) {
+  transactions(where: {accountId: {eq: $accountId}}) {
+    id
+    amount
+    transactionDate
+    description
+  }
+}
+
+mutation UpdateCategoryIcon($id: UUID!, $icon: String) @auth(level: USER) {
+  category_update(key: {id: $id}, data: {icon: $icon})
+}
+
+query ListBudgetsForUser($userId: UUID!) @auth(level: USER) {
+  budgets(where: {userId: {eq: $userId}}) {
+    id
+    name
+    budgetAmount
+    startDate
+    endDate
+  }
+}

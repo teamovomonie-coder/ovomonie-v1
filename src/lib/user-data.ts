@@ -13,6 +13,21 @@ interface UserAccount {
     kycTier?: number;
 }
 
+// KYC-based daily transfer limits (debit) in kobo
+const DAILY_DEBIT_LIMITS_BY_KYC: Record<number, number> = {
+    1: 50000 * 100, // ₦50,000
+    2: 500000 * 100, // ₦500,000
+    3: 5000000 * 100, // ₦5,000,000
+    4: Infinity, // Unlimited (corporate)
+};
+
+// KYC-based daily receive limits (credit) in kobo
+const DAILY_RECEIVE_LIMITS_BY_KYC: Record<number, number> = {
+    1: 200000 * 100, // ₦200,000
+    2: 5000000 * 100, // ₦5,000,000
+    3: Infinity, // Unlimited
+    4: Infinity, // Unlimited (corporate)
+};
 
 export const mockGetAccountByNumber = async (accountNumber: string): Promise<UserAccount | undefined> => {
     // On the server, query Firestore using Admin SDK.
@@ -38,6 +53,48 @@ export const mockGetAccountByNumber = async (accountNumber: string): Promise<Use
             return undefined;
         }
     }
+};
+
+// Helper: get today's total debited transfers for a user in kobo
+const getTodayDebitedTransfersTotal = async (userId: string): Promise<number> => {
+    const db = await getDb();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startTs = admin.firestore.Timestamp.fromDate(startOfDay);
+    const snap = await db
+        .collection('financialTransactions')
+        .where('userId', '==', userId)
+        .where('category', '==', 'transfer')
+        .where('type', '==', 'debit')
+        .where('timestamp', '>=', startTs)
+        .get();
+    let total = 0;
+    snap.forEach((d) => {
+        const data: any = d.data();
+        total += Number(data.amount || 0);
+    });
+    return total;
+};
+
+// Helper: get today's total credited transfers for a user in kobo
+const getTodayCreditedTransfersTotal = async (userId: string): Promise<number> => {
+    const db = await getDb();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startTs = admin.firestore.Timestamp.fromDate(startOfDay);
+    const snap = await db
+        .collection('financialTransactions')
+        .where('userId', '==', userId)
+        .where('category', '==', 'transfer')
+        .where('type', '==', 'credit')
+        .where('timestamp', '>=', startTs)
+        .get();
+    let total = 0;
+    snap.forEach((d) => {
+        const data: any = d.data();
+        total += Number(data.amount || 0);
+    });
+    return total;
 };
 
 export const performTransfer = async (
@@ -72,6 +129,26 @@ export const performTransfer = async (
         const recipientSnapshot = await db.collection('users').where('accountNumber', '==', recipientAccountNumber).get();
         if (recipientSnapshot.empty) return { success: false, message: 'Recipient account not found.' };
         const recipientDocRef = db.collection('users').doc(recipientSnapshot.docs[0].id);
+
+        // Pre-check sender debit limit before transaction
+        const senderDocPreCheck = await db.collection('users').doc(senderUserId).get();
+        if (!senderDocPreCheck.exists) return { success: false, message: 'Sender account not found.' };
+        const senderKycTier = Number(senderDocPreCheck.data()?.kycTier || 1);
+        const senderDailyDebitLimit = DAILY_DEBIT_LIMITS_BY_KYC[senderKycTier] ?? DAILY_DEBIT_LIMITS_BY_KYC[1];
+        const senderTodaysDebit = await getTodayDebitedTransfersTotal(senderUserId);
+        if (senderTodaysDebit + amountInKobo > senderDailyDebitLimit) {
+            return { success: false, message: `Daily transfer limit exceeded. You can send up to ₦${(senderDailyDebitLimit / 100).toLocaleString('en-NG')} per day.` };
+        }
+
+        // Pre-check recipient receive limit before transaction
+        const recipientDocPreCheck = await recipientDocRef.get();
+        if (!recipientDocPreCheck.exists) return { success: false, message: 'Recipient account not found.' };
+        const recipientKycTier = Number(recipientDocPreCheck.data()?.kycTier || 1);
+        const recipientDailyReceiveLimit = DAILY_RECEIVE_LIMITS_BY_KYC[recipientKycTier] ?? DAILY_RECEIVE_LIMITS_BY_KYC[1];
+        const recipientTodaysCredit = await getTodayCreditedTransfersTotal(recipientDocRef.id);
+        if (recipientTodaysCredit + amountInKobo > recipientDailyReceiveLimit) {
+            return { success: false, message: `Recipient's daily receive limit exceeded. Maximum daily limit is ₦${(recipientDailyReceiveLimit / 100).toLocaleString('en-NG')}.` };
+        }
 
         await db.runTransaction(async (transaction) => {
             const senderRef = db.collection('users').doc(senderUserId);

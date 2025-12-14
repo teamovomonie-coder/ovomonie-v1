@@ -1,6 +1,8 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { StockTradingDashboard } from "@/components/stock-trading/stock-trading-dashboard";
 
+export const dynamic = "force-dynamic";
+
 export default function StockTradingPage() {
   return (
     <AppShell>

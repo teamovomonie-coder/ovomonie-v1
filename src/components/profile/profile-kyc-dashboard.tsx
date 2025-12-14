@@ -111,12 +111,67 @@ export function ProfileKycDashboard() {
     }));
   }, [user?.fullName, user?.email, user?.phone]);
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Profile updated",
-      description: "Your profile details were saved.",
-    });
-    setIsEditDialogOpen(false);
+  const handleSaveProfile = async () => {
+    try {
+      const token = localStorage.getItem("ovo-auth-token");
+      const userId = localStorage.getItem("ovo-user-id");
+      
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "Authentication token not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!userId) {
+        toast({
+          title: "Error",
+          description: "User ID not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId,
+          fullName: editProfile.fullName,
+          email: editProfile.email,
+          phone: editProfile.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || errorData.message || "Failed to update profile";
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      toast({
+        title: "Profile updated",
+        description: "Your profile details were saved successfully.",
+      });
+
+      // Refresh user data from context
+      await fetchUserData();
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpgradeSuccess = async () => {

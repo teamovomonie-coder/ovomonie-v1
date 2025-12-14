@@ -1,12 +1,12 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
 
 export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ cardId: string }> }
+  request: Request,
+  { params }: { params: { cardId: string } }
 ) {
   try {
     // Verify authentication
@@ -23,7 +23,7 @@ export async function PATCH(
     }
 
     const userId = decoded.sub;
-    const { cardId } = await params;
+    const { cardId } = params;
     const body = await request.json();
     const { action } = body; // 'deactivate' or 'delete'
 

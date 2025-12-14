@@ -4,11 +4,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { Loader2, LayoutDashboard, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic, LogOut, Settings, Shield } from 'lucide-react';
+import { Loader2, Home, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic, LogOut, Settings, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { motion } from 'framer-motion';
+import { AnimatedNavIcon } from '@/components/layout/animated-nav-icon';
 import {
   Tooltip,
   TooltipContent,
@@ -37,7 +37,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Home", icon: Home },
     { href: "/inventory", label: "Inventory", icon: Package },
     { href: "/custom-card", label: "Card", icon: CreditCard },
     { href: "/agent-life", label: "Agent", icon: Briefcase },
@@ -59,45 +59,11 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <CustomLink href={href} className={cn(
-                        "flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors relative",
+                        "flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors",
                         isActive ? 'text-white font-semibold' : 'text-slate-200/80 hover:text-white'
                     )}>
-                        <motion.div
-                            className="relative icon-container"
-                            animate={isActive ? {
-                                scale: [1, 1.08, 1],
-                            } : {}}
-                            transition={{
-                                duration: 2.5,
-                                repeat: isActive ? Infinity : 0,
-                                ease: "easeInOut"
-                            }}
-                        >
-                            <Icon 
-                                className={cn("h-6 w-6", isActive && "animate-stroke")}
-                                strokeDasharray={isActive ? "60" : undefined}
-                                strokeDashoffset={isActive ? "0" : undefined}
-                            />
-                        </motion.div>
+                        <AnimatedNavIcon icon={Icon} label={label} isActive={isActive} />
                         <span>{label}</span>
-                        <style jsx>{`
-                            @keyframes stroke-animation {
-                                0% { stroke-dashoffset: 60; }
-                                50% { stroke-dashoffset: 0; }
-                                100% { stroke-dashoffset: -60; }
-                            }
-                            .icon-container :global(.animate-stroke) {
-                                animation: stroke-animation 3s linear infinite;
-                            }
-                            .icon-container :global(.animate-stroke path),
-                            .icon-container :global(.animate-stroke line),
-                            .icon-container :global(.animate-stroke polyline),
-                            .icon-container :global(.animate-stroke circle),
-                            .icon-container :global(.animate-stroke rect) {
-                                stroke-dasharray: 60;
-                                animation: stroke-animation 3s linear infinite;
-                            }
-                        `}</style>
                     </CustomLink>
                 </TooltipTrigger>
                  <TooltipContent className="md:hidden">
@@ -135,8 +101,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const showHeader = pathname === '/dashboard';
     
     const firstName = user?.fullName.split(' ')[0] || '';
-    const lastName = user?.fullName.split(' ').slice(-1)[0] || '';
-    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     
     const handleProactiveAssistantClick = async () => {
         if (!user || !user.userId) return;
@@ -165,9 +129,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button aria-label="User menu">
-                                    <Avatar className="h-9 w-9 border-2 border-gray-400 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a]">
-                                        <AvatarImage src={user?.photoUrl} alt="User" data-ai-hint="person avatar" />
-                                        <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials}</AvatarFallback>
+                                    <Avatar className="h-9 w-9 border-2 border-primary/50">
+                                        <AvatarImage src={user?.photoUrl || "https://placehold.co/40x40.png"} alt="User" data-ai-hint="person avatar" />
+                                        <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                 </button>
                             </DropdownMenuTrigger>
