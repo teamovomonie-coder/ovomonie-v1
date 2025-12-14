@@ -259,6 +259,67 @@ export async function paymentDetails(reference: string) {
   return { status: res.status, ok: res.ok, data };
 }
 
-const vfdAPI = { initiateCardPayment, validateOtp, paymentDetails };
+// Authorize card payment with OTP
+export async function authorizeCardOtp({ reference, otp }: { reference: string; otp: string }) {
+  const base = getBase();
+  const token = await getAccessToken();
+  const key = process.env.VFD_CONSUMER_KEY;
+  const secret = process.env.VFD_CONSUMER_SECRET;
+  if (!token && !(key && secret)) {
+    return { status: 400, ok: false, data: { message: 'VFD access token not configured.' } };
+  }
+  const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
+
+  const url = `${base}/authorize-otp`;
+  const headersObj: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
+    headersObj.Authorization = `Basic ${basic}`;
+    headersObj['X-Consumer-Key'] = key!;
+    headersObj['X-Consumer-Secret'] = secret!;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headersObj,
+    body: JSON.stringify({ reference, otp }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, ok: res.ok, data };
+}
+
+// Authorize card payment with PIN
+export async function authorizeCardPin({ reference, pin }: { reference: string; pin: string }) {
+  const base = getBase();
+  const token = await getAccessToken();
+  const key = process.env.VFD_CONSUMER_KEY;
+  const secret = process.env.VFD_CONSUMER_SECRET;
+  if (!token && !(key && secret)) {
+    return { status: 400, ok: false, data: { message: 'VFD access token not configured.' } };
+  }
+  const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
+
+  const url = `${base}/authorize-pin`;
+  const headersObj: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
+    headersObj.Authorization = `Basic ${basic}`;
+    headersObj['X-Consumer-Key'] = key!;
+    headersObj['X-Consumer-Secret'] = secret!;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headersObj,
+    body: JSON.stringify({ reference, pin }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, ok: res.ok, data };
+}
+
+// Export getAccessToken for external use
+export { getAccessToken };
+
+const vfdAPI = { initiateCardPayment, validateOtp, paymentDetails, authorizeCardOtp, authorizeCardPin, getAccessToken };
 
 export default vfdAPI;
