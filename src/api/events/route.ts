@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, runTransaction, serverTimestamp, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, doc, runTransaction, serverTimestamp, query, where, Timestamp } from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
