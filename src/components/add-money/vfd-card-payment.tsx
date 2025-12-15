@@ -64,6 +64,44 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   const [pin, setPin] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+
+  // Poll payment status after 3D Secure redirect
+  const pollPaymentStatus = async (reference: string, amount: number) => {
+    setIsPolling(true);
+    const token = localStorage.getItem('ovo-auth-token');
+    const maxAttempts = 30; // Poll for up to 5 minutes (10s intervals)
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 10000)); // Wait 10 seconds
+      
+      try {
+        const res = await fetch(`/api/vfd/cards/status?reference=${encodeURIComponent(reference)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        
+        if (data.ok && data.data?.status === '00') {
+          setIsPolling(false);
+          handlePaymentSuccess(amount);
+          return;
+        } else if (data.data?.status && data.data.status !== '00' && data.data.status !== 'pending') {
+          setIsPolling(false);
+          setProcessingError(data.data?.message || 'Payment failed');
+          return;
+        }
+      } catch (err) {
+        // Continue polling on error
+      }
+    }
+    
+    setIsPolling(false);
+    toast({
+      title: 'Payment Status Unknown',
+      description: 'Please check your transaction history for the payment status.',
+      variant: 'destructive',
+    });
+  };
 
   const form = useForm<CardFormData>({
     resolver: zodResolver(cardSchema),
@@ -177,14 +215,42 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         return;
       }
 
-      // Check if OTP is required
-      if (data.data?.requiresOTP || data.data?.status === 'pending_otp') {
+      // Handle VFD API responses
+      const responseData = data.data?.data || data.data;
+      
+      // Check if redirect is required (3D Secure / Mastercard authentication)
+      if (responseData?.redirectHtml) {
+        // Open redirect URL in a new window for 3D Secure authentication
+        window.open(responseData.redirectHtml, '_blank', 'width=500,height=600');
+        toast({
+          title: 'Complete Authentication',
+          description: 'Please complete the card authentication in the opened window.',
+        });
+        // Start polling for payment status
+        pollPaymentStatus(reference, cardData.amount);
+        return;
+      }
+      
+      // Check if OTP is required (code "01" means OTP needed)
+      if (responseData?.code === '01' || 
+          responseData?.narration?.toLowerCase().includes('otp') ||
+          data.data?.requiresOTP || 
+          data.data?.status === 'pending_otp') {
         setPin(reference); // Store reference for OTP submission
         setIsOTPModalOpen(true);
-      } else if (data.data?.status === 'success') {
+        toast({
+          title: 'OTP Required',
+          description: 'Please enter the OTP sent to your phone.',
+        });
+      } else if (responseData?.code === '00' || data.data?.status === 'success') {
         handlePaymentSuccess(cardData.amount);
       } else {
-        setProcessingError(data.data?.message || 'Unknown payment status');
+        // For other codes, show the message
+        const msg = responseData?.narration || responseData?.message || data.data?.message || 'Payment processing';
+        toast({
+          title: 'Processing',
+          description: msg,
+        });
       }
     } catch (err) {
       setIsProcessing(false);
@@ -226,7 +292,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
       setIsProcessing(true);
       setProcessingError(null);
-      const res = await fetch('/api/vfd/cards/authorize-otp', {
+      const res = await fetch('/api/vfd/cards/validate-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
