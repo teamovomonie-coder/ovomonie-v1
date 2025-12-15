@@ -470,9 +470,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ============================================================================
+-- SAVED CARDS TABLE (Card Tokenization)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS saved_cards (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  card_token VARCHAR(255) NOT NULL,
+  last_four VARCHAR(4) NOT NULL,
+  card_brand VARCHAR(20) NOT NULL,
+  expiry_display VARCHAR(10),
+  nickname VARCHAR(100),
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_saved_cards_user_id ON saved_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_cards_user_default ON saved_cards(user_id, is_default);
+
+-- Ensure only one default card per user
+CREATE OR REPLACE FUNCTION ensure_single_default_card()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.is_default = TRUE THEN
+    UPDATE saved_cards 
+    SET is_default = FALSE 
+    WHERE user_id = NEW.user_id AND id != NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_single_default_card
+AFTER INSERT OR UPDATE ON saved_cards
+FOR EACH ROW
+EXECUTE FUNCTION ensure_single_default_card();
+
 -- Apply update trigger to tables with updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_loans_updated_at BEFORE UPDATE ON loans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_saved_cards_updated_at BEFORE UPDATE ON saved_cards FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_investments_updated_at BEFORE UPDATE ON investments FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_stock_holdings_updated_at BEFORE UPDATE ON stock_holdings FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
