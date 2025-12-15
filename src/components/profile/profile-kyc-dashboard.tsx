@@ -192,7 +192,7 @@ export function ProfileKycDashboard() {
         <CardContent className="relative flex flex-col gap-6 p-6 sm:p-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
             <Avatar className="h-14 w-14 border-2 border-gray-400 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a]">
-              <AvatarImage src={user?.photoUrl} alt="Profile" />
+              <AvatarImage src={user?.photoUrl ?? undefined} alt="Profile" />
               <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
             </Avatar>
             <div className="space-y-2">
