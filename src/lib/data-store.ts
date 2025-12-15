@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import { firestore } from '@/lib/user-data';
+import { getDb } from '@/lib/firebaseAdmin';
 
 type TransferInput = {
   senderId: string;
@@ -18,6 +18,7 @@ export async function getUserById(userId: string) {
     if (error) throw new Error(error.message);
     return data;
   }
+  const firestore = await getDb();
   const doc = await firestore.collection('users').doc(userId).get();
   return { id: doc.id, ...doc.data() };
 }
@@ -31,9 +32,10 @@ export async function getDailyTotals(userId: string, dayStartISO: string, type: 
       .eq('type', type)
       .gte('timestamp', dayStartISO);
     if (error) throw new Error(error.message);
-    const total = (data || []).reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+    const total = (data || []).reduce((sum: number, r: { amount?: number }) => sum + (r.amount || 0), 0);
     return total;
   }
+  const firestore = await getDb();
   const snap = await firestore
     .collection('financialTransactions')
     .where('userId', '==', userId)
@@ -41,7 +43,7 @@ export async function getDailyTotals(userId: string, dayStartISO: string, type: 
     .where('timestamp', '>=', new Date(dayStartISO))
     .get();
   let total = 0;
-  snap.forEach((d: any) => (total += d.data()?.amount || 0));
+  snap.forEach((d) => (total += d.data()?.amount || 0));
   return total;
 }
 
