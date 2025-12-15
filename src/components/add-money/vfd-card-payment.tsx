@@ -936,6 +936,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         isProcessing={isProcessing || vfdPayment.isLoading}
         title="Authorize Card Deposit"
         description="Enter your 4-digit Ovomonie PIN to authorize this card deposit"
+        successUrl={null}
       />
 
       {/* OTP Modal */}

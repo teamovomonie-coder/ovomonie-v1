@@ -152,6 +152,8 @@ function FundWithCard() {
     });
     
     function onSubmit(data: CardFormData) {
+        // Clear any stale pending receipt to prevent wrong success page
+        try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
         setFundingData(data);
         setIsPinModalOpen(true);
     }
@@ -291,6 +293,7 @@ function FundWithCard() {
                 onClearError={() => setApiError(null)}
                 title="Authorize Card Deposit"
                 description="Please enter your 4-digit PIN to authorize this deposit."
+                successUrl={null}
             />
         </>
     );
@@ -590,6 +593,7 @@ function FundWithAgent() {
                 error={apiError}
                 onClearError={() => setApiError(null)}
                 title="Authorize Agent Deposit"
+                successUrl={null}
             />
         </>
     );
