@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import {
-  collection,
-  doc,
-  query,
-  where,
-  getDocs,
-  runTransaction,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
   try {
@@ -33,45 +33,69 @@ export async function POST(request: Request) {
     }
 
     // Idempotency check
-    const financialTransactionsRef = collection(db, 'financialTransactions');
-    const idempotencyQuery = query(financialTransactionsRef, where('reference', '==', clientReference));
-    const existing = await getDocs(idempotencyQuery as any).catch(() => null);
-    if (existing && !(existing as any).empty) {
-      const userRef = doc(db, 'users', userId);
-      const userSnapshot = await (await import('firebase/firestore')).getDoc(userRef as any);
-      const currentBal = userSnapshot.exists() ? (userSnapshot.data() as any)?.balance : null;
-      return NextResponse.json({ message: 'Already processed', newBalanceInKobo: currentBal }, { status: 200 });
+    const { data: existingTx } = await supabase
+      .from('financial_transactions')
+      .select('id')
+      .eq('reference', clientReference)
+      .single();
+
+    if (existingTx) {
+      logger.info(`Idempotent request for agent funding: ${clientReference} already processed.`);
+      const { data: userData } = await supabase
+        .from('users')
+        .select('balance')
+        .eq('id', userId)
+        .single();
+      
+      return NextResponse.json({ 
+        message: 'Already processed', 
+        newBalanceInKobo: userData?.balance || 0 
+      }, { status: 200 });
     }
 
-    let newBalance = 0;
     const amountInKobo = Math.round(amount * 100);
 
-    await runTransaction(db, async (transaction) => {
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await transaction.get(userRef as any);
+    // Get user's current balance
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('balance')
+      .eq('id', userId)
+      .single();
 
-      if (!userDoc.exists()) {
-        throw new Error('User document does not exist.');
-      }
+    if (userError || !user) {
+      throw new Error('User not found');
+    }
 
-      const userData = userDoc.data() as any;
-      newBalance = userData.balance + amountInKobo;
+    const newBalance = (user.balance || 0) + amountInKobo;
 
-      transaction.update(userRef, { balance: newBalance });
+    // Update user balance
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ balance: newBalance })
+      .eq('id', userId);
 
-      const creditLog = {
-        userId,
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Create financial transaction record
+    const { error: txError } = await supabase
+      .from('financial_transactions')
+      .insert({
+        user_id: userId,
         category: 'deposit',
         type: 'credit',
         amount: amountInKobo,
         reference: clientReference,
         narration: `Agent deposit from ${agentId}`,
         party: { name: `Agent ${agentId}` },
-        timestamp: serverTimestamp(),
-        balanceAfter: newBalance,
-      };
-      transaction.set(doc(financialTransactionsRef), creditLog);
-    });
+        timestamp: new Date().toISOString(),
+        balance_after: newBalance,
+      });
+
+    if (txError) {
+      throw txError;
+    }
 
     return NextResponse.json(
       { message: 'Agent deposit successful!', newBalanceInKobo: newBalance },

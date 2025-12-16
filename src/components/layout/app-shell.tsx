@@ -101,6 +101,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const showHeader = pathname === '/dashboard';
     
     const firstName = user?.fullName.split(' ')[0] || '';
+    const lastName = user?.fullName.split(' ').slice(-1)[0] || '';
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     
     const handleProactiveAssistantClick = async () => {
         if (!user || !user.userId) return;
@@ -129,9 +131,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button aria-label="User menu">
-                                    <Avatar className="h-9 w-9 border-2 border-primary/50">
-                                        <AvatarImage src={user?.photoUrl || "https://placehold.co/40x40.png"} alt="User" data-ai-hint="person avatar" />
-                                        <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
+                                    <Avatar className="h-9 w-9 border-2 border-gray-400">
+                                        <AvatarImage src={user?.photoUrl || user?.avatarUrl} alt="User" data-ai-hint="person avatar" />
+                                        <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
                                     </Avatar>
                                 </button>
                             </DropdownMenuTrigger>

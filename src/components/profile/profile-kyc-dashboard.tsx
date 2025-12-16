@@ -49,24 +49,45 @@ import { Label } from "@/components/ui/label";
 const kycTiers = [
   {
     level: 1,
-    name: "Tier 1",
+    name: "Tier 1 – BASIC",
     description: "Basic account features",
     dailyLimit: "₦50,000",
     requirements: ["Phone Number", "Email Address", "Basic Bio-Data"],
   },
   {
     level: 2,
-    name: "Tier 2",
+    name: "Tier 2 – STANDARD",
     description: "Higher limits & more features",
-    dailyLimit: "₦1,000,000",
-    requirements: ["BVN or NIN Verification", "Live Selfie Capture", "Proof of Address"],
+    dailyLimit: "₦500,000",
+    walletLimit: "₦2,000,000",
+    requirements: [
+      "BVN Verification",
+      "Live selfie Capture",
+      "Phone Number verification (OTP Confirmation)"
+    ],
   },
   {
     level: 3,
-    name: "Tier 3",
+    name: "Tier 3 – PREMIUM",
     description: "Full business & unlimited features",
+    dailyLimit: "₦5,000,000",
+    walletLimit: "Unlimited",
+    requirements: [
+      "NIN Verification",
+      "proof of Residential Address"
+    ],
+  },
+  {
+    level: 4,
+    name: "CORPORATE       BUSINESS",
+    description: "Enterprise-level banking solutions",
     dailyLimit: "Unlimited",
-    requirements: ["CAC Documents", "Proof of Income/Company Statement"],
+    requirements: [
+      "CAC Registration Documents",
+      "Business owner/ Directors ID Details",
+      "Business Information (Registered business name, Business category / Industry, Business Address, Phone Number)",
+      "Proof of Business Address"
+    ],
   },
 ];
 
@@ -81,6 +102,7 @@ const tier3Schema = z.object({
 });
 
 export function ProfileKycDashboard() {
+    const [showAllCorporateReqs, setShowAllCorporateReqs] = useState(false);
   const { user, fetchUserData, logout } = useAuth();
   const { toast } = useToast();
   const currentTier = user?.kycTier || 1;
@@ -283,6 +305,7 @@ export function ProfileKycDashboard() {
                   "border shadow-sm backdrop-blur",
                   tier.level <= currentTier ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-white"
                 )}
+                style={tier.level === 1 ? { paddingTop: '-2px' } : {}}
               >
                 <CardHeader className="flex flex-row items-start justify-between pb-2">
                   <div>
@@ -291,6 +314,15 @@ export function ProfileKycDashboard() {
                       <CardTitle className="text-lg">{tier.name}</CardTitle>
                     </div>
                     <CardDescription>Daily Limit: {tier.dailyLimit}</CardDescription>
+                    {tier.level === 1 && (
+                      <CardDescription>Wallet Limit: ₦200,000</CardDescription>
+                    )}
+                    {tier.level === 2 && (
+                      <CardDescription>Wallet Limit: {tier.walletLimit}</CardDescription>
+                    )}
+                    {tier.level === 3 && (
+                      <CardDescription>Wallet Limit: {tier.walletLimit}</CardDescription>
+                    )}
                   </div>
                   {tier.level === currentTier + 1 && (
                     <Button size="sm" onClick={() => (tier.level === 2 ? setIsTier2DialogOpen(true) : setIsTier3DialogOpen(true))}>
@@ -299,11 +331,37 @@ export function ProfileKycDashboard() {
                   )}
                 </CardHeader>
                 <CardContent className="pb-4">
-                  <ul className="text-sm space-y-1 list-disc pl-5">
-                    {tier.requirements.map((req) => (
-                      <li key={req}>{req}</li>
-                    ))}
-                  </ul>
+                  {tier.level === 4 ? (
+                    <>
+                      <ul className="text-sm space-y-1 list-disc pl-5">
+                        {tier.requirements.slice(0, 2).map((req) => (
+                          <li key={req}>{req}</li>
+                        ))}
+                      </ul>
+                      {!showAllCorporateReqs && (
+                        <button
+                          className="text-xs text-blue-600 mt-2 italic underline hover:text-blue-800 pl-1"
+                          style={{ display: 'block', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          onClick={() => setShowAllCorporateReqs(true)}
+                        >
+                          ...and more requirements
+                        </button>
+                      )}
+                      {showAllCorporateReqs && (
+                        <ul className="text-sm space-y-1 list-disc pl-5 mt-2">
+                          {tier.requirements.slice(2).map((req) => (
+                            <li key={req}>{req}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    <ul className="text-sm space-y-1 list-disc pl-5">
+                      {tier.requirements.map((req) => (
+                        <li key={req}>{req}</li>
+                      ))}
+                    </ul>
+                  )}
                 </CardContent>
               </Card>
             ))}

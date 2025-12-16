@@ -52,31 +52,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       if (!supabase) {
-        throw new Error("Supabase not configured");
+        throw new Error("Supabase not configured. Please check your environment variables.");
       }
 
       // Fetch user from Supabase
       const { data: userData, error } = await supabase
         .from('users')
-        .select('id, phone, full_name, account_number, balance, kyc_tier, is_agent, email, status, avatar_url')
+        .select('*')
         .eq('id', userId)
         .single();
 
-      if (error || !userData) {
+      if (error) {
+        console.error("Supabase fetch error:", error);
+        throw new Error(error.message || "Failed to fetch user data");
+      }
+
+      if (!userData) {
         throw new Error("User not found.");
       }
 
+      // Map Supabase column names (snake_case) to camelCase
       setUser({
-        userId,
+        userId: userData.id,
         phone: userData.phone || "",
-        fullName: userData.full_name || "",
-        accountNumber: userData.account_number || "",
-        isAgent: userData.is_agent || false,
-        kycTier: userData.kyc_tier || 1,
+        fullName: userData.full_name || userData.fullName || "",
+        accountNumber: userData.account_number || userData.accountNumber || "",
+        isAgent: userData.is_agent || userData.isAgent || false,
+        kycTier: userData.kyc_tier || userData.kycTier || 1,
         balance: typeof userData.balance === "number" ? userData.balance : 0,
         email: userData.email,
         status: userData.status || "active",
-        avatarUrl: userData.avatar_url,
+        avatarUrl: userData.avatar_url || userData.avatarUrl,
+        photoUrl: userData.photo_url || userData.photoUrl || userData.avatar_url || userData.avatarUrl,
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);
