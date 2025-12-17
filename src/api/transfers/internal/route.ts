@@ -1,9 +1,7 @@
-
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import { performTransfer } from '@/lib/user-data';
-import { getDb } from '@/lib/firebaseAdmin';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { performTransfer } from '@/lib/transfer';
+import { getUserById } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 
@@ -25,15 +23,12 @@ export async function POST(request: Request) {
              return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
         }
 
-        const db = await getDb();
-        const senderDocSnap = await db.collection('users').doc(userId).get();
-        if (!senderDocSnap.exists) {
+        const sender = await getUserById(userId);
+        if (!sender) {
             throw new Error('Sender account not found.');
         }
-        const senderAccountDetails = senderDocSnap.data() as any;
-        const senderAccountNumber = senderAccountDetails.accountNumber;
 
-        if (recipientAccountNumber === senderAccountNumber) {
+        if (recipientAccountNumber === sender.account_number) {
             return NextResponse.json({ message: 'You cannot transfer money to yourself.' }, { status: 400 });
         }
         

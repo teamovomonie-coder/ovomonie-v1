@@ -4,9 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
-import { PageLoader } from '@/components/layout/page-loader';
 import BackButton from '@/components/layout/back-button';
-import { Suspense } from 'react';
 import { ensureFirestoreInit } from '@/lib/firestore-ping';
 import { OfflineBanner } from "@/components/layout/offline-banner";
 
@@ -34,9 +32,6 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <OfflineBanner />
-        <Suspense fallback={null}>
-          <PageLoader />
-        </Suspense>
         <AuthProvider>
           <BackButton />
           <NotificationProvider>

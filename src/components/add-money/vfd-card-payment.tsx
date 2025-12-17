@@ -192,22 +192,22 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     onChange(formatted);
   };
 
-  // Handle expiry input - allow both MM/YY and YYMM formats
+  // Format expiry as user types (auto-insert /)
   const handleExpiryChange = (value: string, onChange: (value: string) => void) => {
-    // Remove any non-digit except slash
-    let cleaned = value.replace(/[^\d/]/g, '');
+    let cleaned = value.replace(/\D/g, '');
     
-    // If user types slash, preserve it
-    if (value.includes('/')) {
-      // MM/YY format - limit to MM/YY
-      const parts = cleaned.split('/');
-      const mm = parts[0]?.slice(0, 2) || '';
-      const yy = parts[1]?.slice(0, 2) || '';
-      cleaned = mm + (yy || parts.length > 1 ? '/' + yy : '');
-    } else {
-      // Just digits - could be YYMM format (VFD) or user typing MM then YY
-      // Don't auto-format, let user type what they want
-      cleaned = cleaned.replace(/\D/g, '').slice(0, 4);
+    // If user entered 4 digits and no slash yet, could be YYMM format
+    if (cleaned.length > 4) {
+      cleaned = cleaned.slice(0, 4);
+    }
+    
+    // Auto-insert slash for MM/YY format
+    if (cleaned.length >= 2 && !value.includes('/')) {
+      // Check if it looks like MM/YY format (first two digits are 01-12)
+      const firstTwo = parseInt(cleaned.slice(0, 2), 10);
+      if (firstTwo >= 1 && firstTwo <= 12) {
+        cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+      }
     }
     
     setExpiryValue(cleaned);
@@ -249,7 +249,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       description: 'Please check your transaction history for the payment status.',
       variant: 'destructive',
     });
-  }, [cardData, toast]);
+  }, [cardData, toast, handlePaymentSuccess]);
 
   const onSubmit = async (data: CardFormData) => {
     // Validate card if entering new card
@@ -263,34 +263,28 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         return;
       }
 
-      // Only validate card number length (allow test cards that may not pass Luhn)
-      const cleanCardNumber = cardNumberValue.replace(/\s+/g, '');
-      if (cleanCardNumber.length < 13 || cleanCardNumber.length > 19) {
+      if (!cardInfo.isValid && cardInfo.brand !== 'unknown') {
         toast({
           title: 'Invalid Card Number',
-          description: 'Card number must be between 13-19 digits',
+          description: 'Please check your card number',
           variant: 'destructive',
         });
         return;
       }
 
-      // Validate expiry - allow both formats
-      const cleanExpiry = expiryValue.replace(/\D/g, '');
-      if (cleanExpiry.length < 4) {
+      if (!expiryValidation.isValid) {
         toast({
           title: 'Invalid Expiry',
-          description: 'Please enter expiry (MM/YY or YYMM)',
+          description: expiryValidation.message,
           variant: 'destructive',
         });
         return;
       }
 
-      // Validate CVV - allow 3 or 4 digits
-      const cleanCvv = cvvValue.replace(/\D/g, '');
-      if (cleanCvv.length < 3 || cleanCvv.length > 4) {
+      if (!cvvValidation.isValid) {
         toast({
           title: 'Invalid CVV',
-          description: 'CVV must be 3-4 digits',
+          description: cvvValidation.message,
           variant: 'destructive',
         });
         return;
@@ -324,7 +318,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setIsProcessing(true);
       setProcessingError(null);
 
-      // Verify account PIN (OvoMonie transaction PIN)
+      // Verify account PIN
       const pinVerifyRes = await fetch('/api/auth/verify-pin', {
         method: 'POST',
         headers: {
@@ -336,60 +330,44 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
       const pinVerifyData = await pinVerifyRes.json();
       
-      // API returns { success: true/false }
-      if (!pinVerifyData.success) {
+      if (!pinVerifyData.valid) {
         setIsProcessing(false);
-        toast({ title: 'Error', description: pinVerifyData.message || 'Incorrect transaction PIN', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Incorrect authorization PIN', variant: 'destructive' });
         return;
       }
 
       const reference = `ovopay-${Date.now()}`;
       setPaymentReference(reference);
 
-      // Build request body for funding API
-      // Convert expiry to MM/YY format for the API
-      let expiryFormatted = '';
-      if (!selectedSavedCard && cardData.expiry) {
-        const cleaned = cardData.expiry.replace(/\D/g, '');
-        if (cleaned.length === 4) {
-          // Could be YYMM or MMYY - check if first 2 digits > 12
-          const first2 = parseInt(cleaned.substring(0, 2));
-          if (first2 > 12) {
-            // It's YYMM format, convert to MM/YY
-            expiryFormatted = cleaned.substring(2, 4) + '/' + cleaned.substring(0, 2);
-          } else {
-            // It's MMYY format, convert to MM/YY
-            expiryFormatted = cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
-          }
-        } else if (cardData.expiry.includes('/')) {
-          expiryFormatted = cardData.expiry;
-        }
+      // Build request body based on saved card or new card
+      let requestBody: Record<string, unknown>;
+      
+      if (selectedSavedCard) {
+        // Use saved card token
+        requestBody = {
+          cardToken: selectedSavedCard.card_token,
+          amount: cardData.amount,
+          currency: 'NGN',
+          reference,
+          useExistingCard: true,
+          cardPin: cardData.pin,
+        };
+      } else {
+        // New card
+        const expiryYYMM = convertToYYMM(cardData.expiry || '');
+        requestBody = {
+          cardNumber: (cardData.cardNumber || '').replace(/\s+/g, ''),
+          expiryDate: expiryYYMM,
+          cvv: cardData.cvv,
+          cardPin: cardData.pin,
+          amount: cardData.amount,
+          currency: 'NGN',
+          reference,
+          shouldTokenize: cardData.saveCard,
+        };
       }
-      
-      const requestBody = {
-        amount: cardData.amount,
-        clientReference: reference,
-        cardNumber: (cardData.cardNumber || '').replace(/\s+/g, ''),
-        cardPin: cardData.pin,
-        cvv: cardData.cvv || '',
-        expiry: expiryFormatted,
-      };
-      
-      // Validate all required fields
-      if (!requestBody.cardNumber || !requestBody.cardPin || !requestBody.cvv || !requestBody.expiry) {
-        toast({ 
-          title: 'Missing Information', 
-          description: 'Please fill in all card details', 
-          variant: 'destructive' 
-        });
-        setIsProcessing(false);
-        return;
-      }
-      
-      console.log('Sending card payment request:', { ...requestBody, cardNumber: '****' + requestBody.cardNumber.slice(-4), cardPin: '****' });
 
-      // Use the funding API which updates balance in Supabase
-      const res = await fetch('/api/funding/card', {
+      const res = await fetch('/api/vfd/cards/initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -401,30 +379,17 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       const data = await res.json();
       setIsProcessing(false);
 
-      if (!res.ok) {
-        setProcessingError(data.message || 'Payment failed');
+      if (!data.ok) {
+        setProcessingError(data.message || 'Payment initiation failed');
         onError?.(data.message || 'Payment failed');
         return;
       }
 
-      // Check if payment completed successfully
-      if (data.newBalanceInKobo !== undefined) {
-        // Payment successful - update balance immediately
-        updateBalance(data.newBalanceInKobo);
-        
-        // Save card if tokenization was successful
-        if (cardData.saveCard && data.vfd?.data?.cardToken) {
-          await saveCard(data.vfd.data.cardToken);
-        }
-        
-        handlePaymentSuccess(cardData.amount, false);
-        return;
-      }
-
+      const responseData = data.data?.data || data.data;
+      
       // Handle 3D Secure redirect
-      if (data.redirectUrl || data.vfd?.data?.redirectHtml) {
-        const redirectUrl = data.redirectUrl || data.vfd?.data?.redirectHtml;
-        window.open(redirectUrl, '_blank', 'width=500,height=600');
+      if (responseData?.redirectHtml) {
+        window.open(responseData.redirectHtml, '_blank', 'width=500,height=600');
         toast({
           title: 'Complete Authentication',
           description: 'Please complete the card authentication in the opened window.',
@@ -436,15 +401,21 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       // Handle OTP required
       if (responseData?.code === '01' || 
           responseData?.narration?.toLowerCase().includes('otp') ||
-          responseData?.requiresOTP || 
-          responseData?.status === 'pending_otp') {
+          data.data?.requiresOTP || 
+          data.data?.status === 'pending_otp') {
         setIsOTPModalOpen(true);
         toast({
           title: 'OTP Required',
           description: 'Please enter the OTP sent to your phone.',
         });
+      } else if (responseData?.code === '00' || data.data?.status === 'success') {
+        // Save card if tokenization was successful
+        if (cardData.saveCard && data.data?.cardToken) {
+          await saveCard(data.data.cardToken);
+        }
+        handlePaymentSuccess(cardData.amount, false);
       } else {
-        const msg = responseData?.narration || responseData?.message || data.message || 'Payment processing';
+        const msg = responseData?.narration || responseData?.message || data.data?.message || 'Payment processing';
         toast({ title: 'Processing', description: msg });
       }
     } catch (err) {
@@ -526,11 +497,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
       setIsOTPModalOpen(false);
       
-      // Update balance if returned
-      if (data.newBalanceInKobo !== undefined) {
-        updateBalance(data.newBalanceInKobo);
-      }
-      
       // Save card if tokenization was requested
       if (cardData?.saveCard && data.data?.cardToken) {
         await saveCard(data.data.cardToken);
@@ -547,31 +513,14 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     }
   };
 
-  const handlePaymentSuccess = (amount: number, shouldSaveCard?: boolean) => {
-    // Fetch updated balance from server to ensure UI reflects DB state
-    const token = localStorage.getItem('ovo-auth-token');
-    if (token) {
-      fetch('/api/wallet/sync-balance', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-        .then(res => res.json())
-        .then(result => {
-          if (result.ok && result.data?.balance !== undefined) {
-            updateBalance(result.data.balance);
-            console.log('Balance updated after card funding:', result.data.balance);
-          }
-        })
-        .catch(err => console.error('Balance sync failed:', err));
-    }
-
+  const handlePaymentSuccess = useCallback((amount: number, shouldSaveCard?: boolean) => {
     addNotification({
       title: 'Wallet Funded',
       description: `You successfully added ₦${amount.toLocaleString()} to your wallet via card.`,
       category: 'transaction',
     });
 
-    toast({ title: 'Success', description: `₦${amount.toLocaleString()} added to your wallet` });
+    toast({ title: 'Success', description: 'Payment completed successfully' });
 
     onSuccess?.(amount);
     vfdPayment.resetState();
@@ -583,7 +532,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     setExpiryValue('');
     setCvvValue('');
     setSelectedSavedCard(null);
-  };
+  }, [addNotification, toast, onSuccess, vfdPayment, form]);
 
   const selectSavedCard = (card: SavedCard | null) => {
     setSelectedSavedCard(card);
@@ -754,7 +703,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                   <FormItem>
                     <FormLabel className="flex items-center justify-between">
                       <span>Card Number</span>
-                      {cardNumberValue && cardInfo.brand !== 'unknown' && (
+                      {cardNumberValue && (
                         <span className={cn(
                           "px-2 py-0.5 text-xs font-bold rounded transition-all",
                           BRAND_CONFIG[cardInfo.brand].bg,
@@ -772,15 +721,26 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                           onChange={(e) => handleCardNumberChange(e.target.value, field.onChange)}
                           disabled={isProcessing || vfdPayment.isLoading}
                           maxLength={23}
-                          className="pr-10"
+                          className={cn(
+                            "pr-10",
+                            cardNumberValue && !cardInfo.isPotentiallyValid && "border-destructive",
+                            cardNumberValue && cardInfo.isValid && "border-green-500"
+                          )}
                         />
-                        {cardNumberValue && cardNumberValue.replace(/\s/g, '').length >= 13 && (
+                        {cardNumberValue && (
                           <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Check className="h-4 w-4 text-green-500" />
+                            {cardInfo.isValid ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : !cardInfo.isPotentiallyValid ? (
+                              <X className="h-4 w-4 text-destructive" />
+                            ) : null}
                           </span>
                         )}
                       </div>
                     </FormControl>
+                    {cardNumberValue && !cardInfo.isPotentiallyValid && (
+                      <p className="text-xs text-destructive">Invalid card number</p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -802,15 +762,26 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                             onChange={(e) => handleExpiryChange(e.target.value, field.onChange)}
                             disabled={isProcessing || vfdPayment.isLoading}
                             maxLength={7}
+                            className={cn(
+                              "pr-10",
+                              expiryValue && !expiryValidation.isValid && "border-destructive",
+                              expiryValue && expiryValidation.isValid && "border-green-500"
+                            )}
                           />
-                          {expiryValue && expiryValue.replace(/\D/g, '').length >= 4 && (
+                          {expiryValue && (
                             <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <Check className="h-4 w-4 text-green-500" />
+                              {expiryValidation.isValid ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <X className="h-4 w-4 text-destructive" />
+                              )}
                             </span>
                           )}
                         </div>
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Enter as MM/YY (03/50) or YYMM (5003)</p>
+                      {expiryValue && !expiryValidation.isValid && (
+                        <p className="text-xs text-destructive">{expiryValidation.message}</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -827,24 +798,35 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
                         <div className="relative">
                           <Input
                             type="password"
-                            placeholder="000"
+                            placeholder={cardInfo.cvvLength === 4 ? '0000' : '000'}
                             value={cvvValue}
                             onChange={(e) => {
-                              const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              const v = e.target.value.replace(/\D/g, '').slice(0, cardInfo.cvvLength);
                               setCvvValue(v);
                               field.onChange(v);
                             }}
                             disabled={isProcessing || vfdPayment.isLoading}
-                            maxLength={4}
+                            maxLength={cardInfo.cvvLength}
+                            className={cn(
+                              "pr-10",
+                              cvvValue && !cvvValidation.isValid && cvvValue.length === cardInfo.cvvLength && "border-destructive",
+                              cvvValue && cvvValidation.isValid && "border-green-500"
+                            )}
                           />
-                          {cvvValue && cvvValue.length >= 3 && (
+                          {cvvValue && cvvValue.length === cardInfo.cvvLength && (
                             <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <Check className="h-4 w-4 text-green-500" />
+                              {cvvValidation.isValid ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <X className="h-4 w-4 text-destructive" />
+                              )}
                             </span>
                           )}
                         </div>
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">3-4 digits on back of card</p>
+                      <p className="text-xs text-muted-foreground">
+                        {cardInfo.cvvLength} digits on {cardInfo.brand === 'amex' ? 'front' : 'back'} of card
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -37,7 +37,7 @@ export function verifyAuthToken(token: string): AuthTokenPayload | null {
     try {
         secret = getAuthSecret();
     } catch (error) {
-        console.error('Auth token verification failed: AUTH_SECRET is missing.', error);
+        console.error('Auth token verification failed.');
         return null;
     }
     const expectedSig = createHmac('sha256', secret).update(payloadB64).digest('base64url');

@@ -1,22 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { User as FirestoreUser } from "@/types/user";
-import { accountNumberToDisplay } from "@/lib/account-utils";
-
-// Initialize Supabase client (use public/anon key for client-side)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
 
 type ClientUser = Pick<
   FirestoreUser,
   "phone" | "fullName" | "accountNumber" | "balance" | "kycTier" | "isAgent" | "email" | "status" | "avatarUrl"
-> & { userId: string; photoUrl?: string | null; displayAccountNumber?: string };
+> & { userId: string; photoUrl?: string | null };
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -52,34 +42,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      if (!supabase) {
-        throw new Error("Supabase not configured");
+      // Fetch user from Firestore via API
+      const res = await fetch(`/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch user data");
       }
 
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const userData = await res.json();
 
-      if (error || !userData) {
-        throw new Error("User not found");
-      }
-
-      const accountNumber = userData.account_number || "";
       setUser({
-        userId: userData.id,
+        userId: userData.userId || userId,
         phone: userData.phone || "",
-        fullName: userData.full_name || "",
-        accountNumber,
-        displayAccountNumber: accountNumberToDisplay(accountNumber),
-        isAgent: userData.is_agent || false,
-        kycTier: userData.kyc_tier || 1,
+        fullName: userData.fullName || "",
+        accountNumber: userData.accountNumber || "",
+        isAgent: userData.isAgent || false,
+        kycTier: userData.kycTier || 1,
         balance: typeof userData.balance === "number" ? userData.balance : 0,
         email: userData.email,
         status: userData.status || "active",
-        avatarUrl: null,
-        photoUrl: null,
+        avatarUrl: userData.avatarUrl,
+        photoUrl: userData.photoUrl || userData.avatarUrl,
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);
@@ -126,9 +111,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [performLogout]);
 
   const updateBalance = useCallback((newBalanceInKobo: number) => {
-    const validBalance = typeof newBalanceInKobo === 'number' && !isNaN(newBalanceInKobo) ? newBalanceInKobo : 0;
-    setBalance(validBalance);
-    setUser((prev) => (prev ? { ...prev, balance: validBalance } : prev));
+    setBalance(newBalanceInKobo);
+    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
   }, []);
 
   return (

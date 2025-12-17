@@ -1,12 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # Environment variables - NEVER COMMIT THESE
-.env
-.env.local
-.env.development
-.env.production
-.env.*.local
-*.env
+.env*
 
 # Service account and secrets
 service-account.json
@@ -19,7 +14,6 @@ service-account.json
 /node_modules
 /.pnp
 .pnp.js
-.e
 
 # testing
 /coverage
@@ -34,11 +28,8 @@ service-account.json
 # misc
 .DS_Store
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# debug and logs
+*.log
 
 # vercel
 .vercel
@@ -46,14 +37,6 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Firebase
-firebase-debug.log
-firebase-debug.*.log
-
-# Server output logs
-server-output.log
-*.log
 
 # IDE
 .vscode/

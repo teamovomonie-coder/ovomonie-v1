@@ -85,9 +85,9 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
   // Fetch billers on mount
   useEffect(() => {
     fetchBillers();
-  }, []);
+  }, [fetchBillers]);
 
-  const fetchBillers = async () => {
+  const fetchBillers = useCallback(async () => {
     setIsLoadingBillers(true);
     try {
       const token = localStorage.getItem('ovo-auth-token');
@@ -117,7 +117,7 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
     } finally {
       setIsLoadingBillers(false);
     }
-  };
+  }, [toast]);
 
   const validateCustomer = async (customerId: string) => {
     if (!selectedBiller || customerId.length < 3) return;

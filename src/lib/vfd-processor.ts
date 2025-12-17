@@ -350,10 +350,12 @@ export async function processVFDPayment(
   }
 }
 
-export default {
+const vfdProcessor = {
   initiateVFDPayment,
   validateVFDPaymentOTP,
   checkVFDPaymentStatus,
   logVFDTransaction,
   processVFDPayment,
 };
+
+export default vfdProcessor;

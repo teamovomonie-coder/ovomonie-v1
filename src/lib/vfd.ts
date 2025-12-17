@@ -7,103 +7,68 @@ function getBase() {
 
 // Token exchange/cache
 let cachedToken: { token: string; expiresAt: number } | null = null;
-let tokenExchangeFailed = false; // Track if token exchange has failed
 
 async function getAccessToken(forceRefresh: boolean = false): Promise<string | null> {
-  // 1) If explicit token provided via env (and it's not a placeholder), prefer it
-  const envToken = process.env.VFD_ACCESS_TOKEN?.trim();
-  if (envToken && envToken.length > 20 && !envToken.includes('your_') && !envToken.includes('placeholder')) {
-    return envToken;
+  // 1) If explicit token provided via env, prefer it
+  if (process.env.VFD_ACCESS_TOKEN && process.env.VFD_ACCESS_TOKEN.trim()) {
+    return process.env.VFD_ACCESS_TOKEN.trim();
   }
 
   // 2) If we have a cached token and it's not expired, return it (unless forcing refresh)
   if (!forceRefresh && cachedToken && Date.now() < cachedToken.expiresAt - 60000) { // 1 minute buffer
-    console.log('[VFD] Using cached token, expires in', Math.round((cachedToken.expiresAt - Date.now()) / 1000), 'seconds');
     return cachedToken.token;
   }
 
   // Clear cache if forcing refresh
   if (forceRefresh) {
     cachedToken = null;
-    tokenExchangeFailed = false;
   }
 
-  // 3) If token exchange previously failed and we're not forcing refresh, skip it
-  if (tokenExchangeFailed && !forceRefresh) {
-    console.log('[VFD] Token exchange previously failed, will use Basic auth');
-    return null;
-  }
-
-  // 4) Attempt client credentials exchange using consumer key/secret
+  // 3) Attempt client credentials exchange using consumer key/secret
   const key = process.env.VFD_CONSUMER_KEY;
   const secret = process.env.VFD_CONSUMER_SECRET;
   const tokenUrl = process.env.VFD_TOKEN_URL || 'https://api-devapps.vfdbank.systems/vfd-tech/baas-portal/v1/baasauth/token';
-  const base = getBase();
 
   if (!key || !secret) {
-    console.error('[VFD] Missing VFD_CONSUMER_KEY or VFD_CONSUMER_SECRET');
+    console.error('[VFD] Missing required VFD credentials');
     return null;
   }
 
-  // Try VFD-specific token request (JSON body with consumerKey/consumerSecret)
+  // Try OAuth2 client_credentials style request (common pattern)
   try {
-    console.log('[VFD] Requesting new access token from:', tokenUrl);
+    // Requesting new access token
+    const basic = Buffer.from(`${key}:${secret}`).toString('base64');
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        consumerKey: key,
-        consumerSecret: secret,
-        validityTime: '-1', // -1 means token doesn't expire
-      }),
+      body: 'grant_type=client_credentials',
     });
 
-    console.log('[VFD] Token response status:', res.status);
-    
     const contentType = res.headers.get('content-type') || '';
     let data: any = {};
-    const text = await res.text();
-    console.log('[VFD] Token response body:', text || '<empty>');
-    
-    if (text) {
-      try { 
-        data = JSON.parse(text); 
-      } catch (e) { 
-        data = { text }; 
-      }
+    if (contentType.includes('application/json')) {
+      data = await res.json().catch(() => ({}));
+    } else {
+      const text = await res.text().catch(() => '');
+      try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { text }; }
     }
 
-    // VFD returns token in data.access_token (nested)
-    // Also check common field names: access_token, AccessToken, token
-    const token = data?.data?.access_token || data?.access_token || data?.AccessToken || data?.token || data?.accessToken;
-    const expiresIn = Number(data?.data?.expires_in || data?.expires_in || data?.expires || 0) || 0;
+    // Common field names: access_token, AccessToken, token
+    const token = data?.access_token || data?.AccessToken || data?.token || data?.accessToken;
+    const expiresIn = Number(data?.expires_in || data?.expires || 0) || 0;
 
     if (token) {
-      // VFD returns very large expires_in for non-expiring tokens, use 24 hours as practical limit
-      const practicalExpiry = expiresIn > 86400 ? 86400 : (expiresIn || 840);
-      const expiresAt = Date.now() + practicalExpiry * 1000;
+      const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : Date.now() + 14 * 60 * 1000; // Default 14 min
       cachedToken = { token, expiresAt };
-      tokenExchangeFailed = false;
-      console.log('[VFD] Access token obtained successfully, caching for', practicalExpiry, 'seconds');
+      // Access token obtained
       return token;
     }
 
-    // If no token returned, log the issue
-    console.error('[VFD] No token in response:', data);
-    
-    // If the token endpoint returned 202 (async processing) or empty response, mark as failed
-    // and don't retry - we'll use Basic auth fallback instead
-    if (res.status === 202 || !text) {
-      console.log('[VFD] Token endpoint returned 202/empty - will use Basic auth fallback');
-      tokenExchangeFailed = true;
-      return null;
-    }
-    
-    // If the token endpoint returned 202 (async processing), try polling
+    // If the token endpoint accepted the request but processing is async (202), try polling
     if (res.status === 202) {
-      console.log('[VFD] Token request returned 202, trying polling...');
       const location = res.headers.get('location') || res.headers.get('Location') || data?.path || data?.location;
       const maxAttempts = 8;
       const delayMs = 1000;
@@ -196,19 +161,11 @@ export async function initiateCardPayment(payload: {
   let token = await getAccessToken();
   const key = process.env.VFD_CONSUMER_KEY;
   const secret = process.env.VFD_CONSUMER_SECRET;
-  
-  console.log('[VFD] initiateCardPayment called');
-  console.log('[VFD] Token obtained:', token ? `${token.substring(0, 20)}...` : 'null (will use Basic auth)');
-  console.log('[VFD] Consumer key present:', !!key);
-  
   if (!token && !(key && secret)) {
-    console.error('[VFD] No valid credentials available');
-    return { status: 400, ok: false, data: { message: 'VFD credentials not configured. Please contact support.' } };
+    return { status: 400, ok: false, data: { message: 'VFD access token not configured (VFD_ACCESS_TOKEN or consumer credentials).' } };
   }
 
   const url = `${base}/initiate/payment`;
-  console.log('[VFD] Request URL:', url);
-  
   const body = {
     amount: String(payload.amount),
     reference: payload.reference,
@@ -219,37 +176,16 @@ export async function initiateCardPayment(payload: {
     expiryDate: payload.expiryDate,
     shouldTokenize: !!payload.shouldTokenize,
   };
-  
-  // Log masked request body for debugging
-  console.log('[VFD] Request body:', {
-    amount: body.amount,
-    reference: body.reference,
-    useExistingCard: body.useExistingCard,
-    cardNumber: `${body.cardNumber.substring(0, 6)}****${body.cardNumber.slice(-4)}`,
-    cardPin: '****',
-    cvv2: '***',
-    expiryDate: body.expiryDate,
-    shouldTokenize: body.shouldTokenize,
-  });
 
-  const makeRequest = async (accessToken: string | null, useBasicAuth: boolean = false) => {
+  const makeRequest = async (accessToken: string | null) => {
     const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
-    // VFD Cards API requires only AccessToken header per documentation
-    // https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/card-api/
-    const headersObj: any = { 
-      'Content-Type': 'application/json',
-    };
-    
-    if (accessToken && !useBasicAuth) {
-      headersObj.AccessToken = accessToken;
-      console.log('[VFD] Using AccessToken header');
-    } else if (basic) {
-      // Fallback to Basic auth
+    const headersObj: any = { 'Content-Type': 'application/json' };
+    if (accessToken) headersObj.AccessToken = accessToken;
+    else if (basic) {
       headersObj.Authorization = `Basic ${basic}`;
-      console.log('[VFD] Using Basic auth');
+      headersObj['X-Consumer-Key'] = key;
+      headersObj['X-Consumer-Secret'] = secret;
     }
-    
-    console.log('[VFD] Request headers:', { ...headersObj, Authorization: headersObj.Authorization ? '***' : undefined });
 
     return await fetch(url, {
       method: 'POST',
@@ -258,67 +194,15 @@ export async function initiateCardPayment(payload: {
     });
   };
 
-  // First attempt with token (if available)
-  let res = await makeRequest(token, false);
-  console.log('[VFD] Payment response status:', res.status);
-  
-  let data: any;
-  const responseText = await res.text();
-  console.log('[VFD] Payment response body:', responseText || '<empty>');
-  
-  try {
-    data = JSON.parse(responseText);
-  } catch (e) {
-    data = { message: responseText || 'No response body' };
-  }
+  let res = await makeRequest(token);
+  let data = await res.json();
 
-  // If first attempt failed with auth error and we used token, retry with Basic auth
-  const errorMsg = (data?.message || '').toLowerCase();
-  if ((res.status === 401 || res.status === 403 || errorMsg.includes('unauthorized') || errorMsg.includes('invalid token') || errorMsg.includes('expired')) && token) {
-    console.log('[VFD] Token auth failed, retrying with Basic auth...');
-    res = await makeRequest(null, true);
-    console.log('[VFD] Basic auth response status:', res.status);
-    const retryText = await res.text();
-    console.log('[VFD] Basic auth response body:', retryText || '<empty>');
-    try {
-      data = JSON.parse(retryText);
-    } catch (e) {
-      data = { message: retryText || 'No response body' };
-    }
-  }
-  
-  // If still failing with auth error, try getting fresh token and retry
-  if ((res.status === 401 || res.status === 403) && !token) {
-    console.log('[VFD] Basic auth also failed. Trying fresh token exchange...');
-    const freshToken = await getAccessToken(true); // Force refresh
-    if (freshToken) {
-      res = await makeRequest(freshToken, false);
-      console.log('[VFD] Fresh token response status:', res.status);
-      const retryText = await res.text();
-      console.log('[VFD] Fresh token response body:', retryText || '<empty>');
-      try {
-        data = JSON.parse(retryText);
-      } catch (e) {
-        data = { message: retryText || 'No response body' };
-      }
-    }
-  }
-
-  // Provide user-friendly error message if still failing
-  if (!res.ok) {
-    let userMessage: string;
-    const vfdMessage = data?.message || '';
-    
-    if (vfdMessage.toLowerCase().includes('wallet access token')) {
-      userMessage = 'VFD API access token not configured. Please contact support to complete VFD integration setup.';
-      console.error('[VFD] Missing wallet access token - VFD credentials may need to be activated or token needs to be obtained from VFD');
-    } else if (res.status === 403 || res.status === 401) {
-      userMessage = 'Card payment service temporarily unavailable. Please try again later or use an alternative payment method.';
-    } else {
-      userMessage = vfdMessage || 'Payment initiation failed. Please try again.';
-    }
-    
-    return { status: res.status, ok: false, data: { ...data, message: userMessage, vfdError: vfdMessage } };
+  // If token expired, retry with fresh token
+  if (data?.message?.toLowerCase().includes('expired') || data?.message?.toLowerCase().includes('invalid token')) {
+    console.log('[VFD] Token expired, fetching new token and retrying...');
+    token = await getAccessToken(true); // Force refresh
+    res = await makeRequest(token);
+    data = await res.json();
   }
 
   return { status: res.status, ok: res.ok, data };
@@ -335,16 +219,12 @@ export async function validateOtp(otp: string, reference: string) {
   const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
 
   const url = `${base}/validate-otp`;
-  const headersObj: any = { 
-    'Content-Type': 'application/json',
-    'base-url': base,
-  };
-  if (token) {
-    headersObj.AccessToken = token;
-  } else if (basic) {
+  const headersObj: any = { 'Content-Type': 'application/json' };
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
     headersObj.Authorization = `Basic ${basic}`;
-    headersObj.ConsumerKey = key;
-    headersObj.ConsumerSecret = secret;
+    headersObj['X-Consumer-Key'] = key;
+    headersObj['X-Consumer-Secret'] = secret;
   }
 
   const res = await fetch(url, {
@@ -367,13 +247,12 @@ export async function paymentDetails(reference: string) {
   const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
 
   const url = `${base}/payment-details?reference=${encodeURIComponent(reference)}`;
-  const headersObj: any = { 'base-url': base };
-  if (token) {
-    headersObj.AccessToken = token;
-  } else if (basic) {
+  const headersObj: any = {};
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
     headersObj.Authorization = `Basic ${basic}`;
-    headersObj.ConsumerKey = key;
-    headersObj.ConsumerSecret = secret;
+    headersObj['X-Consumer-Key'] = key;
+    headersObj['X-Consumer-Secret'] = secret;
   }
   const res = await fetch(url, { headers: headersObj });
   const data = await res.json();
@@ -392,16 +271,12 @@ export async function authorizeCardOtp({ reference, otp }: { reference: string; 
   const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
 
   const url = `${base}/authorize-otp`;
-  const headersObj: Record<string, string> = { 
-    'Content-Type': 'application/json',
-    'base-url': base,
-  };
-  if (token) {
-    headersObj.AccessToken = token;
-  } else if (basic) {
+  const headersObj: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
     headersObj.Authorization = `Basic ${basic}`;
-    headersObj.ConsumerKey = key!;
-    headersObj.ConsumerSecret = secret!;
+    headersObj['X-Consumer-Key'] = key!;
+    headersObj['X-Consumer-Secret'] = secret!;
   }
 
   const res = await fetch(url, {
@@ -425,16 +300,12 @@ export async function authorizeCardPin({ reference, pin }: { reference: string; 
   const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
 
   const url = `${base}/authorize-pin`;
-  const headersObj: Record<string, string> = { 
-    'Content-Type': 'application/json',
-    'base-url': base,
-  };
-  if (token) {
-    headersObj.AccessToken = token;
-  } else if (basic) {
+  const headersObj: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headersObj.AccessToken = token;
+  else if (basic) {
     headersObj.Authorization = `Basic ${basic}`;
-    headersObj.ConsumerKey = key!;
-    headersObj.ConsumerSecret = secret!;
+    headersObj['X-Consumer-Key'] = key!;
+    headersObj['X-Consumer-Secret'] = secret!;
   }
 
   const res = await fetch(url, {
