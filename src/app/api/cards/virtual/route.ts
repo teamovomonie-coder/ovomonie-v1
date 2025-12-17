@@ -3,15 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase configuration');
+// Helper to get Supabase admin client if configured
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+  return createClient(supabaseUrl, supabaseKey);
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const VIRTUAL_CARD_FEE = 1000_00; // ₦1,000 in kobo
 const CARD_VALIDITY_YEARS = 1;
@@ -51,6 +49,13 @@ export async function GET(request: Request) {
     }
 
     const userId = decoded.sub;
+
+    // Ensure Supabase admin client is available
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error('Supabase admin client not configured for virtual cards');
+      return NextResponse.json({ message: 'Database not configured' }, { status: 500 });
+    }
 
     // Fetch virtual cards from Supabase
     const { data: cards, error } = await supabase
@@ -112,6 +117,13 @@ export async function POST(request: Request) {
     const userId = decoded.sub;
 
     const { clientReference } = await request.json();
+
+    // Ensure Supabase admin client is available
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error('Supabase admin client not configured for virtual card creation');
+      return NextResponse.json({ message: 'Database not configured' }, { status: 500 });
+    }
 
     // Get user data from Supabase
     const { data: userData, error: userError } = await supabase

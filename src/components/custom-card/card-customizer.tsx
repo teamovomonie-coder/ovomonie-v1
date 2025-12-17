@@ -439,61 +439,67 @@ export function CardCustomizer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh virtual cards from server (reusable)
+  const refreshVirtualCards = async () => {
+    if (!user?.userId) return;
+    let mounted = true;
+    try {
+      setIsFetchingVirtualCards(true);
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) {
+        console.warn('No auth token available for fetching virtual cards');
+        return;
+      }
+
+      const response = await fetch('/api/cards/virtual', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.status === 401) {
+        // Session expired or invalid token — log out user and prompt re-auth
+        try { localStorage.removeItem('ovo-auth-token'); } catch (_) {}
+        toast({ variant: 'destructive', title: 'Session Expired', description: 'Please sign in again.' });
+        try { logout(); } catch (_) {}
+        setVirtualCardApiError('Session expired. Please sign in again.');
+        return;
+      }
+
+      if (!response.ok) {
+        let errMsg = 'Failed to fetch virtual cards';
+        try { const err = await response.json(); if (err?.message) errMsg = err.message; } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const result = await response.json();
+      const cards = (result.cards || []).map((data: any) => ({
+        id: data.id,
+        cardNumber: data.cardNumber,
+        expiryDate: data.expiryDate,
+        cvv: data.cvv,
+        isActive: data.isActive ?? true,
+        balance: typeof data.balance === 'number' ? data.balance : 0,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date(),
+      })) as VirtualCard[];
+
+      if (mounted) {
+        setVirtualCards(cards);
+        try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {}
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch virtual cards from API', e);
+      setVirtualCardApiError(e?.message || 'Failed to fetch virtual cards');
+    } finally {
+      setIsFetchingVirtualCards(false);
+    }
+  };
+
   // Load persisted virtual cards from Supabase API for the logged-in user
   useEffect(() => {
     if (!user?.userId) return;
     let mounted = true;
-    const fetchCards = async () => {
-      try {
-        setIsFetchingVirtualCards(true);
-        const token = localStorage.getItem('ovo-auth-token');
-        if (!token) {
-          console.warn('No auth token for fetching virtual cards');
-          return;
-        }
-
-        const response = await fetch('/api/cards/virtual', {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch virtual cards');
-        }
-
-        const result = await response.json();
-        const cards = (result.cards || []).map((data: any) => ({
-          id: data.id,
-          cardNumber: data.cardNumber,
-          expiryDate: data.expiryDate,
-          cvv: data.cvv,
-          isActive: data.isActive ?? true,
-          balance: typeof data.balance === 'number' ? data.balance : 0,
-          createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-          expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date(),
-        })) as VirtualCard[];
-
-        if (mounted) {
-          if (cards.length > 0) {
-            setVirtualCards(cards);
-            try { 
-              localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ 
-                ...c, 
-                createdAt: c.createdAt.toISOString(), 
-                expiresAt: c.expiresAt.toISOString() 
-              })))); 
-            } catch (e) {}
-          }
-        }
-      } catch (e) {
-        console.error('Failed to fetch virtual cards from API', e);
-      } finally {
-        if (mounted) {
-          setIsFetchingVirtualCards(false);
-        }
-      }
-    };
-    fetchCards();
+    refreshVirtualCards();
     return () => { mounted = false; };
   }, [user?.userId]);
 
@@ -902,7 +908,7 @@ export function CardCustomizer() {
                   <div className="flex items-center justify-between mb-2">
                     <div />
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={async () => { if (!user?.userId) return; try { setIsFetchingVirtualCards(true); const token = localStorage.getItem('ovo-auth-token'); if (!token) return; const response = await fetch('/api/cards/virtual', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Failed to fetch'); const result = await response.json(); const cards = (result.cards || []).map((data: any) => ({ id: data.id, cardNumber: data.cardNumber, expiryDate: data.expiryDate, cvv: data.cvv, isActive: data.isActive ?? true, balance: typeof data.balance === 'number' ? data.balance : 0, createdAt: data.createdAt ? new Date(data.createdAt) : new Date(), expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date() })) as VirtualCard[]; setVirtualCards(cards); try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {} } catch (e) { console.error(e) } finally { setIsFetchingVirtualCards(false) } }}>
+                      <Button variant="ghost" size="sm" onClick={async () => { await refreshVirtualCards(); }}>
                         {isFetchingVirtualCards ? (<Loader2 className="h-4 w-4 animate-spin"/>) : 'Refresh'}
                       </Button>
                     </div>

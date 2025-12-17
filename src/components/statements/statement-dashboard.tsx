@@ -25,9 +25,8 @@ interface Transaction {
   type: 'debit' | 'credit';
   amount: number;
   reference: string;
-  party: {
-    name: string;
-  };
+  narration: string;
+  party: any;
   timestamp: string;
 }
 
@@ -71,7 +70,7 @@ export function StatementDashboard() {
                 throw new Error(errorData.message || 'Failed to fetch transactions');
             }
             const result = await response.json();
-            setTransactions(result.ok ? result.data : []);
+            setTransactions(result.success ? result.data : []);
         } catch (error) {
             if (error instanceof Error) {
                 toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -90,10 +89,12 @@ export function StatementDashboard() {
         ? txDate >= dateRange.from && txDate <= dateRange.to
         : true;
       
-      const matchesType = filterType === 'all' || tx.category === filterType;
+      // Bill filter includes bill_payment, airtime, betting, data
+      const matchesType = filterType === 'all' || 
+        (filterType === 'bill' ? ['bill_payment', 'airtime', 'betting', 'data'].includes(tx.category) : tx.category === filterType);
       
       const matchesSearch = searchQuery === '' ||
-        tx.party.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tx.narration.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tx.reference.toLowerCase().includes(searchQuery.toLowerCase());
 
       return inDateRange && matchesType && matchesSearch;
@@ -199,7 +200,7 @@ export function StatementDashboard() {
                     {filteredTransactions.map((tx, idx) => (
                       <TableRow key={tx.id} className={cn(idx % 2 === 0 ? 'bg-muted/30' : 'bg-white')}>
                         <TableCell>
-                          <p className="font-medium">{tx.party.name}</p>
+                          <p className="font-medium">{tx.narration}</p>
                           <p className="text-xs text-muted-foreground">{format(new Date(tx.timestamp), 'dd MMM, yyyy, h:mm a')}</p>
                         </TableCell>
                          <TableCell className="hidden sm:table-cell"><Badge variant="outline" className="capitalize">{tx.category}</Badge></TableCell>

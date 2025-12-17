@@ -306,18 +306,19 @@ export function BillerList() {
         if (!token) throw new Error('Authentication token not found.');
 
         const clientReference = `bill-${crypto.randomUUID()}`;
-        const response = await fetch('/api/payments', {
+        const response = await fetch('/api/bills/vfd', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
-                clientReference,
+                customerId: accountId,
                 amount: paymentData.amount,
-                category: selectedBiller.category.toLowerCase().replace(' ', '-'),
-                narration: paymentData.description,
-                party: {
-                    name: selectedBiller.name,
-                    billerId: accountId,
-                }
+                division: selectedBiller.id,
+                paymentItem: selectedBiller.id,
+                productId: selectedBiller.id,
+                billerId: selectedBiller.id,
+                reference: clientReference,
+                billerName: selectedBiller.name,
+                category: selectedBiller.category,
             })
         });
 
@@ -338,20 +339,22 @@ export function BillerList() {
                 const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
 
                 // Save pending receipt and navigate to /success
-                const pendingReceipt = {
-                    type: 'bill-payment' as const,
-                    data: {
-                        biller: { id: selectedBiller!.id, name: selectedBiller!.name },
-                        amount: paymentData.amount,
-                        accountId,
-                        verifiedName: verifiedInfo?.name || verifiedName,
-                        verifiedInfo: verifiedInfo || null,
-                        bouquet: bouquet || null,
-                    },
-                    reference: clientReference,
+                const receiptData = result.data?.receipt || {
+                    biller: { id: selectedBiller!.id, name: selectedBiller!.name },
                     amount: paymentData.amount,
+                    accountId,
+                    verifiedName: verifiedInfo?.name || verifiedName,
+                    bouquet: bouquet || null,
                     transactionId: clientReference,
                     completedAt: new Date().toISOString(),
+                    category: selectedBiller.category,
+                };
+                
+                const pendingReceipt = {
+                    type: 'bill-payment' as const,
+                    data: receiptData,
+                    reference: clientReference,
+                    amount: paymentData.amount,
                 };
                 // Debug: log pending receipt payload to help diagnose malformed data issues
                 try { console.debug('[BillerList] pendingReceipt', pendingReceipt); } catch (e) {}

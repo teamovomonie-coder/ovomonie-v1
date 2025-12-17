@@ -209,25 +209,31 @@ export function BettingForm() {
 
         const clientReference = `betting-${crypto.randomUUID()}`;
         const platformName = bettingPlatforms.find(p => p.id === fundingData.platform)?.name || 'Betting Platform';
+        const payload = {
+            clientReference,
+            amount: fundingData.amount,
+            category: 'betting',
+            narration: `Betting wallet funding for ${platformName}`,
+            party: {
+                name: platformName,
+                billerId: fundingData.accountId,
+            }
+        };
+        
+        console.log('[Betting] Payment payload:', payload);
+        
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                clientReference,
-                amount: fundingData.amount,
-                category: 'betting',
-                narration: `Betting wallet funding for ${platformName}`,
-                party: {
-                    name: platformName,
-                    billerId: fundingData.accountId,
-                }
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
+        console.log('[Betting] Payment response:', result);
+        
         if (!response.ok) {
             const error: any = new Error(result.message || 'Funding failed.');
             error.response = response;
@@ -241,15 +247,22 @@ export function BettingForm() {
             category: 'transaction',
         });
         
-        // Save pending receipt and navigate to /success
+        // Generate receipt using template
+        const receiptData = {
+          biller: { id: fundingData.platform, name: platformName },
+          amount: fundingData.amount,
+          accountId: fundingData.accountId,
+          verifiedName,
+          transactionId: clientReference,
+          completedAt: new Date().toISOString(),
+        };
+        
         const pendingReceipt = {
           type: 'betting' as const,
-          data: fundingData,
+          data: receiptData,
           recipientName: verifiedName,
           reference: clientReference,
           amount: fundingData.amount,
-          transactionId: clientReference,
-          completedAt: new Date().toISOString(),
         };
         await pendingTransactionService.savePendingReceipt(pendingReceipt);
         form.reset();

@@ -7,7 +7,7 @@ import { QuickAccess } from "@/components/dashboard/quick-access";
 import { ChatInterface } from '@/components/ai-assistant/chat-interface';
 import { PromotionalCarousel } from '@/components/dashboard/promotional-carousel';
 import { AgentLifeCard } from '@/components/dashboard/agent-life-card';
-import { VirtualAccountWidget } from '@/components/dashboard/virtual-account-widget';
+
 import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
@@ -68,12 +68,7 @@ export function MainDashboard() {
             </CardContent>
           </Card>
           <QuickAccess />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-            <VirtualAccountWidget />
-            <div className="space-y-4">
-              <PromotionalCarousel />
-            </div>
-          </div>
+          <PromotionalCarousel />
           <AgentLifeCard />
         </TabsContent>
         <TabsContent value="ai-assistant" className="mt-4">

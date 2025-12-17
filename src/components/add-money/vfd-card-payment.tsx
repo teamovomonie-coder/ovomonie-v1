@@ -346,35 +346,50 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       const reference = `ovopay-${Date.now()}`;
       setPaymentReference(reference);
 
-      // Build request body based on saved card or new card
-      let requestBody: Record<string, unknown>;
-      
-      if (selectedSavedCard) {
-        // Use saved card token
-        requestBody = {
-          cardToken: selectedSavedCard.card_token,
-          amount: cardData.amount,
-          currency: 'NGN',
-          reference,
-          useExistingCard: true,
-          cardPin: cardData.pin,
-        };
-      } else {
-        // New card
-        const expiryYYMM = convertToYYMM(cardData.expiry || '');
-        requestBody = {
-          cardNumber: (cardData.cardNumber || '').replace(/\s+/g, ''),
-          expiryDate: expiryYYMM,
-          cvv: cardData.cvv,
-          cardPin: cardData.pin,
-          amount: cardData.amount,
-          currency: 'NGN',
-          reference,
-          shouldTokenize: cardData.saveCard,
-        };
+      // Build request body for funding API
+      // Convert expiry to MM/YY format for the API
+      let expiryFormatted = '';
+      if (!selectedSavedCard && cardData.expiry) {
+        const cleaned = cardData.expiry.replace(/\D/g, '');
+        if (cleaned.length === 4) {
+          // Could be YYMM or MMYY - check if first 2 digits > 12
+          const first2 = parseInt(cleaned.substring(0, 2));
+          if (first2 > 12) {
+            // It's YYMM format, convert to MM/YY
+            expiryFormatted = cleaned.substring(2, 4) + '/' + cleaned.substring(0, 2);
+          } else {
+            // It's MMYY format, convert to MM/YY
+            expiryFormatted = cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
+          }
+        } else if (cardData.expiry.includes('/')) {
+          expiryFormatted = cardData.expiry;
+        }
       }
+      
+      const requestBody = {
+        amount: cardData.amount,
+        clientReference: reference,
+        cardNumber: (cardData.cardNumber || '').replace(/\s+/g, ''),
+        cardPin: cardData.pin,
+        cvv: cardData.cvv || '',
+        expiry: expiryFormatted,
+      };
+      
+      // Validate all required fields
+      if (!requestBody.cardNumber || !requestBody.cardPin || !requestBody.cvv || !requestBody.expiry) {
+        toast({ 
+          title: 'Missing Information', 
+          description: 'Please fill in all card details', 
+          variant: 'destructive' 
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
+      console.log('Sending card payment request:', { ...requestBody, cardNumber: '****' + requestBody.cardNumber.slice(-4), cardPin: '****' });
 
-      const res = await fetch('/api/vfd/cards/initiate', {
+      // Use the funding API which updates balance in Supabase
+      const res = await fetch('/api/funding/card', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,17 +401,30 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       const data = await res.json();
       setIsProcessing(false);
 
-      if (!data.ok) {
-        setProcessingError(data.message || 'Payment initiation failed');
+      if (!res.ok) {
+        setProcessingError(data.message || 'Payment failed');
         onError?.(data.message || 'Payment failed');
         return;
       }
 
-      const responseData = data.data?.data || data.data;
-      
+      // Check if payment completed successfully
+      if (data.newBalanceInKobo !== undefined) {
+        // Payment successful - update balance immediately
+        updateBalance(data.newBalanceInKobo);
+        
+        // Save card if tokenization was successful
+        if (cardData.saveCard && data.vfd?.data?.cardToken) {
+          await saveCard(data.vfd.data.cardToken);
+        }
+        
+        handlePaymentSuccess(cardData.amount, false);
+        return;
+      }
+
       // Handle 3D Secure redirect
-      if (responseData?.redirectHtml) {
-        window.open(responseData.redirectHtml, '_blank', 'width=500,height=600');
+      if (data.redirectUrl || data.vfd?.data?.redirectHtml) {
+        const redirectUrl = data.redirectUrl || data.vfd?.data?.redirectHtml;
+        window.open(redirectUrl, '_blank', 'width=500,height=600');
         toast({
           title: 'Complete Authentication',
           description: 'Please complete the card authentication in the opened window.',
@@ -408,21 +436,15 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       // Handle OTP required
       if (responseData?.code === '01' || 
           responseData?.narration?.toLowerCase().includes('otp') ||
-          data.data?.requiresOTP || 
-          data.data?.status === 'pending_otp') {
+          responseData?.requiresOTP || 
+          responseData?.status === 'pending_otp') {
         setIsOTPModalOpen(true);
         toast({
           title: 'OTP Required',
           description: 'Please enter the OTP sent to your phone.',
         });
-      } else if (responseData?.code === '00' || data.data?.status === 'success') {
-        // Save card if tokenization was successful
-        if (cardData.saveCard && data.data?.cardToken) {
-          await saveCard(data.data.cardToken);
-        }
-        handlePaymentSuccess(cardData.amount, false);
       } else {
-        const msg = responseData?.narration || responseData?.message || data.data?.message || 'Payment processing';
+        const msg = responseData?.narration || responseData?.message || data.message || 'Payment processing';
         toast({ title: 'Processing', description: msg });
       }
     } catch (err) {
@@ -504,6 +526,11 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
       setIsOTPModalOpen(false);
       
+      // Update balance if returned
+      if (data.newBalanceInKobo !== undefined) {
+        updateBalance(data.newBalanceInKobo);
+      }
+      
       // Save card if tokenization was requested
       if (cardData?.saveCard && data.data?.cardToken) {
         await saveCard(data.data.cardToken);
@@ -521,7 +548,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   };
 
   const handlePaymentSuccess = (amount: number, shouldSaveCard?: boolean) => {
-    // Fetch updated balance from server
+    // Fetch updated balance from server to ensure UI reflects DB state
     const token = localStorage.getItem('ovo-auth-token');
     if (token) {
       fetch('/api/wallet/sync-balance', {
@@ -530,11 +557,12 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       })
         .then(res => res.json())
         .then(result => {
-          if (result.ok && result.data?.balance) {
+          if (result.ok && result.data?.balance !== undefined) {
             updateBalance(result.data.balance);
+            console.log('Balance updated after card funding:', result.data.balance);
           }
         })
-        .catch(err => console.warn('Balance sync failed:', err));
+        .catch(err => console.error('Balance sync failed:', err));
     }
 
     addNotification({

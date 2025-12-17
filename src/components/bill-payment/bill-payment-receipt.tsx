@@ -21,6 +21,9 @@ export interface BillPaymentReceiptData {
   bouquet?: { id: string; name: string; price: number } | null;
   transactionId?: string;
   completedAt?: string;
+  token?: string | null;
+  KCT1?: string | null;
+  KCT2?: string | null;
 }
 
 export function BillPaymentReceipt({ data }: { data: BillPaymentReceiptData }) {
@@ -79,6 +82,35 @@ export function BillPaymentReceipt({ data }: { data: BillPaymentReceiptData }) {
             <span className="font-semibold text-xs">{data.completedAt ? new Date(data.completedAt).toLocaleString() : new Date().toLocaleString()}</span>
           </div>
         </div>
+        {(data.token || data.KCT1 || data.KCT2) && (
+          <>
+            <Separator className="my-4" />
+            <div className="space-y-2 bg-green-50 dark:bg-green-950 p-3 rounded-lg">
+              <p className="text-xs font-semibold text-green-800 dark:text-green-200">Energy Token</p>
+              {data.KCT1 && data.KCT2 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">KCT1:</span>
+                    <code className="text-sm font-mono font-bold">{data.KCT1}</code>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">KCT2:</span>
+                    <code className="text-sm font-mono font-bold">{data.KCT2}</code>
+                  </div>
+                </div>
+              )}
+              {data.token && (
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Token:</span>
+                  <code className="text-sm font-mono font-bold">{data.token}</code>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                {data.KCT1 && data.KCT2 ? 'Enter KCT1, then KCT2, then your token on your meter' : 'Enter this token on your meter to load energy'}
+              </p>
+            </div>
+          </>
+        )}
       </CardContent>
         <CardFooter className="flex-col gap-2 p-4 pt-0 relative z-10">
         <p data-powered-by="ovomonie" className="text-xs text-muted-foreground text-center w-full">Powered by Ovomonie</p>

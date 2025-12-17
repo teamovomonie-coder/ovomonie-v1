@@ -54,12 +54,21 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       console.log('[NotificationContext] Fetching notifications via API for user:', user.userId);
       try {
         const token = localStorage.getItem('ovo-auth-token');
+        if (!token) {
+          console.warn('[NotificationContext] No auth token, skipping notifications fetch');
+          setNotifications([]);
+          return;
+        }
         const res = await fetch('/api/user/notifications', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          console.error('[NotificationContext] API notifications fetch failed', { status: res.status, statusText: res.statusText, body });
+          if (res.status === 401) {
+            console.warn('[NotificationContext] Unauthorized, user needs to login');
+          } else {
+            const body = await res.text().catch(() => '');
+            console.warn('[NotificationContext] API notifications fetch failed', { status: res.status, statusText: res.statusText, body });
+          }
           setNotifications([]);
           return;
         }

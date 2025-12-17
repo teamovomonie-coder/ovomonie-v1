@@ -84,13 +84,19 @@ export const transactionService = {
     return data;
   },
 
-  async getByUserId(userId: string, limit = 100) {
-    const { data, error } = await db
+  async getByUserId(userId: string, limit = 100, category?: string) {
+    let query = db
       .from('financial_transactions')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(limit);
+    
+    if (category) {
+      query = query.eq('category', category);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       logger.error('Error fetching transactions by user ID:', { error, userId });

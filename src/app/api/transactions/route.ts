@@ -1,25 +1,23 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
-import { logger } from '@/lib/logger';
 import { transactionService } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
-    try {
-        const userId = getUserIdFromToken(request.headers);
-        if (!userId) {
-            return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
-        }
-
-        try {
-            const transactions = await transactionService.getByUserId(userId, 100);
-            return NextResponse.json({ ok: true, data: transactions });
-        } catch (dbError: any) {
-            // If table doesn't exist or other DB error, return empty array
-            logger.warn('Database error fetching transactions, returning empty array:', dbError);
-            return NextResponse.json({ ok: true, data: [] });
-        }
-    } catch (error) {
-        logger.error('Error in transactions API:', error);
-        return NextResponse.json({ ok: false, message: 'Internal server error' }, { status: 500 });
+  try {
+    const userId = getUserIdFromToken(request.headers);
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
+    const limit = parseInt(searchParams.get('limit') || '50');
+
+    const transactions = await transactionService.getByUserId(userId, limit, category && category !== 'all' ? category : undefined);
+
+    return NextResponse.json({ success: true, data: transactions || [] });
+  } catch (error: any) {
+    console.error('Transactions API error:', error);
+    return NextResponse.json({ message: error?.message || 'Internal error' }, { status: 500 });
+  }
 }

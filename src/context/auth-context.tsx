@@ -72,26 +72,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("User not found.");
       }
 
-<<<<<<< Updated upstream
-      // Map Supabase column names (snake_case) to camelCase
-=======
       const accountNumber = userData.account_number || "";
->>>>>>> Stashed changes
       setUser({
         userId: userData.id,
         phone: userData.phone || "",
-<<<<<<< Updated upstream
-        fullName: userData.full_name || userData.fullName || "",
-        accountNumber: userData.account_number || userData.accountNumber || "",
-        isAgent: userData.is_agent || userData.isAgent || false,
-        kycTier: userData.kyc_tier || userData.kycTier || 1,
-=======
         fullName: userData.full_name || "",
         accountNumber,
         displayAccountNumber: accountNumberToDisplay(accountNumber),
         isAgent: userData.is_agent || false,
         kycTier: userData.kyc_tier || 1,
->>>>>>> Stashed changes
         balance: typeof userData.balance === "number" ? userData.balance : 0,
         email: userData.email,
         status: userData.status || "active",
@@ -159,8 +148,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [performLogout]);
 
   const updateBalance = useCallback((newBalanceInKobo: number) => {
-    setBalance(newBalanceInKobo);
-    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
+    const validBalance = typeof newBalanceInKobo === 'number' && !isNaN(newBalanceInKobo) ? newBalanceInKobo : 0;
+    setBalance(validBalance);
+    setUser((prev) => (prev ? { ...prev, balance: validBalance } : prev));
   }, []);
 
   return (

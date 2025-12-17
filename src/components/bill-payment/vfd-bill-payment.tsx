@@ -22,6 +22,9 @@ import { Loader2, AlertCircle, CheckCircle, Zap, Tv, Wifi, Droplet } from 'lucid
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
+import { DynamicReceipt } from './dynamic-receipt';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { ReceiptData } from '@/lib/receipt-templates';
 
 const billSchema = z.object({
   billerId: z.string().min(1, 'Select a bill provider'),
@@ -66,6 +69,8 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
   const [isValidating, setIsValidating] = useState(false);
   const [validationMessage, setValidationMessage] = useState('');
   const [paymentToken, setPaymentToken] = useState<string>('');
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const form = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
@@ -219,6 +224,24 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
           setPaymentToken(result.data.token);
         }
 
+        // Generate receipt with template
+        if (result.data.receipt) {
+          const category = result.data.receipt.category || selectedBiller.category || 'generic';
+          const template = await fetch(`/api/receipt-template?category=${encodeURIComponent(category)}`)
+            .then(r => r.json())
+            .catch(() => ({
+              id: `${category}-default`,
+              category,
+              template_name: 'Bill Payment Receipt',
+              fields: [],
+              color_scheme: { primary: '#6366f1', secondary: '#818cf8', accent: '#e0e7ff' },
+              icon: 'receipt',
+            }));
+          
+          setReceiptData({ template, data: result.data.receipt });
+          setShowReceipt(true);
+        }
+
         // Show special message for AEDC
         let description = `Your ${selectedBiller.name} bill payment of ₦${billData.amount.toLocaleString()} has been processed successfully.`;
         if (result.data.KCT1 && result.data.KCT2) {
@@ -238,28 +261,20 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
           description: result.message || 'Bill payment completed successfully',
         });
 
-        // Save pending receipt so Success page can show the bill receipt
-        try {
-          const receipt = {
-            type: 'bill-payment',
-            reference,
-            amount: billData.amount,
-            recipientName: selectedBiller.name,
-            bankName: selectedBiller.name,
-            data: {
-              biller: { id: selectedBiller.id, name: selectedBiller.name },
+        // Save pending receipt
+        if (result.data.receipt) {
+          try {
+            await pendingTransactionService.savePendingReceipt({
+              type: 'bill-payment',
+              reference,
               amount: billData.amount,
-              accountId: billData.customerId,
-              verifiedName: result.data?.customerName || null,
-              bouquet: result.data?.bouquet || null,
-              transactionId: result.data?.reference || result.data?.transactionId || null,
-              completedAt: new Date().toISOString(),
-            },
-          };
-
-          await pendingTransactionService.savePendingReceipt(receipt as any);
-        } catch (e) {
-          console.error('[VFD Bill] Failed to save pending receipt', e);
+              recipientName: selectedBiller.name,
+              bankName: selectedBiller.name,
+              data: result.data.receipt.data,
+            } as any);
+          } catch (e) {
+            console.error('[VFD Bill] Failed to save pending receipt', e);
+          }
         }
 
         onSuccess?.(billData.amount, selectedBiller.name);
@@ -488,6 +503,16 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
         title="Authorize Bill Payment"
         description={`Enter your PIN to pay ₦${billData?.amount.toLocaleString()} to ${selectedBiller?.name}`}
       />
+
+      {/* Virtual Receipt Modal */}
+      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment Receipt</DialogTitle>
+          </DialogHeader>
+          {receiptData && <DynamicReceipt receipt={receiptData} />}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -71,10 +71,9 @@ export async function POST(request: NextRequest) {
             category: 'transfer',
             amount: amountKobo,
             reference: `${clientReference}-debit`,
-            narration: narration || `Transfer to ${recipient.full_name}`,
-            party: { to: recipient.phone },
+            narration: `Transfer to Ovomonie user ${recipient.full_name}`,
+            party: { to: recipient.phone, name: recipient.full_name },
             balance_after: newSenderBalance,
-            status: 'completed',
         });
 
         await transactionService.create({
@@ -83,28 +82,31 @@ export async function POST(request: NextRequest) {
             category: 'transfer',
             amount: amountKobo,
             reference: `${clientReference}-credit`,
-            narration: narration || `Transfer from ${sender.full_name}`,
-            party: { from: sender.phone },
+            narration: `Transfer from Ovomonie user ${sender.full_name}`,
+            party: { from: sender.phone, name: sender.full_name },
             balance_after: newRecipientBalance,
-            status: 'completed',
         });
 
         // 10. Create notifications (non-blocking)
-        await notificationService.create({
-            user_id: userId,
-            title: 'Transfer Sent',
-            body: `You sent ₦${(amountKobo/100).toLocaleString()} to ${recipient.full_name}.`,
-            category: 'transfer',
-            reference: clientReference,
-        });
+        try {
+            await notificationService.create({
+                user_id: userId,
+                title: 'Transfer Sent',
+                body: `You sent ₦${(amountKobo/100).toLocaleString()} to ${recipient.full_name}.`,
+                category: 'transfer',
+                reference: clientReference,
+            });
 
-        await notificationService.create({
-            user_id: recipient.id,
-            title: 'Transfer Received',
-            body: `You received ₦${(amountKobo/100).toLocaleString()} from ${sender.full_name}.`,
-            category: 'transfer',
-            reference: clientReference,
-        });
+            await notificationService.create({
+                user_id: recipient.id,
+                title: 'Transfer Received',
+                body: `You received ₦${(amountKobo/100).toLocaleString()} from ${sender.full_name}.`,
+                category: 'transfer',
+                reference: clientReference,
+            });
+        } catch (notifError) {
+            logger.warn('Failed to create notifications', { error: notifError });
+        }
 
         logger.info('Internal transfer completed', { userId, reference: clientReference, amount: amountKobo });
 
@@ -122,9 +124,13 @@ export async function POST(request: NextRequest) {
             }
         });
 
-    } catch (error) {
-        logger.error('Internal transfer error:', error);
-        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-        return NextResponse.json({ ok: false, message }, { status: 500 });
+    } catch (error: any) {
+        logger.error('Internal transfer error:', { error: error?.message, stack: error?.stack });
+        const message = error?.message || 'An unexpected error occurred.';
+        return NextResponse.json({ 
+            ok: false, 
+            message,
+            error: process.env.NODE_ENV === 'development' ? error?.toString() : undefined 
+        }, { status: 500 });
     }
 }

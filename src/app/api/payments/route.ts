@@ -32,83 +32,66 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { amount, category, party, narration, clientReference } = await request.json();
+        const body = await request.json();
+        const { amount, category, party, narration, clientReference } = body;
+        
+        logger.info('[Payments API] Request body:', body);
 
-        if (!amount || typeof amount !== 'number' || amount <= 0 || !category || !party) {
-            return NextResponse.json({ message: 'A valid amount, category, and party details are required.' }, { status: 400 });
+        if (!amount || typeof amount !== 'number' || amount <= 0) {
+            logger.error('[Payments API] Invalid amount:', { amount });
+            return NextResponse.json({ message: 'A valid amount is required.' }, { status: 400 });
+        }
+        if (!category) {
+            logger.error('[Payments API] Missing category');
+            return NextResponse.json({ message: 'Category is required.' }, { status: 400 });
+        }
+        if (!party) {
+            logger.error('[Payments API] Missing party');
+            return NextResponse.json({ message: 'Party details are required.' }, { status: 400 });
         }
         if (!clientReference) {
-            return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
+            logger.error('[Payments API] Missing clientReference');
+            return NextResponse.json({ message: 'Client reference ID is required.' }, { status: 400 });
         }
 
-        let newBalance = 0;
-
-        // Idempotency check: search for an existing transaction with same reference
-        const financialTransactionsRef = collection(db, 'financialTransactions');
-        const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-        const existingTxnSnapshot = await getDocs(idempotencyQuery as any);
-
-        if (!existingTxnSnapshot.empty) {
-            logger.info(`Idempotent request for payment: ${clientReference} already processed.`);
-            const userRef = doc(db, "users", userId);
-            const userDoc = await getDoc(userRef);
-            if (userDoc.exists()) {
-                newBalance = userDoc.data().balance;
-            }
-        } else {
-            await runTransaction(db, async (transaction) => {
-                const amountInKobo = Math.round(amount * 100);
-
-                const userRef = doc(db, "users", userId);
-                const userDoc = await transaction.get(userRef);
-
-                if (!userDoc.exists()) {
-                    throw new Error("User document does not exist.");
-                }
-
-                const userData = userDoc.data();
-                if (userData.balance < amountInKobo) {
-                    throw new Error("Insufficient funds for this payment.");
-                }
-
-                newBalance = userData.balance - amountInKobo;
-
-                transaction.update(userRef, { balance: newBalance });
-
-                // Log the debit transaction
-                const debitLog = {
-                    userId: userId,
-                    category: category,
-                    type: 'debit',
-                    amount: amountInKobo,
-                    reference: clientReference,
-                    narration: narration || `Payment for ${party.name}`,
-                    party: party,
-                    timestamp: serverTimestamp(),
-                    balanceAfter: newBalance,
-                };
-                transaction.set(doc(financialTransactionsRef), debitLog);
-            });
+        // Use Supabase for balance management
+        const { userService, transactionService } = await import('@/lib/db');
+        
+        const user = await userService.getById(userId);
+        if (!user) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
         }
 
-        if (newBalance === 0 && clientReference) {
-            const userRef = doc(db, "users", userId);
-            const userDoc = await getDoc(userRef);
-            if(userDoc.exists()){
-                newBalance = userDoc.data().balance
-            }
+        const amountInKobo = Math.round(amount * 100);
+        
+        if (user.balance < amountInKobo) {
+            return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
         }
+
+        const newBalance = user.balance - amountInKobo;
+        await userService.updateBalance(userId, newBalance);
+        
+        await transactionService.create({
+            user_id: userId,
+            reference: clientReference,
+            type: 'debit',
+            category: category,
+            amount: amountInKobo,
+            narration: narration || `Payment for ${party.name}`,
+            party: party,
+            balance_after: newBalance,
+        });
 
         return NextResponse.json({
             message: 'Payment successful!',
             newBalanceInKobo: newBalance,
         }, { status: 200 });
 
-    } catch (error) {
+    } catch (error: any) {
         logger.error("Generic Payment Error:", error);
-        if (error instanceof Error) {
-            return NextResponse.json({ message: error.message }, { status: 400 });
-        }
-        return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+        return NextResponse.json({ 
+            message: error?.message || 'Payment processing failed',
+            error: process.env.NODE_ENV === 'development' ? error?.toString() : undefined 
+        }, { status: 500 });
     }
 }

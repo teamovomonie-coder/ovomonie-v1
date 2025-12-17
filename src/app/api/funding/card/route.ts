@@ -31,12 +31,21 @@ export async function POST(request: Request) {
         const amountInKobo = Math.round(amount * 100);
 
         if (!cardNumber || !cardPin || !cvv || !expiry) {
+            logger.error('Missing card details', { hasCardNumber: !!cardNumber, hasPin: !!cardPin, hasCvv: !!cvv, hasExpiry: !!expiry });
             return NextResponse.json({ message: 'Card details (number, pin, cvv, expiry) are required for card funding.' }, { status: 400 });
         }
 
-        const [mm, yy] = expiry.split('/');
-        const expiryYyMm = `${yy}${mm}`;
+        // Convert MM/YY to YYMM for VFD
+        let expiryYyMm = expiry;
+        if (expiry.includes('/')) {
+            const [mm, yy] = expiry.split('/');
+            expiryYyMm = `${yy}${mm}`;
+        }
+        
+        logger.info('Processing card payment', { amount, amountInKobo, reference: clientReference, expiryFormat: expiryYyMm });
 
+        logger.info('Card payment request', { amount, reference: clientReference, cardNumberMasked: cardNumber.slice(-4), expiryYyMm });
+        
         const initiation = await initiateCardPayment({
             amount: Math.round(amount),
             reference: clientReference,
@@ -72,15 +81,34 @@ export async function POST(request: Request) {
                 narration: 'Card deposit via VFD',
                 party: { name: 'VFD Card' },
                 balance_after: newBalance,
-                status: 'completed',
             });
 
             return NextResponse.json({ message: 'Funding successful!', newBalanceInKobo: newBalance, vfd: initiation.data }, { status: 200 });
         }
 
-        return NextResponse.json({ message: 'VFD initiation requires further action', vfd: initiation.data || initiation }, { status: initiation.status || 200 });
+        // Handle 3DS or other actions required
+        logger.info('VFD requires further action', { code: initiation.data?.data?.code, narration: initiation.data?.data?.narration });
+        return NextResponse.json({ 
+            message: initiation.data?.data?.narration || 'VFD initiation requires further action', 
+            vfd: initiation.data || initiation,
+            requiresAction: true,
+            redirectUrl: initiation.data?.data?.redirectHtml
+        }, { status: 200 });
     } catch (err) {
-        logger.error('funding/card error', err);
-        return NextResponse.json({ message: err instanceof Error ? err.message : 'An internal server error occurred.' }, { status: 500 });
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorStack = err instanceof Error ? err.stack : undefined;
+        
+        logger.error('funding/card error', { 
+            message: errorMessage,
+            stack: errorStack,
+            errorType: err?.constructor?.name
+        });
+        
+        console.error('Card funding error:', err);
+        
+        return NextResponse.json({ 
+            message: errorMessage || 'An internal server error occurred.',
+            details: process.env.NODE_ENV === 'development' ? errorStack : undefined
+        }, { status: 500 });
     }
 }

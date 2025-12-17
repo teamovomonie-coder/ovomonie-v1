@@ -94,7 +94,8 @@ const kycTiers = [
 
 const tier2Schema = z.object({
   bvn: z.string().length(11, "BVN must be 11 digits."),
-  addressProof: z.any().optional(),
+  phoneOtp: z.string().length(6, "OTP must be 6 digits.").optional(),
+  livenessImage: z.string().optional(),
 });
 
 const tier3Schema = z.object({
@@ -324,29 +325,107 @@ export function ProfileKycDashboard() {
 
 function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenChange: (open: boolean) => void; onUpgrade: () => void }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [isCapturingLiveness, setIsCapturingLiveness] = useState(false);
+  const [livenessImage, setLivenessImage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof tier2Schema>>({
     resolver: zodResolver(tier2Schema),
-    defaultValues: { bvn: "" },
+    defaultValues: { bvn: "", phoneOtp: "", livenessImage: "" },
   });
 
+  const sendOtp = async () => {
+    try {
+      const token = localStorage.getItem("ovo-auth-token");
+      const res = await fetch("/api/kyc/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ phone: user?.phone }),
+      });
+      if (!res.ok) throw new Error("Failed to send OTP");
+      setOtpSent(true);
+      toast({ title: "OTP Sent", description: "Check your phone for the verification code." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
+    }
+  };
+
+  const captureLiveness = async () => {
+    setIsCapturingLiveness(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      
+      // Wait 2 seconds for user to position
+      await new Promise(r => setTimeout(r, 2000));
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.drawImage(video, 0, 0);
+      
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+      setLivenessImage(imageData);
+      form.setValue("livenessImage", imageData);
+      
+      stream.getTracks().forEach(track => track.stop());
+      toast({ title: "Liveness Captured", description: "Your photo has been captured successfully." });
+    } catch (error) {
+      toast({ title: "Camera Error", description: "Unable to access camera.", variant: "destructive" });
+    } finally {
+      setIsCapturingLiveness(false);
+    }
+  };
+
   const onSubmit = async (data: z.infer<typeof tier2Schema>) => {
+    if (!livenessImage) {
+      toast({ title: "Liveness Required", description: "Please capture your live selfie.", variant: "destructive" });
+      return;
+    }
+    if (!data.phoneOtp) {
+      toast({ title: "OTP Required", description: "Please enter the OTP sent to your phone.", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const token = localStorage.getItem("ovo-auth-token");
       if (!token) throw new Error("Authentication failed.");
 
+      // Call VFD liveness check API
+      const livenessRes = await fetch("/api/kyc/liveness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          bvn: data.bvn,
+          selfieImage: livenessImage,
+        }),
+      });
+      
+      const livenessResult = await livenessRes.json();
+      if (!livenessRes.ok) throw new Error(livenessResult.message || "Liveness check failed.");
+
+      // Submit upgrade with all data
       const response = await fetch("/api/kyc/upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...data, newTier: 2 }),
+        body: JSON.stringify({ 
+          bvn: data.bvn,
+          phoneOtp: data.phoneOtp,
+          livenessVerified: true,
+          newTier: 2 
+        }),
       });
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || "Upgrade failed.");
 
-      toast({ title: "KYC Submitted!", description: "Your details have been submitted for verification." });
+      toast({ title: "KYC Submitted!", description: "Your details have been verified successfully." });
       onUpgrade();
     } catch (error) {
       toast({
@@ -381,24 +460,51 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenC
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="addressProof"
-              render={({ field: { onChange, ...fieldProps } }) => (
-                <FormItem>
-                  <FormLabel>Proof of Address (e.g., Utility Bill)</FormLabel>
-                  <FormControl>
-                    <Input type="file" onChange={(e) => onChange(e.target.files)} {...fieldProps} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <FormItem>
+              <FormLabel>Phone Number Verification</FormLabel>
+              <div className="flex gap-2">
+                <Input value={user?.phone || ""} disabled />
+                <Button type="button" onClick={sendOtp} disabled={otpSent}>
+                  {otpSent ? "OTP Sent" : "Send OTP"}
+                </Button>
+              </div>
+            </FormItem>
+            
+            {otpSent && (
+              <FormField
+                control={form.control}
+                name="phoneOtp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Enter OTP</FormLabel>
+                    <FormControl>
+                      <Input placeholder="6-digit OTP" maxLength={6} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            <FormItem>
+              <FormLabel>Liveness Check</FormLabel>
+              {!livenessImage ? (
+                <Button type="button" onClick={captureLiveness} disabled={isCapturingLiveness} className="w-full">
+                  {isCapturingLiveness ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Capturing...</>
+                  ) : (
+                    <>Capture Live Selfie</>
+                  )}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <img src={livenessImage} alt="Liveness" className="w-32 h-32 rounded-lg object-cover" />
+                  <Button type="button" variant="outline" size="sm" onClick={captureLiveness}>
+                    Retake
+                  </Button>
+                </div>
               )}
-            />
-            <Alert>
-              <Shield className="h-4 w-4" />
-              <AlertTitle>Liveness Check Required</AlertTitle>
-              <AlertDescription>In a real app, you would be prompted to take a live selfie here to verify your identity against your BVN photo.</AlertDescription>
-            </Alert>
+            </FormItem>
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Verification
