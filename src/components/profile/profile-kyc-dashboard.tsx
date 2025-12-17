@@ -79,9 +79,11 @@ const kycTiers = [
   },
   {
     level: 4,
-    name: "CORPORATE       BUSINESS",
+    name: "Businesses",
     description: "Enterprise-level banking solutions",
+    perTransaction: "₦5,000,000+",
     dailyLimit: "Unlimited",
+    walletLimit: "Unlimited",
     requirements: [
       "CAC Registration Documents",
       "Business owner/ Directors ID Details",
@@ -313,14 +315,11 @@ export function ProfileKycDashboard() {
                       {tier.level <= currentTier && <CheckCircle className="text-emerald-600 h-5 w-5" />}
                       <CardTitle className="text-lg">{tier.name}</CardTitle>
                     </div>
+                    {tier.perTransaction && (
+                      <CardDescription>Per Transaction: {tier.perTransaction}</CardDescription>
+                    )}
                     <CardDescription>Daily Limit: {tier.dailyLimit}</CardDescription>
-                    {tier.level === 1 && (
-                      <CardDescription>Wallet Limit: ₦200,000</CardDescription>
-                    )}
-                    {tier.level === 2 && (
-                      <CardDescription>Wallet Limit: {tier.walletLimit}</CardDescription>
-                    )}
-                    {tier.level === 3 && (
+                    {tier.walletLimit && (
                       <CardDescription>Wallet Limit: {tier.walletLimit}</CardDescription>
                     )}
                   </div>

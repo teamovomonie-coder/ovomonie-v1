@@ -26,58 +26,66 @@ export function InvitationDashboard() {
   const { updateBalance } = useAuth();
   const { addNotification } = useNotifications();
 
-  useEffect(() => {
-    const fetchReferralData = async () => {
-        setIsLoading(true);
+        useEffect(() => {
+            const fetchReferralData = async () => {
+                setIsLoading(true);
+                try {
+                    const token = localStorage.getItem('ovo-auth-token');
+                    const userId = localStorage.getItem('ovo-user-id');
+                    if (!token || !userId) throw new Error("Authentication failed.");
+
+                    const response = await fetch('/api/invitations/stats', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'x-ovo-user-id': userId
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to fetch referral data');
+                    }
+                    const data = await response.json();
+                    setReferralCode(data.referralCode);
+                    setStats(data.stats);
+                } catch (error) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: error instanceof Error ? error.message : 'Could not load your referral information.',
+                    });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchReferralData();
+        }, [toast]);
+
+    const handleClaimReward = async () => {
+        setIsClaiming(true);
         try {
             const token = localStorage.getItem('ovo-auth-token');
-            if (!token) throw new Error("Authentication failed.");
+            const userId = localStorage.getItem('ovo-user-id');
+            if (!token || !userId) throw new Error("Authentication failed.");
 
-            const response = await fetch('/api/invitations/stats', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch('/api/invitations/claim-reward', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'x-ovo-user-id': userId
+                }
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch referral data');
-            }
-            const data = await response.json();
-            setReferralCode(data.referralCode);
-            setStats(data.stats);
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: error instanceof Error ? error.message : 'Could not load your referral information.',
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to claim reward.');
+
+            updateBalance(result.newBalanceInKobo);
+            addNotification({
+                title: "Referral Reward Earned!",
+                description: `You've received ₦500 for a successful referral.`,
+                category: 'transaction',
             });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchReferralData();
-  }, [toast]);
-
-  const handleClaimReward = async () => {
-      setIsClaiming(true);
-      try {
-        const token = localStorage.getItem('ovo-auth-token');
-        if (!token) throw new Error("Authentication failed.");
-
-        const response = await fetch('/api/invitations/claim-reward', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Failed to claim reward.');
-
-        updateBalance(result.newBalanceInKobo);
-        addNotification({
-            title: "Referral Reward Earned!",
-            description: `You've received ₦500 for a successful referral.`,
-            category: 'transaction',
-        });
-        setStats(prev => prev ? {
+            setStats(prev => prev ? {
             ...prev,
             signups: prev.signups + 1,
             earnings: prev.earnings + 500,
@@ -95,7 +103,34 @@ export function InvitationDashboard() {
       }
   };
 
-  const referralLink = 'https://ovomonie-v1-pgrm.vercel.app/register';
+    const referralLink = 'https://ovomonie-v1-pgrm.vercel.app/register';
+
+    const referralUrl = referralCode ? `${referralLink}?ref=${referralCode}` : referralLink;
+
+    const saveReferralCode = async (newCode: string) => {
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            const userId = localStorage.getItem('ovo-user-id');
+            if (!token || !userId) throw new Error('Authentication failed.');
+            const res = await fetch('/api/invitations/code', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'x-ovo-user-id': userId,
+                },
+                body: JSON.stringify({ referralCode: newCode }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || 'Failed to update referral code');
+            }
+            setReferralCode(newCode);
+            toast({ title: 'Saved', description: 'Referral code updated.' });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Save failed', description: err instanceof Error ? err.message : 'Failed to save' });
+        }
+    };
 
   const handleCopyToClipboard = (message?: string) => {
     const textToCopy = message || referralLink;
@@ -180,45 +215,59 @@ export function InvitationDashboard() {
         <div className="space-y-6">
           <div className="text-center space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Your Unique Referral Link</p>
-            {isLoading ? (
-                <Skeleton className="h-10 w-full" />
-            ) : (
-                <div className="flex w-full">
-                <Input
-                    type="text"
-                    value={referralLink}
-                    readOnly
-                    className="flex-1 rounded-r-none focus-visible:ring-offset-0 focus-visible:ring-0"
-                />
-                <Button onClick={() => handleCopyToClipboard()} className="rounded-l-none" aria-label="Copy referral link">
-                    <Copy className="h-4 w-4" />
-                </Button>
-                </div>
-            )}
+                        {isLoading ? (
+                            <Skeleton className="h-10 w-full" />
+                        ) : (
+                            <div className="w-full space-y-2">
+                                <div className="flex w-full">
+                                    <Input
+                                        type="text"
+                                        value={referralUrl}
+                                        readOnly
+                                        className="flex-1 rounded-r-none"
+                                    />
+                                    <Button onClick={() => handleCopyToClipboard(referralUrl)} className="rounded-l-none" aria-label="Copy referral link">
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <Input
+                                        type="text"
+                                        value={referralCode || ''}
+                                        onChange={(e) => setReferralCode(e.target.value)}
+                                        placeholder="Your referral code"
+                                        className="flex-1"
+                                    />
+                                    <Button onClick={() => saveReferralCode(referralCode || '')} disabled={!referralCode}>
+                                        Save Code
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            {isLoading ? (
-                <>
-                    <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
-                    <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
-                    <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
-                </>
-            ) : (
-                <>
+                {isLoading ? (
+                    <>
+                        <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+                        <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+                        <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+                    </>
+                ) : (
+                    <>
                 <div className="bg-muted p-4 rounded-lg">
                     <Users className="mx-auto h-8 w-8 text-primary mb-2" />
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{stats?.invites ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Invites Sent</p>
                 </div>
                 <div className="bg-muted p-4 rounded-lg">
                     <Award className="mx-auto h-8 w-8 text-primary mb-2" />
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{stats?.signups ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Successful Signups</p>
                 </div>
                 <div className="bg-muted p-4 rounded-lg">
                     <div className="mx-auto h-8 w-8 flex items-center justify-center text-primary mb-2 font-bold text-xl">₦</div>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{stats?.earnings ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Rewards Earned</p>
                 </div>
                 </>
