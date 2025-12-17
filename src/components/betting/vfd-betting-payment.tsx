@@ -96,6 +96,20 @@ export function VFDBettingPayment({ onSuccess, onError }: VFDBettingPaymentProps
   const handlePaymentSuccess = (amount: number, platform: string) => {
     const platformName = BETTING_PLATFORMS.find((p) => p.id === platform)?.name || platform;
 
+    // Save receipt data for success page
+    const receiptData = {
+      type: 'betting',
+      data: {
+        platform,
+        accountId: bettingData?.accountId || 'N/A',
+        amount,
+      },
+      recipientName: platformName,
+      transactionId: bettingPayment.reference || `betting_${Date.now()}`,
+      completedAt: new Date().toISOString(),
+    };
+    localStorage.setItem('ovo-pending-receipt', JSON.stringify(receiptData));
+
     addNotification({
       title: 'Betting Account Funded',
       description: `₦${amount.toLocaleString()} deposited to your ${platformName} account`,

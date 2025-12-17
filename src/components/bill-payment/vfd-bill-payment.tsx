@@ -19,6 +19,7 @@ import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { Loader2, AlertCircle, CheckCircle, Zap, Tv, Wifi, Droplet } from 'lucide-react';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -93,11 +94,7 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
 
       const result = await response.json();
       if (result.success) {
-        // Filter for main categories
-        const filtered = result.data.filter((b: Biller) => 
-          ['Utility', 'Cable TV', 'Internet Subscription', 'Data'].includes(b.category)
-        );
-        setBillers(filtered);
+        setBillers(result.data);
       } else {
         toast({
           title: 'Error',
@@ -240,6 +237,30 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
           title: 'Success',
           description: result.message || 'Bill payment completed successfully',
         });
+
+        // Save pending receipt so Success page can show the bill receipt
+        try {
+          const receipt = {
+            type: 'bill-payment',
+            reference,
+            amount: billData.amount,
+            recipientName: selectedBiller.name,
+            bankName: selectedBiller.name,
+            data: {
+              biller: { id: selectedBiller.id, name: selectedBiller.name },
+              amount: billData.amount,
+              accountId: billData.customerId,
+              verifiedName: result.data?.customerName || null,
+              bouquet: result.data?.bouquet || null,
+              transactionId: result.data?.reference || result.data?.transactionId || null,
+              completedAt: new Date().toISOString(),
+            },
+          };
+
+          await pendingTransactionService.savePendingReceipt(receipt as any);
+        } catch (e) {
+          console.error('[VFD Bill] Failed to save pending receipt', e);
+        }
 
         onSuccess?.(billData.amount, selectedBiller.name);
         form.reset();

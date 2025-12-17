@@ -1,20 +1,9 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import {
-    collection,
-    doc,
-    query,
-    where,
-    getDocs,
-    getDoc,
-    addDoc,
-    updateDoc,
-    runTransaction,
-    serverTimestamp,
-} from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
 import { initiateCardPayment } from '@/lib/vfd';
+import { userService, transactionService } from '@/lib/db';
+import { executeVFDTransaction } from '@/lib/balance-sync';
 
 export async function POST(request: Request) {
     try {
@@ -33,29 +22,13 @@ export async function POST(request: Request) {
         }
 
         // Idempotency
-        const financialTransactionsRef = collection(db, 'financialTransactions');
-        const idempotencyQuery = query(financialTransactionsRef, where('reference', '==', clientReference));
-        const existing = await getDocs(idempotencyQuery as any).catch(() => null);
-        if (existing && !(existing as any).empty) {
-            const userRef = doc(db, 'users', userId);
-            const userSnapshot = await getDoc(userRef as any);
-            const currentBal = userSnapshot.exists() ? (userSnapshot.data() as any)?.balance : null;
-            return NextResponse.json({ message: 'Already processed', newBalanceInKobo: currentBal }, { status: 200 });
+        const existing = await transactionService.getByReference(clientReference);
+        if (existing) {
+            const user = await userService.getById(userId);
+            return NextResponse.json({ message: 'Already processed', newBalanceInKobo: user.balance }, { status: 200 });
         }
 
         const amountInKobo = Math.round(amount * 100);
-        const pending = {
-            userId,
-            category: 'deposit',
-            type: 'credit',
-            amount: amountInKobo,
-            reference: clientReference,
-            narration: 'Card deposit (pending)',
-            party: { name: 'VFD Card' },
-            status: 'pending',
-            createdAt: serverTimestamp(),
-        };
-        const pendingRef = await addDoc(financialTransactionsRef, pending as any);
 
         if (!cardNumber || !cardPin || !cvv || !expiry) {
             return NextResponse.json({ message: 'Card details (number, pin, cvv, expiry) are required for card funding.' }, { status: 400 });
@@ -77,16 +50,29 @@ export async function POST(request: Request) {
         logger.debug('VFD initiation', { initiation });
 
         if (initiation.ok && initiation.data && initiation.data.data && initiation.data.data.serviceResponseCodes === 'COMPLETED') {
-            // finalize
-            let newBalance = 0;
-            await runTransaction(db, async (tx) => {
-                const userRef = doc(db, 'users', userId);
-                const userDoc = await tx.get(userRef as any);
-                if (!userDoc.exists()) throw new Error('User not found');
-                const userData = userDoc.data() as any;
-                newBalance = (userData.balance || 0) + amountInKobo;
-                tx.update(userRef, { balance: newBalance });
-                await updateDoc(pendingRef, { status: 'completed', completedAt: serverTimestamp(), balanceAfter: newBalance });
+            // Get user
+            const user = await userService.getById(userId);
+            
+            // Execute VFD transaction and update balance
+            const newBalance = await executeVFDTransaction(
+                userId,
+                user.accountNumber,
+                async () => {}, // VFD already processed
+                amountInKobo,
+                'credit'
+            );
+
+            // Log transaction
+            await transactionService.create({
+                user_id: userId,
+                type: 'credit',
+                category: 'deposit',
+                amount: amountInKobo,
+                reference: clientReference,
+                narration: 'Card deposit via VFD',
+                party: { name: 'VFD Card' },
+                balance_after: newBalance,
+                status: 'completed',
             });
 
             return NextResponse.json({ message: 'Funding successful!', newBalanceInKobo: newBalance, vfd: initiation.data }, { status: 200 });

@@ -1,61 +1,65 @@
-
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
+import { vfdWalletService } from '@/lib/vfd-wallet-service';
+import { db, userService, notificationService } from '@/lib/db';
 
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
-        const reqHeaders = request.headers as { get(name: string): string | null };
-        const userId = getUserIdFromToken(reqHeaders);
+        const userId = getUserIdFromToken(request.headers);
         if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { newTier, bvn, cacNumber } = body;
+        const { tier, bvn } = body;
 
-        if (!newTier || (newTier === 2 && !bvn) || (newTier === 3 && !cacNumber)) {
-            return NextResponse.json({ message: 'Required KYC information is missing.' }, { status: 400 });
+        if (!tier || !bvn) {
+            return NextResponse.json({ ok: false, message: 'Tier and BVN required' }, { status: 400 });
         }
 
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await getDoc(userRef);
-
-        if (!userDoc.exists()) {
-            return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+        const user = await userService.getById(userId);
+        if (!user) {
+            return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
         }
 
-        const currentTier = userDoc.data().kycTier || 1;
-        if (newTier <= currentTier) {
-            return NextResponse.json({ message: `You are already at or above Tier ${newTier}.` }, { status: 400 });
+        if (tier <= (user.kyc_tier || 1)) {
+            return NextResponse.json({ ok: false, message: `Already at Tier ${tier}` }, { status: 400 });
         }
-        
-        // In a real app, you would verify the BVN/CAC number with a third-party service here.
-        // For this simulation, we'll assume the data is valid and proceed with the upgrade.
-        
-        const updateData: any = {
-            kycTier: newTier,
-            updatedAt: new Date().toISOString(),
-        };
 
-        if (newTier === 2) {
-            updateData.bvn = bvn;
-        }
-        if (newTier === 3) {
-            updateData.cacNumber = cacNumber;
-            updateData.isBusiness = true; // Assuming Tier 3 is for businesses
-        }
-        
-        await updateDoc(userRef, updateData);
+        // Upgrade account with VFD using BVN
+        await vfdWalletService.upgradeAccountWithBVN(user.account_number, bvn);
 
-        return NextResponse.json({ message: `Successfully upgraded to Tier ${newTier}!` });
+        // Update user tier in Supabase
+        await db
+            .from('users')
+            .update({ 
+                kyc_tier: tier,
+                bvn_hash: bvn, // Store hashed in production
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId);
+
+        // Create notification
+        await notificationService.create({
+            user_id: userId,
+            title: 'Account Upgraded',
+            body: `Your account has been upgraded to Tier ${tier}. You now have higher transaction limits.`,
+            category: 'kyc',
+        });
+
+        logger.info('KYC upgrade successful', { userId, tier });
+
+        return NextResponse.json({ 
+            ok: true, 
+            message: `Successfully upgraded to Tier ${tier}!`,
+            data: { tier },
+        });
 
     } catch (error) {
-        logger.error("KYC Upgrade Error:", error);
-        return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+        logger.error('KYC upgrade error:', error);
+        const message = error instanceof Error ? error.message : 'Upgrade failed';
+        return NextResponse.json({ ok: false, message }, { status: 500 });
     }
 }

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { User as FirestoreUser } from "@/types/user";
+import { accountNumberToDisplay } from "@/lib/account-utils";
 
 // Initialize Supabase client (use public/anon key for client-side)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,7 +16,7 @@ const supabase = supabaseUrl && supabaseAnonKey
 type ClientUser = Pick<
   FirestoreUser,
   "phone" | "fullName" | "accountNumber" | "balance" | "kycTier" | "isAgent" | "email" | "status" | "avatarUrl"
-> & { userId: string; photoUrl?: string | null };
+> & { userId: string; photoUrl?: string | null; displayAccountNumber?: string };
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -71,14 +72,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("User not found.");
       }
 
+<<<<<<< Updated upstream
       // Map Supabase column names (snake_case) to camelCase
+=======
+      const accountNumber = userData.account_number || "";
+>>>>>>> Stashed changes
       setUser({
         userId: userData.id,
         phone: userData.phone || "",
+<<<<<<< Updated upstream
         fullName: userData.full_name || userData.fullName || "",
         accountNumber: userData.account_number || userData.accountNumber || "",
         isAgent: userData.is_agent || userData.isAgent || false,
         kycTier: userData.kyc_tier || userData.kycTier || 1,
+=======
+        fullName: userData.full_name || "",
+        accountNumber,
+        displayAccountNumber: accountNumberToDisplay(accountNumber),
+        isAgent: userData.is_agent || false,
+        kycTier: userData.kyc_tier || 1,
+>>>>>>> Stashed changes
         balance: typeof userData.balance === "number" ? userData.balance : 0,
         email: userData.email,
         status: userData.status || "active",
@@ -87,6 +100,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);
+
+      // Sync with VFD balance in background
+      if (accountNumber) {
+        fetch('/api/wallet/sync-balance', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (result.ok && result.data?.balance) {
+              setBalance(result.data.balance);
+              setUser(prev => prev ? { ...prev, balance: result.data.balance } : prev);
+            }
+          })
+          .catch(err => console.warn('Balance sync failed:', err));
+      }
     } catch (err) {
       console.error("Auth fetch failed:", err);
       performLogout();

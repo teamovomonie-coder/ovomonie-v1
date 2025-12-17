@@ -20,6 +20,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 const pinSchema = z.object({
   pin: z.string().length(4, "Your PIN must be 4 digits."),
@@ -108,9 +109,18 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
                   parsed.completedAt = new Date().toISOString();
                   parsed.transactionId = res.transactionId || res.transaction_id || (res.data && res.data.transactionId) || parsed.transactionId;
                   parsed.backend = res.data || res;
+                  
+                  // Save to localStorage for backward compatibility
                   try { localStorage.setItem('ovo-pending-receipt', JSON.stringify(parsed));
                     console.debug('[PinModal] updated ovo-pending-receipt', parsed);
                   } catch (e) { console.error('[PinModal] failed to persist updated receipt', e); }
+                  
+                  // Also update in database if reference exists
+                  if (parsed.reference) {
+                    pendingTransactionService.markCompleted(parsed.reference, parsed.transactionId).catch((err) => {
+                      console.error('[PinModal] Failed to update DB receipt:', err);
+                    });
+                  }
                 }
               }
             } catch (err) {

@@ -6,8 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +22,7 @@ import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { VirtualCardDisplay } from './virtual-card-display';
 import type { VirtualCard } from './virtual-card-display';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 // --- Card Customization Data ---
 const templates = {
@@ -256,6 +255,57 @@ export function CardCustomizer() {
     setIsPinModalOpenForVirtual(true);
   };
 
+  const handleCreateVFDCard = async (cardType: 'PHYSICAL' | 'VIRTUAL') => {
+    if (balance === null || balance < 1000_00) {
+      toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦1,000 to create a card.' });
+      return;
+    }
+    setIsActivatingCard(true);
+    setVirtualCardApiError(null);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await fetch('/api/cards/debit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'create',
+          cardType,
+          deliveryAddress: cardType === 'PHYSICAL' ? shippingForm.getValues('address') : undefined,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to create card.');
+
+      toast({ title: `${cardType} Card Created!`, description: 'Your card is ready to use.' });
+      
+      if (cardType === 'VIRTUAL') {
+        const newCard: VirtualCard = {
+          id: result.data.cardId,
+          cardNumber: result.data.cardNumber,
+          expiryDate: result.data.expiryDate,
+          cvv: result.data.cvv || '***',
+          isActive: result.data.status === 'ACTIVE',
+          balance: typeof balance === 'number' ? balance : 0,
+          createdAt: new Date(),
+          expiresAt: new Date(result.data.expiryDate),
+          isVFDCard: true,
+          cardType: cardType,
+          status: result.data.status,
+        };
+        setVirtualCards(prev => [newCard, ...prev]);
+        setView('virtual-card');
+      }
+    } catch (error: any) {
+      setVirtualCardApiError(error.message || 'Card creation failed');
+      toast({ variant: 'destructive', title: 'Card Creation Failed', description: error.message });
+    } finally {
+      setIsActivatingCard(false);
+    }
+  };
+
   const handleConfirmVirtualCard = async () => {
     setIsActivatingCard(true);
     setVirtualCardApiError(null);
@@ -327,18 +377,18 @@ export function CardCustomizer() {
       // Persist a pending receipt for the virtual card so `/success` can render it
       try {
         const pendingReceipt = {
-          type: 'virtual-card',
+          type: 'virtual-card' as const,
           data: {
             cardId: result.cardId,
             cardNumber: result.cardNumber,
             expiryDate: result.expiryDate,
             cvv: result.cvv,
           },
+          reference: clientReference,
           transactionId: clientReference,
           completedAt: new Date().toISOString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
-        try { window.dispatchEvent(new Event('ovo-pending-receipt-updated')); } catch (e) {}
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
       } catch (e) {
         console.error('Failed to persist virtual-card pending receipt', e);
       }
@@ -389,37 +439,58 @@ export function CardCustomizer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load persisted virtual cards from Firestore for the logged-in user
+  // Load persisted virtual cards from Supabase API for the logged-in user
   useEffect(() => {
     if (!user?.userId) return;
     let mounted = true;
     const fetchCards = async () => {
       try {
         setIsFetchingVirtualCards(true);
-        const snap = await getDocs(collection(db, 'users', user.userId, 'virtualCards'));
-        const cards = snap.docs.map((d) => {
-          const data = d.data() as any;
-          return {
-            id: d.id,
-            cardNumber: data.cardNumber,
-            expiryDate: data.expiryDate,
-            cvv: data.cvv,
-            isActive: data.isActive ?? true,
-            balance: typeof data.balance === 'number' ? data.balance : 0,
-            createdAt: data.createdAt && (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)),
-            expiresAt: data.expiresAt && (data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)),
-          } as VirtualCard;
+        const token = localStorage.getItem('ovo-auth-token');
+        if (!token) {
+          console.warn('No auth token for fetching virtual cards');
+          return;
+        }
+
+        const response = await fetch('/api/cards/virtual', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` },
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch virtual cards');
+        }
+
+        const result = await response.json();
+        const cards = (result.cards || []).map((data: any) => ({
+          id: data.id,
+          cardNumber: data.cardNumber,
+          expiryDate: data.expiryDate,
+          cvv: data.cvv,
+          isActive: data.isActive ?? true,
+          balance: typeof data.balance === 'number' ? data.balance : 0,
+          createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+          expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date(),
+        })) as VirtualCard[];
+
         if (mounted) {
           if (cards.length > 0) {
             setVirtualCards(cards);
-            try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {}
+            try { 
+              localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ 
+                ...c, 
+                createdAt: c.createdAt.toISOString(), 
+                expiresAt: c.expiresAt.toISOString() 
+              })))); 
+            } catch (e) {}
           }
         }
       } catch (e) {
-        console.error('Failed to fetch virtual cards from Firestore', e);
+        console.error('Failed to fetch virtual cards from API', e);
       } finally {
-        setIsFetchingVirtualCards(false);
+        if (mounted) {
+          setIsFetchingVirtualCards(false);
+        }
       }
     };
     fetchCards();
@@ -509,20 +580,46 @@ export function CardCustomizer() {
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) throw new Error('Authentication token not found.');
 
-      const res = await fetch(`/api/cards/virtual/${encodeURIComponent(cardId)}/manage`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ action }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
+      const card = virtualCards.find(c => c.id === cardId);
+      
+      // Use VFD API for VFD cards
+      if (card?.isVFDCard) {
+        const res = await fetch('/api/cards/debit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ 
+            action: action === 'deactivate' ? 'block' : action,
+            cardId,
+            reason: 'User requested'
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
 
-      if (action === 'deactivate') {
-        setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false } : c));
-        toast({ title: 'Card Deactivated', description: json.message || 'Card has been deactivated.' });
-      } else if (action === 'delete') {
-        setVirtualCards(prev => prev.filter(c => c.id !== cardId));
-        toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
+        if (action === 'deactivate') {
+          setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false, status: 'BLOCKED' } : c));
+          toast({ title: 'Card Blocked', description: json.message || 'Card has been blocked.' });
+        } else if (action === 'delete') {
+          setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+          toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
+        }
+      } else {
+        // Use existing API for non-VFD cards
+        const res = await fetch(`/api/cards/virtual/${encodeURIComponent(cardId)}/manage`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
+
+        if (action === 'deactivate') {
+          setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false } : c));
+          toast({ title: 'Card Deactivated', description: json.message || 'Card has been deactivated.' });
+        } else if (action === 'delete') {
+          setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+          toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
+        }
       }
 
       setManageModalOpen(false);
@@ -773,19 +870,31 @@ export function CardCustomizer() {
                     <p className="text-sm font-medium mb-1 text-primary">Activation Fee</p>
                     <p className="text-3xl font-bold text-primary mb-4">₦1,000</p>
                     <p className="text-xs text-muted-foreground mb-6">One-time fee per virtual card</p>
-                    <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="w-full">
-                      {isActivatingCard ? (
-                        <>
+                    <div className="flex gap-2">
+                      <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="flex-1">
+                        {isActivatingCard ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="mr-2 h-5 w-5" />
+                            Create Virtual Card
+                          </>
+                        )}
+                      </Button>
+                      <Button onClick={() => handleCreateVFDCard('VIRTUAL')} disabled={isActivatingCard} size="lg" variant="outline" className="flex-1">
+                        {isActivatingCard ? (
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Creating Card...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="mr-2 h-5 w-5" />
-                          Create Virtual Card
-                        </>
-                      )}
-                    </Button>
+                        ) : (
+                          <>
+                            <CreditCard className="mr-2 h-5 w-5" />
+                            VFD Virtual Card
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -793,7 +902,7 @@ export function CardCustomizer() {
                   <div className="flex items-center justify-between mb-2">
                     <div />
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={async () => { if (!user?.userId) return; try { setIsFetchingVirtualCards(true); const snap = await getDocs(collection(db, 'users', user.userId, 'virtualCards')); const cards = snap.docs.map(d => { const data = d.data() as any; return { id: d.id, cardNumber: data.cardNumber, expiryDate: data.expiryDate, cvv: data.cvv, isActive: data.isActive ?? true, balance: typeof data.balance === 'number' ? data.balance : 0, createdAt: data.createdAt && (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)), expiresAt: data.expiresAt && (data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)), } as VirtualCard }); setVirtualCards(cards); try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {} } catch (e) { console.error(e) } finally { setIsFetchingVirtualCards(false) } }}>
+                      <Button variant="ghost" size="sm" onClick={async () => { if (!user?.userId) return; try { setIsFetchingVirtualCards(true); const token = localStorage.getItem('ovo-auth-token'); if (!token) return; const response = await fetch('/api/cards/virtual', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Failed to fetch'); const result = await response.json(); const cards = (result.cards || []).map((data: any) => ({ id: data.id, cardNumber: data.cardNumber, expiryDate: data.expiryDate, cvv: data.cvv, isActive: data.isActive ?? true, balance: typeof data.balance === 'number' ? data.balance : 0, createdAt: data.createdAt ? new Date(data.createdAt) : new Date(), expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date() })) as VirtualCard[]; setVirtualCards(cards); try { localStorage.setItem('ovo-virtual-cards', JSON.stringify(cards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() })))); } catch (e) {} } catch (e) { console.error(e) } finally { setIsFetchingVirtualCards(false) } }}>
                         {isFetchingVirtualCards ? (<Loader2 className="h-4 w-4 animate-spin"/>) : 'Refresh'}
                       </Button>
                     </div>
@@ -814,15 +923,27 @@ export function CardCustomizer() {
                     ))}
                   </div>
 
-                  <Button 
-                    onClick={handleCreateVirtualCard} 
-                    disabled={isActivatingCard}
-                    size="lg"
-                    className="w-full h-12 font-semibold"
-                  >
-                    {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                    Create Another Card (₦1,000)
-                  </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Button 
+                      onClick={handleCreateVirtualCard} 
+                      disabled={isActivatingCard}
+                      size="lg"
+                      className="h-12 font-semibold"
+                    >
+                      {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Create Virtual Card
+                    </Button>
+                    <Button 
+                      onClick={() => handleCreateVFDCard('VIRTUAL')} 
+                      disabled={isActivatingCard}
+                      size="lg"
+                      variant="outline"
+                      className="h-12 font-semibold"
+                    >
+                      {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                      VFD Virtual Card
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

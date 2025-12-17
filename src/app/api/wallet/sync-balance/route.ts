@@ -1,0 +1,48 @@
+/**
+ * Sync Balance API
+ * Syncs frontend balance with VFD wallet balance
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { syncBalanceWithVFD } from '@/lib/balance-sync';
+import { userService } from '@/lib/db';
+import { logger } from '@/lib/logger';
+
+export async function POST(req: NextRequest) {
+  try {
+    const userId = getUserIdFromToken(req.headers);
+    if (!userId) {
+      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await userService.getById(userId);
+    if (!user) {
+      return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
+    }
+
+    // If no account number, return current balance without syncing
+    if (!user.accountNumber) {
+      logger.warn('User has no account number, skipping VFD sync', { userId });
+      return NextResponse.json({
+        ok: true,
+        data: { balance: user.balance },
+      });
+    }
+
+    const syncedBalance = await syncBalanceWithVFD(userId, user.accountNumber);
+
+    logger.info('Balance synced', { userId, balance: syncedBalance });
+
+    return NextResponse.json({
+      ok: true,
+      data: { balance: syncedBalance },
+    });
+  } catch (error: any) {
+    logger.error('Balance sync error', { error: error.message });
+    return NextResponse.json(
+      { ok: false, message: error.message || 'Balance sync failed' },
+      { status: 500 }
+    );
+  }
+}

@@ -1,38 +1,25 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse, type NextRequest } from 'next/server';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
+import { transactionService } from '@/lib/db';
 
-// Initialize Supabase client (primary)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase configuration');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        // Fetch from Supabase (primary)
-        const { data: transactions, error } = await supabase
-            .from('financial_transactions')
-            .select('*')
-            .order('timestamp', { ascending: false })
-            .limit(100);
-
-        if (error) {
-            logger.error('Supabase error fetching transactions:', error);
-            return NextResponse.json({ message: 'Failed to fetch transactions' }, { status: 500 });
+        const userId = getUserIdFromToken(request.headers);
+        if (!userId) {
+            return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        return NextResponse.json(transactions || []);
+        try {
+            const transactions = await transactionService.getByUserId(userId, 100);
+            return NextResponse.json({ ok: true, data: transactions });
+        } catch (dbError: any) {
+            // If table doesn't exist or other DB error, return empty array
+            logger.warn('Database error fetching transactions, returning empty array:', dbError);
+            return NextResponse.json({ ok: true, data: [] });
+        }
     } catch (error) {
-        logger.error("Error fetching financial transactions: ", error);
-        let errorMessage = 'An internal server error occurred.';
-        if (error instanceof Error) {
-            errorMessage = `An internal server error occurred: ${error.message}`;
-        }
-        return NextResponse.json({ message: errorMessage }, { status: 500 });
+        logger.error('Error in transactions API:', error);
+        return NextResponse.json({ ok: false, message: 'Internal server error' }, { status: 500 });
     }
 }

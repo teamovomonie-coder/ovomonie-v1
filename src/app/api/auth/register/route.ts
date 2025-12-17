@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { hashSecret } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
+import { phoneToAccountNumber } from '@/lib/account-utils';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,10 +53,25 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'An account with this phone number already exists.' }, { status: 409 });
         }
 
-        // Generate account number by reversing the last 10 digits of the phone number
-        const lastTenDigits = phone.slice(-10);
-        const accountNumber = lastTenDigits.split('').reverse().join('');
+        // Use phone number as VFD account number (without leading 0)
+        const accountNumber = phoneToAccountNumber(phone);
         const referralCode = generateReferralCode();
+
+        // Create VFD wallet (skip in dev mode)
+        if (process.env.NODE_ENV === 'production') {
+            try {
+                const { vfdWalletService } = await import('@/lib/vfd-wallet-service');
+                await vfdWalletService.createWallet({
+                    customerId: accountNumber,
+                    customerName: fullName,
+                    email,
+                    phone: accountNumber,
+                });
+                logger.info('VFD wallet created', { accountNumber });
+            } catch (vfdError) {
+                logger.error('VFD wallet creation failed', { error: vfdError });
+            }
+        }
 
         // Create new user document in Supabase
         const { data, error } = await supabase.from('users').insert({

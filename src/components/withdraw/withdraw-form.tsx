@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 const bankTransferSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -176,18 +177,20 @@ function BankTransferWithdrawal() {
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
 
-      // Save pending receipt to localStorage and navigate to success page
+      // Save pending receipt to database and localStorage, then navigate to success page
       try {
         const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
         const pendingReceipt = {
-          type: 'withdrawal',
+          type: 'withdrawal' as const,
           data: submittedData,
           recipientName,
           bankName,
+          reference: `wth-${Date.now()}`,
+          amount: submittedData.amount,
           transactionId: result.data.transactionId || `OVO-WTH-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
       } catch (e) {
         console.warn('[Withdrawal] could not save pending receipt', e);
       }
@@ -239,10 +242,17 @@ function BankTransferWithdrawal() {
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => {
+            <Button className="w-full" onClick={async () => {
                 try {
                   if (submittedData && recipientName) {
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: 'withdrawal', data: submittedData, recipientName }));
+                    const receipt = { 
+                      type: 'withdrawal' as const, 
+                      data: submittedData, 
+                      recipientName,
+                      reference: `wth-${Date.now()}`,
+                      amount: submittedData.amount,
+                    };
+                    await pendingTransactionService.savePendingReceipt(receipt);
                   }
                 } catch (e) {}
                 setIsPinModalOpen(true);

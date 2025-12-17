@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
-import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles, Eye, EyeOff, CreditCard } from 'lucide-react';
 
 const loginSchema = z.object({
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),

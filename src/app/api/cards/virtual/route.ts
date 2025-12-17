@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const VIRTUAL_CARD_FEE = 1000_00; // ₦1,000 in kobo
 const CARD_VALIDITY_YEARS = 1;
@@ -25,6 +34,66 @@ function generateExpiryDate(): string {
   return `${month}/${year}`;
 }
 
+// GET - Fetch user's virtual cards
+export async function GET(request: Request) {
+  try {
+    // Verify authentication
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ message: 'Authorization header missing.' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = verifyAuthToken(token);
+
+    if (!decoded) {
+      return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 401 });
+    }
+
+    const userId = decoded.sub;
+
+    // Fetch virtual cards from Supabase
+    const { data: cards, error } = await supabase
+      .from('users_virtual_cards')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logger.error('Error fetching virtual cards:', error);
+      return NextResponse.json(
+        { message: 'Failed to fetch virtual cards.' },
+        { status: 500 }
+      );
+    }
+
+    // Transform to match frontend expectations
+    const transformedCards = (cards || []).map(card => ({
+      id: card.id,
+      cardNumber: card.card_number,
+      expiryDate: card.expiry_date,
+      cvv: card.cvv,
+      isActive: card.is_active,
+      balance: card.balance,
+      cardType: card.card_type,
+      createdAt: card.created_at,
+      expiresAt: card.expires_at,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      cards: transformedCards,
+    });
+  } catch (error) {
+    logger.error('Virtual cards fetch error:', error);
+    return NextResponse.json(
+      { message: 'An error occurred while fetching virtual cards.' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create a new virtual card
 export async function POST(request: Request) {
   try {
     // Verify authentication
@@ -44,15 +113,18 @@ export async function POST(request: Request) {
 
     const { clientReference } = await request.json();
 
-    // Get user data
-    const userRef = doc(db, 'users', userId);
-    const userSnapshot = await getDoc(userRef);
+    // Get user data from Supabase
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, balance, full_name')
+      .eq('id', userId)
+      .single();
 
-    if (!userSnapshot.exists()) {
+    if (userError || !userData) {
+      logger.error('User not found:', userError);
       return NextResponse.json({ message: 'User not found.' }, { status: 404 });
     }
 
-    const userData = userSnapshot.data();
     const currentBalance = userData.balance || 0;
 
     // Check if user has sufficient balance
@@ -67,41 +139,73 @@ export async function POST(request: Request) {
     const newBalance = currentBalance - VIRTUAL_CARD_FEE;
 
     // Generate card details
-    const cardId = `vc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const cardNumber = generateCardNumber();
     const cvv = generateCVV();
     const expiryDate = generateExpiryDate();
+    const expiresAt = new Date(Date.now() + CARD_VALIDITY_YEARS * 365 * 24 * 60 * 60 * 1000);
 
-    // Create virtual card record
-    const virtualCardsRef = collection(db, 'users', userId, 'virtualCards');
-    await setDoc(doc(virtualCardsRef, cardId), {
-      cardId,
-      cardNumber,
-      expiryDate,
-      cvv,
-      isActive: true,
-      // Persist the user's available wallet balance (after fee deduction)
-      // so the virtual card reflects the same available balance as the wallet.
-      balance: newBalance,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + CARD_VALIDITY_YEARS * 365 * 24 * 60 * 60 * 1000),
-      clientReference,
-    });
+    // Create virtual card record in Supabase
+    const { data: cardData, error: cardError } = await supabase
+      .from('users_virtual_cards')
+      .insert({
+        user_id: userId,
+        card_number: cardNumber,
+        expiry_date: expiryDate,
+        cvv: cvv,
+        balance: newBalance, // Virtual card reflects wallet balance
+        is_active: true,
+        card_type: 'visa',
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single();
 
-    // Update user balance
-    await updateDoc(userRef, {
-      balance: newBalance,
+    if (cardError) {
+      logger.error('Error creating virtual card:', cardError);
+      return NextResponse.json(
+        { message: 'Failed to create virtual card.' },
+        { status: 500 }
+      );
+    }
+
+    // Update user balance in Supabase
+    const { error: balanceError } = await supabase
+      .from('users')
+      .update({ balance: newBalance })
+      .eq('id', userId);
+
+    if (balanceError) {
+      // Rollback: delete the card if balance update fails
+      await supabase.from('users_virtual_cards').delete().eq('id', cardData.id);
+      logger.error('Error updating balance:', balanceError);
+      return NextResponse.json(
+        { message: 'Failed to update balance.' },
+        { status: 500 }
+      );
+    }
+
+    // Record the transaction
+    await supabase.from('financial_transactions').insert({
+      user_id: userId,
+      type: 'debit',
+      category: 'virtual_card',
+      amount: VIRTUAL_CARD_FEE,
+      balance_after: newBalance,
+      reference: clientReference || `vc-${cardData.id}`,
+      description: 'Virtual card creation fee',
+      status: 'completed',
+      metadata: { cardId: cardData.id },
     });
 
     logger.info(`Virtual card created for user ${userId}`, {
-      cardId,
+      cardId: cardData.id,
       fee: VIRTUAL_CARD_FEE,
       clientReference,
     });
 
     return NextResponse.json({
       success: true,
-      cardId,
+      cardId: cardData.id,
       cardNumber,
       expiryDate,
       cvv,

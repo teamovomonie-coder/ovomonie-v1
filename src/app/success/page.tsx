@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
@@ -11,6 +11,7 @@ import { BettingReceipt } from '@/components/betting/betting-receipt';
 import { AirtimeReceipt } from '@/components/airtime/airtime-receipt';
 import { BillPaymentReceipt } from '@/components/bill-payment/bill-payment-receipt';
 import VirtualCardReceipt from '@/components/custom-card/virtual-card-receipt';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 type ReceiptStore = {
   transactionId: string | undefined;
@@ -19,6 +20,7 @@ type ReceiptStore = {
   recipientName?: string;
   completedAt?: string;
   bankName?: string;
+  reference?: string;
 };
 
 export default function SuccessPage() {
@@ -26,7 +28,30 @@ export default function SuccessPage() {
   const [pending, setPending] = useState<ReceiptStore | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
+  // Fetch pending receipt from database first, with localStorage fallback
+  const fetchPendingReceipt = useCallback(async () => {
+    try {
+      // Try database first
+      const dbReceipt = await pendingTransactionService.getLatest();
+      if (dbReceipt && dbReceipt.type && dbReceipt.data) {
+        // Convert service receipt format to component format
+        const converted: ReceiptStore = {
+          transactionId: dbReceipt.transactionId || dbReceipt.reference,
+          type: dbReceipt.type,
+          data: dbReceipt.data || dbReceipt,
+          recipientName: dbReceipt.recipientName,
+          completedAt: dbReceipt.completedAt as string,
+          bankName: dbReceipt.bankName,
+          reference: dbReceipt.reference,
+        };
+        setPending(converted);
+        return;
+      }
+    } catch (error) {
+      console.debug('[SuccessPage] Database fetch failed, trying localStorage', error);
+    }
+
+    // Fallback to localStorage
     try {
       const raw = localStorage.getItem('ovo-pending-receipt');
       if (raw) {
@@ -51,30 +76,32 @@ export default function SuccessPage() {
     } catch (e) {
       setPending(null);
     }
-    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
+    fetchPendingReceipt().finally(() => setIsLoaded(true));
+  }, [fetchPendingReceipt]);
+
+  useEffect(() => {
     const handler = () => {
-      try {
-        const raw = localStorage.getItem('ovo-pending-receipt');
-        if (raw) setPending(JSON.parse(raw));
-        else setPending(null);
-      } catch (e) {
-        setPending(null);
-      }
+      fetchPendingReceipt();
     };
 
     window.addEventListener('ovo-pending-receipt-updated', handler);
     return () => {
       window.removeEventListener('ovo-pending-receipt-updated', handler);
     };
-  }, []);
+  }, [fetchPendingReceipt]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(async () => {
+    // Clear from database if reference exists
+    if (pending?.reference) {
+      await pendingTransactionService.deletePending(pending.reference);
+    }
+    // Also clear localStorage for compatibility
     try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     router.push('/dashboard');
-  };
+  }, [pending?.reference, router]);
 
   // If there is no pending receipt AFTER loading, redirect back to dashboard.
   // Wait until isLoaded is true so we don't redirect prematurely on mount.

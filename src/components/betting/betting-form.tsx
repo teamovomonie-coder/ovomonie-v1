@@ -31,6 +31,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 // --- Mock Data & Logos ---
 
@@ -242,13 +243,15 @@ export function BettingForm() {
         
         // Save pending receipt and navigate to /success
         const pendingReceipt = {
-          type: 'betting',
+          type: 'betting' as const,
           data: fundingData,
           recipientName: verifiedName,
+          reference: clientReference,
+          amount: fundingData.amount,
           transactionId: clientReference,
           completedAt: new Date().toISOString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
         form.reset();
         setIsPinModalOpen(false);
         setVerifiedName(null);

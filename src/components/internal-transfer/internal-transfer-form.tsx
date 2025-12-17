@@ -28,6 +28,7 @@ import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -227,17 +228,18 @@ export function InternalTransferForm() {
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
 
-      // Save pending receipt to localStorage and navigate to success page
+      // Save pending receipt to database and localStorage, then navigate to success page
       try {
-        const receiptType = isMemoTransfer ? 'memo-transfer' : 'internal-transfer';
-        const pendingReceipt = {
-          type: receiptType,
+        const pendingReceipt: any = {
+          type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer',
           data: submittedData,
           recipientName,
+          reference: `int-${Date.now()}`,
+          amount: submittedData.amount,
           transactionId: result.data.transactionId || `OVO-INT-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
       } catch (e) {
         console.warn('[InternalTransfer] could not save pending receipt', e);
       }
@@ -324,10 +326,17 @@ export function InternalTransferForm() {
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button className="w-full" onClick={() => {
+            <Button className="w-full" onClick={async () => {
                 try {
                   if (submittedData && recipientName) {
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify({ type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', data: submittedData, recipientName }));
+                    const receipt: any = { 
+                      type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer', 
+                      data: submittedData, 
+                      recipientName,
+                      reference: `int-${Date.now()}`,
+                      amount: submittedData.amount,
+                    };
+                    await pendingTransactionService.savePendingReceipt(receipt);
                   }
                 } catch (e) {}
                 setIsPinModalOpen(true);

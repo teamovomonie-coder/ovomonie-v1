@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 
 const formSchema = z.object({
@@ -287,12 +288,20 @@ export function TransferForm() {
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => {
+                <Button className="w-full" onClick={async () => {
                 // Save pending receipt so the global success page can render the same UI
                 try {
                   if (submittedData && recipientName) {
-                    const receipt = { type: 'memo-transfer', data: submittedData, recipientName };
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify(receipt));
+                    const receipt = { 
+                      type: 'memo-transfer' as const, 
+                      data: submittedData, 
+                      recipientName,
+                      reference: `memo-${Date.now()}`,
+                      amount: submittedData.amount,
+                      bankName,
+                    };
+                    // Use the service to save to both localStorage and DB and wait for DB write
+                    await pendingTransactionService.savePendingReceipt(receipt);
                     console.debug('[TransferForm] set ovo-pending-receipt', receipt);
                   }
                 } catch (e) { console.error('[TransferForm] failed to set receipt', e); }

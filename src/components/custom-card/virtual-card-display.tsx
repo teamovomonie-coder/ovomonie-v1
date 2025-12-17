@@ -19,6 +19,9 @@ export interface VirtualCard {
   expiresAt: Date;
   pending?: boolean;
   failed?: boolean;
+  isVFDCard?: boolean;
+  cardType?: 'PHYSICAL' | 'VIRTUAL';
+  status?: 'ACTIVE' | 'INACTIVE' | 'BLOCKED' | 'EXPIRED';
 }
 
 interface VirtualCardDisplayProps {
@@ -247,8 +250,21 @@ export function VirtualCardDisplay({
             <span className="sm:hidden">Copy</span>
           </Button>
 
-          {/* Deactivate button (visible when active) */}
-          {card.isActive && onDeactivate && (
+          {/* Block/Unblock button for VFD cards */}
+          {card.isVFDCard && card.isActive && (
+            <Button
+              onClick={() => onDeactivate && onDeactivate(card.id)}
+              className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={card.pending || card.failed}
+            >
+              <Power className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Block Card</span>
+              <span className="sm:hidden">Block</span>
+            </Button>
+          )}
+
+          {/* Deactivate button for non-VFD cards */}
+          {!card.isVFDCard && card.isActive && onDeactivate && (
             <Button
               onClick={() => onDeactivate(card.id)}
               className="flex-1 h-10 sm:h-12 font-semibold text-sm sm:text-base bg-amber-600 hover:bg-amber-700 text-white"
@@ -282,6 +298,15 @@ export function VirtualCardDisplay({
             </Button>
           )}
         </div>
+
+        {/* VFD Card Badge */}
+        {card.isVFDCard && (
+          <div className="mt-3 flex justify-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-300">
+              <span className="text-xs font-semibold text-blue-700">VFD Banking Card</span>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );

@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { verifyAuthToken } from '@/lib/auth';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function PATCH(
   request: Request,
@@ -32,19 +41,34 @@ export async function PATCH(
     }
 
     // Verify card belongs to user
-    const cardRef = doc(db, 'users', userId, 'virtualCards', cardId);
-    const cardSnap = await getDoc(cardRef);
+    const { data: card, error: cardError } = await supabase
+      .from('users_virtual_cards')
+      .select('*')
+      .eq('id', cardId)
+      .eq('user_id', userId)
+      .single();
 
-    if (!cardSnap.exists()) {
+    if (cardError || !card) {
       return NextResponse.json({ message: 'Virtual card not found.' }, { status: 404 });
     }
 
     if (action === 'deactivate') {
       // Mark card as inactive
-      await updateDoc(cardRef, {
-        isActive: false,
-        deactivatedAt: new Date(),
-      });
+      const { error } = await supabase
+        .from('users_virtual_cards')
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', cardId);
+
+      if (error) {
+        logger.error('Error deactivating virtual card:', error);
+        return NextResponse.json(
+          { message: 'Failed to deactivate virtual card.' },
+          { status: 500 }
+        );
+      }
 
       logger.info(`Virtual card deactivated for user ${userId}`, { cardId });
 
@@ -56,8 +80,19 @@ export async function PATCH(
     }
 
     if (action === 'delete') {
-      // Delete the card document
-      await deleteDoc(cardRef);
+      // Delete the card
+      const { error } = await supabase
+        .from('users_virtual_cards')
+        .delete()
+        .eq('id', cardId);
+
+      if (error) {
+        logger.error('Error deleting virtual card:', error);
+        return NextResponse.json(
+          { message: 'Failed to delete virtual card.' },
+          { status: 500 }
+        );
+      }
 
       logger.info(`Virtual card deleted for user ${userId}`, { cardId });
 

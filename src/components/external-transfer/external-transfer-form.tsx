@@ -31,6 +31,7 @@ import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -156,18 +157,17 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       debounceRef.current = setTimeout(async () => {
         try {
           const token = localStorage.getItem('ovo-auth-token');
-          const res = await fetch('/api/funding/paystack', {
+          const res = await fetch('/api/transfers/verify-account', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ action: 'resolveAccount', accountNumber: watchedAccountNumber, bankCode: watchedBankCode })
+            body: JSON.stringify({ accountNumber: watchedAccountNumber, bankCode: watchedBankCode })
           });
           const data = await res.json();
-          if (res.ok && data.ok && data.data && (data.data.data?.account_name || data.data.account_name)) {
-            const accountName = (data.data.data?.account_name || data.data.account_name) as string;
-            setRecipientName(accountName);
+          if (res.ok && data.ok && data.data?.accountName) {
+            setRecipientName(data.data.accountName);
             clearErrors('accountNumber');
           } else {
             setRecipientName(null);
@@ -297,19 +297,20 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
 
-      // Save pending receipt to localStorage and navigate to success page
+      // Save pending receipt to database and localStorage, then navigate to success page
       try {
-        const receiptType = isMemoTransfer ? 'memo-transfer' : 'external-transfer';
         const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
-        const pendingReceipt = {
-          type: receiptType,
+        const pendingReceipt: any = {
+          type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
           data: submittedData,
           recipientName,
           bankName,
+          reference: `ext-${Date.now()}`,
+          amount: submittedData.amount,
           transactionId: result.data.transactionId || `OVO-EXT-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
       } catch (e) {
         console.warn('[ExternalTransfer] could not save pending receipt', e);
       }
@@ -366,20 +367,21 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={() => {
+            <Button className="w-full" onClick={async () => {
                 try {
                   if (submittedData && recipientName) {
-                    const receiptType = isMemoTransfer ? 'memo-transfer' : 'external-transfer';
                     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
-                    const pendingReceipt = {
-                      type: receiptType,
+                    const pendingReceipt: any = {
+                      type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
                       data: submittedData,
                       recipientName,
                       bankName,
+                      reference: `ext-${Date.now()}`,
+                      amount: submittedData.amount,
                       createdAt: new Date().toISOString(),
                       status: 'pending',
                     };
-                    localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+                    await pendingTransactionService.savePendingReceipt(pendingReceipt);
                     console.debug('[ExternalTransfer] set provisional ovo-pending-receipt', pendingReceipt);
                   }
                 } catch (e) { console.error('[ExternalTransfer] failed to set provisional pending receipt', e); }
@@ -404,13 +406,9 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>For Testing</AlertTitle>
+            <AlertTitle>Bank Transfer via VFD</AlertTitle>
             <AlertDescription>
-              <p className="mb-2">Use one of these bank/account pairs for successful verification:</p>
-              <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li><b>GTB (058):</b> 0123456789, 1234567890</li>
-                <li><b>Access Bank (044):</b> 0987654321, 9876543210</li>
-              </ul>
+              <p className="text-sm">Account verification and transfers are powered by VFD Banking API for secure, real-time bank transfers.</p>
             </AlertDescription>
           </Alert>
           

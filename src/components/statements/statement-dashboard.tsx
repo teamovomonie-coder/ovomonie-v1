@@ -60,13 +60,18 @@ export function StatementDashboard() {
     const fetchTransactions = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/transactions');
+            const token = localStorage.getItem('ovo-auth-token');
+            const response = await fetch('/api/transactions', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to fetch transactions');
             }
-            const data = await response.json();
-            setTransactions(data);
+            const result = await response.json();
+            setTransactions(result.ok ? result.data : []);
         } catch (error) {
             if (error instanceof Error) {
                 toast({ variant: 'destructive', title: 'Error', description: error.message });

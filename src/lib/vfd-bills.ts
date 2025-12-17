@@ -138,6 +138,15 @@ export interface TransactionStatusResponse {
   };
 }
 
+// Get standard headers for VFD Bills API
+// Documentation: https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/bills-payment-api/
+function getHeaders(token: string): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 class VFDBillsAPI {
   /**
    * Get all biller categories
@@ -151,10 +160,7 @@ class VFDBillsAPI {
 
     const response = await fetch(`${getBillsBase()}/billercategory`, {
       method: 'GET',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
     });
 
     const result = await response.json();
@@ -182,10 +188,7 @@ class VFDBillsAPI {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
     });
 
     const result = await response.json();
@@ -211,10 +214,7 @@ class VFDBillsAPI {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
     });
 
     const result = await response.json();
@@ -246,10 +246,7 @@ class VFDBillsAPI {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
     });
 
     const result = await response.json();
@@ -270,10 +267,7 @@ class VFDBillsAPI {
 
     const response = await fetch(`${getBillsBase()}/pay`, {
       method: 'POST',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
       body: JSON.stringify(request),
     });
 
@@ -305,10 +299,7 @@ class VFDBillsAPI {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'AccessToken': token,
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(token),
     });
 
     const result = await response.json();

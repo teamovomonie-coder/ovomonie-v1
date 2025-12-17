@@ -508,10 +508,47 @@ AFTER INSERT OR UPDATE ON saved_cards
 FOR EACH ROW
 EXECUTE FUNCTION ensure_single_default_card();
 
+-- ============================================================================
+-- PENDING TRANSACTIONS TABLE (Replaces localStorage receipts)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS pending_transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL, -- 'card-funding', 'transfer', 'bill-payment', 'airtime', 'betting', 'virtual-card', etc.
+  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+  reference VARCHAR(255) UNIQUE NOT NULL,
+  amount BIGINT,
+  data JSONB NOT NULL DEFAULT '{}', -- Flexible storage for transaction-specific data
+  recipient_name VARCHAR(255),
+  bank_name VARCHAR(100),
+  error_message TEXT,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  expires_at TIMESTAMP WITH TIME ZONE, -- For time-limited transactions like QR codes
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for pending_transactions
+CREATE INDEX IF NOT EXISTS idx_pending_transactions_user_id ON pending_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_transactions_reference ON pending_transactions(reference);
+CREATE INDEX IF NOT EXISTS idx_pending_transactions_user_status ON pending_transactions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_pending_transactions_user_latest ON pending_transactions(user_id, created_at DESC);
+
+-- Function to get the latest pending transaction for a user
+CREATE OR REPLACE FUNCTION get_latest_pending_transaction(p_user_id UUID)
+RETURNS pending_transactions AS $$
+  SELECT * FROM pending_transactions 
+  WHERE user_id = p_user_id 
+    AND status IN ('pending', 'processing', 'completed')
+  ORDER BY created_at DESC 
+  LIMIT 1;
+$$ LANGUAGE SQL STABLE;
+
 -- Apply update trigger to tables with updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_loans_updated_at BEFORE UPDATE ON loans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_saved_cards_updated_at BEFORE UPDATE ON saved_cards FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_pending_transactions_updated_at BEFORE UPDATE ON pending_transactions FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_investments_updated_at BEFORE UPDATE ON investments FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_stock_holdings_updated_at BEFORE UPDATE ON stock_holdings FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

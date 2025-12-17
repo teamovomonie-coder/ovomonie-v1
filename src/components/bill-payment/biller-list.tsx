@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { PinModal } from '@/components/auth/pin-modal';
 import { Separator } from '@/components/ui/separator';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 interface Biller {
   id: string;
@@ -338,7 +339,7 @@ export function BillerList() {
 
                 // Save pending receipt and navigate to /success
                 const pendingReceipt = {
-                    type: 'bill-payment',
+                    type: 'bill-payment' as const,
                     data: {
                         biller: { id: selectedBiller!.id, name: selectedBiller!.name },
                         amount: paymentData.amount,
@@ -347,12 +348,14 @@ export function BillerList() {
                         verifiedInfo: verifiedInfo || null,
                         bouquet: bouquet || null,
                     },
+                    reference: clientReference,
+                    amount: paymentData.amount,
                     transactionId: clientReference,
                     completedAt: new Date().toISOString(),
                 };
                 // Debug: log pending receipt payload to help diagnose malformed data issues
                 try { console.debug('[BillerList] pendingReceipt', pendingReceipt); } catch (e) {}
-                localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+                await pendingTransactionService.savePendingReceipt(pendingReceipt);
                 setIsPinModalOpen(false);
                 resetDialogState();
                 router.push('/success');

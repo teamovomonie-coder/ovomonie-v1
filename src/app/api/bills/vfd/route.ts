@@ -6,9 +6,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
-import vfdBillsAPI, { type BillPaymentRequest } from '@/lib/vfd-bills';
-import { getDb } from '@/lib/firebaseAdmin';
-import admin from 'firebase-admin';
+import { vfdBillsService, type BillPaymentRequest } from '@/lib/vfd-bills-service';
+import { db, transactionService, notificationService } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,12 +21,12 @@ export async function GET(request: NextRequest) {
 
     switch (action) {
       case 'categories':
-        const categories = await vfdBillsAPI.getBillerCategories();
+        const categories = await vfdBillsService.getBillerCategories();
         return NextResponse.json({ success: true, data: categories });
 
       case 'billers':
         const categoryName = searchParams.get('category');
-        const billers = await vfdBillsAPI.getBillerList(categoryName || undefined);
+        const billers = await vfdBillsService.getBillerList(categoryName || undefined);
         return NextResponse.json({ success: true, data: billers });
 
       case 'items':
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        const items = await vfdBillsAPI.getBillerItems(billerId, divisionId, productId);
+        const items = await vfdBillsService.getBillerItems(billerId, divisionId, productId);
         return NextResponse.json({ success: true, data: items });
 
       case 'validate':
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        const validation = await vfdBillsAPI.validateCustomer(customerId, division, paymentItem, biller);
+        const validation = await vfdBillsService.validateCustomer(customerId, division, paymentItem, biller);
         return NextResponse.json({ success: validation.status === '00', data: validation });
 
       case 'status':
@@ -68,7 +67,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ message: 'Missing transactionId' }, { status: 400 });
         }
 
-        const status = await vfdBillsAPI.getTransactionStatus(transactionId);
+        const status = await vfdBillsService.getTransactionStatus(transactionId);
         return NextResponse.json({ success: true, data: status });
 
       default:
@@ -113,21 +112,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate transaction
-    const adminDb = await getDb();
-    const existingTxn = await adminDb
-      .collection('financialTransactions')
-      .where('reference', '==', reference)
-      .limit(1)
-      .get()
-      .then((snap) => (snap.empty ? null : snap.docs[0]))
-      .catch(() => null);
-
+    const existingTxn = await transactionService.getByReference(reference);
     if (existingTxn) {
-      logger.info(`[VFD Bills] Duplicate payment attempt for ${reference}`);
+      logger.info('VFD Bills: Duplicate payment attempt', { reference });
       return NextResponse.json({
         success: true,
         message: 'Payment already processed',
-        data: existingTxn.data(),
+        data: { reference },
       });
     }
 
@@ -143,24 +134,26 @@ export async function POST(request: NextRequest) {
       phoneNumber: phoneNumber || undefined,
     };
 
-    logger.info('[VFD Bills] Initiating bill payment', { userId, reference, billerId, amount });
+    logger.info('VFD Bills: Initiating payment', { userId, reference, billerId, amount });
 
-    // Make payment
-    const paymentResult = await vfdBillsAPI.payBill(paymentRequest);
+    // Make payment via VFD
+    const paymentResult = await vfdBillsService.payBill(paymentRequest);
 
-    // Log transaction to Firestore
-    const txnDoc = adminDb.collection('financialTransactions').doc();
-    await txnDoc.set({
-      userId,
+    // Log transaction to Supabase
+    const txnStatus = paymentResult.status === '00' ? 'completed' : paymentResult.status === '09' ? 'pending' : 'failed';
+    
+    await transactionService.create({
+      user_id: userId,
       reference,
-      vfdReference: paymentResult.data.reference,
       type: 'debit',
       category: 'bill_payment',
-      amount: Number(amount),
-      description: `${billerName || billerId} - ${category || 'Bill'} Payment`,
-      status: paymentResult.status === '00' ? 'completed' : paymentResult.status === '09' ? 'pending' : 'failed',
-      paymentGateway: 'VFD',
+      amount: Number(amount) * 100,
+      narration: `${billerName || billerId} - ${category || 'Bill'} Payment`,
+      party: { billerName, customerId },
+      balance_after: 0,
+      status: txnStatus,
       metadata: {
+        paymentGateway: 'VFD',
         billerId,
         billerName,
         customerId,
@@ -169,27 +162,32 @@ export async function POST(request: NextRequest) {
         productId,
         category,
         phoneNumber,
-        token: paymentResult.data.token,
-        KCT1: paymentResult.data.KCT1,
-        KCT2: paymentResult.data.KCT2,
+        token: paymentResult.token || null,
+        KCT1: paymentResult.KCT1 || null,
+        KCT2: paymentResult.KCT2 || null,
       },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    logger.info('[VFD Bills] Payment successful', {
+    // Create notification
+    await notificationService.create({
+      user_id: userId,
+      title: 'Bill Payment Successful',
+      body: `Your ${billerName || billerId} payment of ₦${amount.toLocaleString()} was successful.`,
+      category: 'bill_payment',
       reference,
-      status: paymentResult.status,
-      token: paymentResult.data.token ? 'provided' : 'none',
     });
+
+    logger.info('VFD Bills: Payment successful', { reference, status: paymentResult.status });
 
     return NextResponse.json({
       success: true,
-      message: paymentResult.message,
+      message: paymentResult.message || 'Payment processed',
       data: {
-        ...paymentResult.data,
-        transactionId: txnDoc.id,
+        reference: paymentResult.reference,
         status: paymentResult.status,
+        token: paymentResult.token,
+        KCT1: paymentResult.KCT1,
+        KCT2: paymentResult.KCT2,
       },
     });
   } catch (error: any) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,7 +10,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,88 +114,8 @@ export function ProfileKycDashboard() {
 
   const [isTier2DialogOpen, setIsTier2DialogOpen] = useState(false);
   const [isTier3DialogOpen, setIsTier3DialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editProfile, setEditProfile] = useState({
-    fullName: user?.fullName || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    photoName: "",
-  });
 
   const profileCompleteness = (currentTier / kycTiers.length) * 100;
-
-  useEffect(() => {
-    setEditProfile((prev) => ({
-      ...prev,
-      fullName: user?.fullName || "",
-      email: user?.email || "",
-      phone: user?.phone || "",
-      photoName: "",
-    }));
-  }, [user?.fullName, user?.email, user?.phone]);
-
-  const handleSaveProfile = async () => {
-    try {
-      const token = localStorage.getItem("ovo-auth-token");
-      const userId = localStorage.getItem("ovo-user-id");
-      
-      if (!token) {
-        toast({
-          title: "Error",
-          description: "Authentication token not found",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!userId) {
-        toast({
-          title: "Error",
-          description: "User ID not found",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId,
-          fullName: editProfile.fullName,
-          email: editProfile.email,
-          phone: editProfile.phone,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error || errorData.message || "Failed to update profile";
-        throw new Error(errorMsg);
-      }
-
-      const data = await response.json();
-      toast({
-        title: "Profile updated",
-        description: "Your profile details were saved successfully.",
-      });
-
-      // Refresh user data from context
-      await fetchUserData();
-      setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleUpgradeSuccess = async () => {
     setIsTier2DialogOpen(false);
@@ -286,11 +205,6 @@ export function ProfileKycDashboard() {
                 <span className="font-semibold">{user?.phone || "Not provided"}</span>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="ml-auto" onClick={() => setIsEditDialogOpen(true)}>
-                Edit Profile
-              </Button>
-            </CardFooter>
           </Card>
         </div>
 
@@ -404,72 +318,6 @@ export function ProfileKycDashboard() {
 
       <Tier2Dialog open={isTier2DialogOpen} onOpenChange={setIsTier2DialogOpen} onUpgrade={handleUpgradeSuccess} />
       <Tier3Dialog open={isTier3DialogOpen} onOpenChange={setIsTier3DialogOpen} onUpgrade={handleUpgradeSuccess} />
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[360px] rounded-3xl border border-slate-200 shadow-2xl bg-white/95 backdrop-blur">
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_15%_15%,rgba(0,24,255,0.08),transparent_35%),radial-gradient(circle_at_85%_0%,rgba(11,26,58,0.08),transparent_35%)] rounded-3xl" />
-          <DialogHeader className="relative space-y-1 pb-2">
-            <DialogTitle className="text-lg font-semibold text-slate-900">Edit Profile</DialogTitle>
-            <DialogDescription className="text-slate-600">Update your contact details and profile photo.</DialogDescription>
-          </DialogHeader>
-          <div className="relative space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-sm text-slate-700">Full Name</Label>
-              <Input
-                value={editProfile.fullName}
-                onChange={(e) => setEditProfile({ ...editProfile, fullName: e.target.value })}
-                placeholder="Enter your full name"
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm text-slate-700">Email</Label>
-              <Input
-                type="email"
-                value={editProfile.email}
-                onChange={(e) => setEditProfile({ ...editProfile, email: e.target.value })}
-                placeholder="you@example.com"
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm text-slate-700">Phone Number</Label>
-              <Input
-                value={editProfile.phone}
-                onChange={(e) => setEditProfile({ ...editProfile, phone: e.target.value })}
-                placeholder="080..."
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm text-slate-700">Profile Photo</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  setEditProfile({
-                    ...editProfile,
-                    photoName: file ? file.name : "",
-                  });
-                }}
-                className="rounded-xl"
-              />
-              {editProfile.photoName && (
-                <p className="text-xs text-muted-foreground">Selected: {editProfile.photoName}</p>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="relative">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="rounded-full px-4">
-              Cancel
-            </Button>
-            <Button onClick={handleSaveProfile} className="rounded-full px-4">
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

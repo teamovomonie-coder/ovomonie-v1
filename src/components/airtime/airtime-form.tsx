@@ -37,6 +37,7 @@ import { Loader2, Share2, Smartphone, Wifi, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { PinModal } from '@/components/auth/pin-modal';
+import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 // --- Mock Data & Logos ---
 
@@ -172,16 +173,18 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         
         // Save pending receipt and navigate to /success
         const pendingReceipt = {
-          type: 'airtime',
+          type: 'airtime' as const,
           data: {
             network: purchaseData.network,
             phoneNumber: purchaseData.phoneNumber,
             amount: purchaseData.amount,
           },
+          reference: clientReference,
+          amount: purchaseData.amount,
           transactionId: clientReference,
           completedAt: new Date().toISOString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
         form.reset();
         setPurchaseData(null);
         router.push('/success');
@@ -329,7 +332,7 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         
         // Save pending receipt and navigate to /success
         const pendingReceipt = {
-          type: 'airtime',
+          type: 'airtime' as const,
           data: {
             network: purchaseData.values.network,
             phoneNumber: purchaseData.values.phoneNumber,
@@ -337,10 +340,12 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
             planName: purchaseData.plan.name,
             isDataPlan: true,
           },
+          reference: clientReference,
+          amount: purchaseData.plan.price,
           transactionId: clientReference,
           completedAt: new Date().toISOString(),
         };
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(pendingReceipt));
+        await pendingTransactionService.savePendingReceipt(pendingReceipt);
         form.reset();
         setPurchaseData(null);
         router.push('/success');

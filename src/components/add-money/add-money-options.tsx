@@ -18,6 +18,7 @@ import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/context/notification-context';
+import { VFDCardPayment } from './vfd-card-payment';
 
 // --- Mock Agent Data ---
 const mockAgents = {
@@ -31,13 +32,63 @@ const mockAgents = {
 function BankTransfer() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const accountDetails = {
-    bankName: 'OVOMONIE',
-    accountName: user?.fullName.toUpperCase() || 'YOUR NAME',
-    accountNumber: user?.accountNumber || '...',
+  const [isLoading, setIsLoading] = useState(false);
+  const [bankDetails, setBankDetails] = useState<{
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    reference: string;
+  } | null>(null);
+
+  // Fetch VFD bank transfer details on mount
+  useEffect(() => {
+    async function fetchBankDetails() {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/funding/bank-transfer');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setBankDetails({
+            bankName: result.data.bankName,
+            accountName: result.data.accountName,
+            accountNumber: result.data.accountNumber,
+            reference: result.data.reference
+          });
+        } else {
+          // Fallback to user's account details
+          setBankDetails({
+            bankName: 'VFD Microfinance Bank',
+            accountName: user?.fullName.toUpperCase() || 'OVOMONIE LIMITED',
+            accountNumber: user?.accountNumber || '1001651308',
+            reference: `OVO-${Date.now()}`
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching bank details:', error);
+        // Fallback
+        setBankDetails({
+          bankName: 'VFD Microfinance Bank',
+          accountName: user?.fullName.toUpperCase() || 'OVOMONIE LIMITED',
+          accountNumber: user?.accountNumber || '1001651308',
+          reference: `OVO-${Date.now()}`
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchBankDetails();
+  }, [user]);
+
+  const accountDetails = bankDetails || {
+    bankName: 'VFD Microfinance Bank',
+    accountName: 'Loading...',
+    accountNumber: '...',
+    reference: ''
   };
 
-  const textToCopy = `Bank: ${accountDetails.bankName}\nAccount Name: ${accountDetails.accountName}\nAccount Number: ${accountDetails.accountNumber}`;
+  const textToCopy = `Bank: ${accountDetails.bankName}\nAccount Name: ${accountDetails.accountName}\nAccount Number: ${accountDetails.accountNumber}${accountDetails.reference ? `\nReference: ${accountDetails.reference}` : ''}`;
 
   const copyDetails = () => {
     navigator.clipboard.writeText(textToCopy);
@@ -48,7 +99,7 @@ function BankTransfer() {
       if(navigator.share) {
           try {
             await navigator.share({
-                title: 'Ovomonie Account Details',
+                title: 'Ovomonie Funding Account',
                 text: textToCopy
             });
           } catch (error) {
@@ -61,6 +112,15 @@ function BankTransfer() {
           copyDetails();
           toast({title: 'Share Not Supported', description: 'Account details copied instead.'});
       }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading bank details...</span>
+      </div>
+    );
   }
 
   return (
@@ -79,7 +139,16 @@ function BankTransfer() {
           <span className="text-muted-foreground">Account Number</span>
           <span className="font-semibold">{accountDetails.accountNumber}</span>
         </div>
+        {accountDetails.reference && (
+          <div className="flex justify-between text-sm border-t pt-2 mt-2">
+            <span className="text-muted-foreground">Reference</span>
+            <span className="font-mono text-xs">{accountDetails.reference}</span>
+          </div>
+        )}
       </div>
+      <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+        💡 Include the reference in your transfer narration for faster crediting
+      </p>
       <div className="flex gap-2">
         <Button variant="outline" className="w-full" onClick={copyDetails}><Copy className="mr-2 h-4 w-4" /> Copy Details</Button>
         <Button className="w-full" onClick={shareDetails}><Share2 className="mr-2 h-4 w-4" /> Share</Button>
@@ -202,12 +271,19 @@ function FundWithCard() {
                 const validateJson = await validateRes.json();
                 if (!validateRes.ok) throw new Error(validateJson.message || 'OTP validation failed.');
 
-                if (validateJson.newBalanceInKobo) updateBalance(validateJson.newBalanceInKobo);
+                if (validateJson.newBalanceInKobo) {
+                    updateBalance(validateJson.newBalanceInKobo);
+                }
 
                 addNotification({
                     title: 'Wallet Funded',
                     description: `You successfully added ₦${fundingData.amount.toLocaleString()} to your wallet.`,
                     category: 'transaction',
+                });
+
+                toast({
+                    title: 'Funding Successful',
+                    description: `₦${fundingData.amount.toLocaleString()} added to your wallet.`,
                 });
 
                 setReceiptData({ amount: fundingData.amount });
@@ -216,11 +292,18 @@ function FundWithCard() {
             }
 
             // Completed synchronously
-            if (result.newBalanceInKobo) updateBalance(result.newBalanceInKobo);
+            if (result.newBalanceInKobo) {
+                updateBalance(result.newBalanceInKobo);
+            }
             addNotification({
                 title: 'Wallet Funded',
                 description: `You successfully added ₦${fundingData.amount.toLocaleString()} to your wallet.`,
                 category: 'transaction',
+            });
+
+            toast({
+                title: 'Funding Successful',
+                description: `₦${fundingData.amount.toLocaleString()} added to your wallet.`,
             });
 
             setReceiptData({ amount: fundingData.amount });
@@ -599,299 +682,23 @@ function FundWithAgent() {
     );
 }
 
-// --- Test Agent Deposit (Auto-complete) ---
-const testAgent = {
-  id: 'TEST-001',
-  name: 'Test Agent',
-  location: 'Test Environment',
-  phone: '+234 800 TEST 001',
-  email: 'test@ovomonie.com',
-};
-
-const testAgentSchema = z.object({
-  amount: z.coerce.number().min(100, 'Minimum amount is ₦100.'),
-});
-
-function TestAgentDeposit() {
-  const { updateBalance } = useAuth();
-  const { addNotification } = useNotifications();
-  const { toast } = useToast();
-  const [receiptData, setReceiptData] = useState<{ amount: number } | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const form = useForm<z.infer<typeof testAgentSchema>>({
-    resolver: zodResolver(testAgentSchema),
-    defaultValues: { amount: 0 }
-  });
-
-  const onSubmit = async (data: z.infer<typeof testAgentSchema>) => {
-    setIsProcessing(true);
-    
-    try {
-      const token = localStorage.getItem('ovo-auth-token');
-      if (!token) throw new Error('Authentication token not found.');
-
-      const clientReference = `test-deposit-${crypto.randomUUID()}`;
-      const amountInKobo = Math.round(data.amount * 100);
-      
-      const response = await fetch('/api/funding/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ 
-          agentId: testAgent.id,
-          amount: data.amount,
-          clientReference 
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Deposit failed.');
-      }
-
-      updateBalance(result.newBalanceInKobo || amountInKobo);
-      addNotification({
-        title: 'Test Deposit Successful',
-        description: `₦${data.amount.toLocaleString()} deposited via test agent.`,
-        category: 'transaction',
-      });
-
-      setReceiptData({ amount: data.amount });
-      form.reset();
-    } catch (error) {
-      const description = error instanceof Error ? error.message : 'An unknown error occurred.';
-      toast({ variant: 'destructive', title: 'Deposit Failed', description });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDone = () => {
-    setReceiptData(null);
-    form.reset();
-  };
-
-  if (receiptData) {
-    return <FundingReceipt amount={receiptData.amount} onDone={handleDone} />;
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Test Agent Credentials - Display at Top */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <p className="text-xs font-semibold text-blue-700 mb-3">TEST AGENT CREDENTIALS</p>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Agent ID</p>
-              <p className="font-mono font-semibold text-blue-900">{testAgent.id}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Name</p>
-              <p className="font-semibold text-blue-900">{testAgent.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Phone</p>
-              <p className="font-mono font-semibold text-blue-900">{testAgent.phone}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Location</p>
-              <p className="font-semibold text-blue-900">{testAgent.location}</p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-xs text-muted-foreground">Email</p>
-              <p className="font-mono font-semibold text-blue-900">{testAgent.email}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Deposit Form - Auto-completes */}
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField control={form.control} name="amount" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount (₦)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  placeholder="e.g., 5000" 
-                  {...field} 
-                  value={field.value === 0 ? '' : field.value}
-                  onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <Button type="submit" className="w-full" disabled={isProcessing}>
-            {isProcessing && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-            {isProcessing ? 'Processing...' : 'Deposit Now (Test Mode)'}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            💡 In test mode, deposits auto-complete instantly without PIN verification.
-          </p>
-        </form>
-      </Form>
-    </div>
-  );
-}
-
 // --- Main Component ---
 export function AddMoneyOptions() {
   return (
     <Tabs defaultValue="bank" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+      <TabsList className="grid w-full grid-cols-5 h-auto">
         <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Bank</TabsTrigger>
         <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Card</TabsTrigger>
         <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />USSD</TabsTrigger>
         <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR Code</TabsTrigger>
         <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Agent</TabsTrigger>
-                <TabsTrigger value="paystack" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Paystack</TabsTrigger>
-        <TabsTrigger value="test" className="flex-col sm:flex-row h-16 sm:h-10"><CheckCircle className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Test</TabsTrigger>
       </TabsList>
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
-      <TabsContent value="card" className="pt-6"><FundWithCard /></TabsContent>
+      <TabsContent value="card" className="pt-6"><VFDCardPayment /></TabsContent>
       <TabsContent value="ussd" className="pt-6"><FundWithUssd /></TabsContent>
       <TabsContent value="qr" className="pt-6"><FundWithQr /></TabsContent>
       <TabsContent value="agent" className="pt-6"><FundWithAgent /></TabsContent>
-            <TabsContent value="paystack" className="pt-6"><FundWithPaystack /></TabsContent>
-      <TabsContent value="test" className="pt-6"><TestAgentDeposit /></TabsContent>
     </Tabs>
   );
 }
 
-// --- Paystack Tab (Test Mode) ---
-function FundWithPaystack() {
-    const { toast } = useToast();
-    const { updateBalance, user } = useAuth();
-    const { addNotification } = useNotifications();
-    const [amount, setAmount] = useState<number | ''>('');
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
-
-    const loadScript = () => {
-        if (typeof window === 'undefined') return Promise.resolve();
-        if ((window as any).PaystackPop) return Promise.resolve();
-        return new Promise((resolve, reject) => {
-            const s = document.createElement('script');
-            s.src = 'https://js.paystack.co/v1/inline.js';
-            s.onload = () => resolve(undefined);
-            s.onerror = (e) => reject(e);
-            document.body.appendChild(s);
-        });
-    };
-
-    const handlePay = async () => {
-        if (!amount || Number(amount) <= 0) {
-            toast({ variant: 'destructive', title: 'Invalid amount', description: 'Enter a valid amount.' });
-            return;
-        }
-        if (!publicKey) {
-            toast({ variant: 'destructive', title: 'Paystack not configured', description: 'Missing public key.' });
-            return;
-        }
-        // Use fullName or fall back to userId-based email
-        const email = user?.fullName 
-            ? `${user.fullName.replace(/\s+/g, '.').toLowerCase()}@ovomonie.com`
-            : user?.userId 
-            ? `user.${user.userId}@ovomonie.com`
-            : null;
-
-        if (!email) {
-            toast({ variant: 'destructive', title: 'User info required', description: 'Could not determine user email.' });
-            return;
-        }
-
-        setIsProcessing(true);
-        try {
-            const reference = `paystack-${crypto.randomUUID()}`;
-            const amountInKobo = Math.round(Number(amount) * 100);
-
-            // Load Paystack script
-            await loadScript();
-            
-            // Check if PaystackPop is available
-            if (!(window as any).PaystackPop) {
-                throw new Error('Paystack script not loaded properly');
-            }
-
-            // Define callback function (must be synchronous for Paystack)
-            const onPaymentCallback = (response: any) => {
-                // Verify payment asynchronously
-                verifyPaystackPayment(response.reference);
-            };
-
-            // Async verification function
-            const verifyPaystackPayment = async (reference: string) => {
-                try {
-                    const token = localStorage.getItem('ovo-auth-token');
-                    const verifyRes = await fetch('/api/funding/paystack', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({
-                            action: 'verify',
-                            reference: reference,
-                        }),
-                    });
-                    const verifyJson = await verifyRes.json();
-                    if (!verifyRes.ok) throw new Error(verifyJson.message || 'Payment verification failed');
-
-                    if (verifyJson.newBalanceInKobo) updateBalance(verifyJson.newBalanceInKobo);
-                    addNotification({
-                        title: 'Wallet Funded',
-                        description: `You successfully added ₦${Number(amount).toLocaleString()} via Paystack.`,
-                        category: 'transaction',
-                    });
-                    toast({ title: 'Wallet Funded!', description: `Added ₦${Number(amount).toLocaleString()}` });
-                    setAmount('');
-                    setIsProcessing(false);
-                } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Verification failed', description: err?.message || String(err) });
-                    setIsProcessing(false);
-                }
-            };
-
-            // Define close handler
-            const onClose = () => {
-                toast({ title: 'Payment cancelled', description: 'You closed the payment window.' });
-                setIsProcessing(false);
-            };
-
-            // Setup Paystack handler
-            const PaystackPop = (window as any).PaystackPop;
-            const handler = PaystackPop.setup({
-                key: publicKey,
-                email: email,
-                amount: amountInKobo,
-                ref: reference,
-                onClose: onClose,
-                callback: onPaymentCallback,
-            });
-
-            // Open payment modal
-            if (handler && typeof handler.openIframe === 'function') {
-                handler.openIframe();
-            } else {
-                throw new Error('Paystack handler or openIframe method not available');
-            }
-        } catch (e: any) {
-            setIsProcessing(false);
-            toast({ variant: 'destructive', title: 'Payment failed', description: e?.message || String(e) });
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            <Label>Amount (₦)</Label>
-            <Input type="number" placeholder="e.g., 5000" value={amount === '' ? '' : amount} onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))} />
-            <p className="text-sm text-muted-foreground">Powered by Ovomonie</p>
-            <div className="flex gap-2">
-                <Button onClick={handlePay} disabled={isProcessing} className="w-full">
-                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Pay with Paystack (Test)'}
-                </Button>
-            </div>
-        </div>
-    );
-}
