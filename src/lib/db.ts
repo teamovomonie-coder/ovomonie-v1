@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from './logger';
+import { createClient } from '@supabase/supabase-js';
+import { logger } from './logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -94,7 +96,9 @@ export async function updateUserBalance(userId: string, newBalance: number) {
     logger.error('updateUserBalance failed', err);
     return false;
   }
-  // end
+}
+
+export async function createTransaction(transaction: any) {
   try {
     const data = await transactionService.create(transaction);
     return data?.id || null;
@@ -147,15 +151,11 @@ export async function getTodayCreditTotal(userId: string) {
     if (error) throw error;
     return data?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0;
   } catch (err) {
-  // (end of file)
-  },
+    logger.error('getTodayCreditTotal failed', err);
+    return 0;
+  }
+}
 
-  async updateBalance(userId: string, newBalance: number) {
-    const { error } = await db
-      .from('users')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', userId);
-    
     if (error) throw error;
   },
 };
