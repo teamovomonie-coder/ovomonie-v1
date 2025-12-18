@@ -9,14 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import React, { useRef, useState } from 'react';
 import ShareModal from '@/components/transaction/share-modal';
 
-const MtnLogo = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MTN logo">
-    <rect width="100%" height="100%" rx="12" fill="#FFCC00" />
-    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight="700" fontSize="36" fill="#004A99">MTN</text>
-  </svg>
-);
-
 import networks from './network-logos';
+
+export interface AirtimeReceiptData {
+  type: 'airtime';
+  network: string;
   phoneNumber: string;
   amount: number;
   planName?: string;
