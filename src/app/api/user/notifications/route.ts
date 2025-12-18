@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // Fetch from Supabase (primary)
     const { data: notifications, error } = await supabase
       .from('notifications')
-      .select('id, title, body, category, read, created_at, amount, reference, type, sender_name, recipient_name')
+      .select('id, title, body, category, read, created_at, amount, reference, type, sender_name, sender_phone, sender_account, recipient_name, recipient_phone, recipient_account')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -39,12 +39,17 @@ export async function GET(request: Request) {
       body: notification.body,
       category: notification.category,
       read: notification.read || false,
-      createdAt: new Date(notification.created_at).getTime(),
+      // Return ISO timestamp string for consistent parsing client-side
+      createdAt: new Date(notification.created_at).toISOString(),
       amount: notification.amount,
       reference: notification.reference,
       type: notification.type,
       senderName: notification.sender_name,
+      senderPhone: notification.sender_phone,
+      senderAccount: notification.sender_account,
       recipientName: notification.recipient_name,
+      recipientPhone: notification.recipient_phone,
+      recipientAccount: notification.recipient_account,
     }));
 
     return NextResponse.json(transformedNotifications);

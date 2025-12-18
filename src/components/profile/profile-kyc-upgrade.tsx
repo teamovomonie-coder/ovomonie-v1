@@ -43,21 +43,45 @@ export default function ProfileKycUpgrade({ tier, requirements }: KycUpgradeProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const userId = localStorage.getItem("ovo-user-id");
-    if (!userId) {
-      toast({ title: "Error", description: "User not found", variant: "destructive" });
+    
+    const token = localStorage.getItem("ovo-auth-token");
+    if (!token) {
+      toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
       setLoading(false);
       return;
     }
-    const { error } = await supabase
-      .from("users")
-      .update({ kyc_tier: tier, kyc_requirements: form })
-      .eq("id", userId);
-    setLoading(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "KYC upgrade submitted!" });
+
+    // Get BVN from form
+    const bvn = form['BVN'] || form['bvn'];
+    if (!bvn) {
+      toast({ title: "Error", description: "BVN is required", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/kyc/upgrade', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ tier, bvn })
+      });
+
+      const result = await response.json();
+      
+      if (result.ok) {
+        toast({ title: "Success", description: result.message });
+        // Refresh user data
+        window.location.reload();
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upgrade account", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 

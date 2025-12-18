@@ -87,26 +87,67 @@ export async function POST(request: NextRequest) {
             balance_after: newRecipientBalance,
         });
 
-        // 10. Create notifications (non-blocking)
-        try {
-            await notificationService.create({
-                user_id: userId,
-                title: 'Transfer Sent',
-                body: `You sent ₦${(amountKobo/100).toLocaleString()} to ${recipient.full_name}.`,
-                category: 'transfer',
-                reference: clientReference,
-            });
+        // Create notifications with complete details
+        await notificationService.create({
+            user_id: userId,
+            title: 'Money Sent',
+            body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} sent to ${recipient.full_name}`,
+            category: 'transfer',
+            type: 'debit',
+            amount: amountKobo,
+            reference: clientReference,
+            sender_name: sender.full_name,
+            sender_phone: sender.phone,
+            sender_account: sender.account_number,
+            recipient_name: recipient.full_name,
+            recipient_phone: recipient.phone,
+            recipient_account: recipient.account_number,
+        });
 
-            await notificationService.create({
-                user_id: recipient.id,
-                title: 'Transfer Received',
-                body: `You received ₦${(amountKobo/100).toLocaleString()} from ${sender.full_name}.`,
-                category: 'transfer',
+        await notificationService.create({
+            user_id: recipient.id,
+            title: 'Money Received',
+            body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} received from ${sender.full_name}`,
+            category: 'transfer',
+            type: 'credit',
+            amount: amountKobo,
+            reference: clientReference,
+            sender_name: sender.full_name,
+            sender_phone: sender.phone,
+            sender_account: sender.account_number,
+            recipient_name: recipient.full_name,
+            recipient_phone: recipient.phone,
+            recipient_account: recipient.account_number,
+        });
+
+        // Save to pending_transactions table with completed status
+        const completedAt = new Date().toISOString();
+        const pendingTxData = {
+            photo: null,
+            amount,
+            message: '',
+            narration: narration || '',
+            accountNumber: recipientAccountNumber,
+        };
+
+        await db.from('pending_transactions').insert({
+            user_id: userId,
+            type: 'internal-transfer',
+            status: 'completed',
+            reference: clientReference,
+            amount: amountKobo,
+            data: {
+                data: pendingTxData,
+                type: 'internal-transfer',
+                amount,
                 reference: clientReference,
-            });
-        } catch (notifError) {
-            logger.warn('Failed to create notifications', { error: notifError });
-        }
+                completedAt: new Date().toLocaleString(),
+                recipientName: recipient.full_name,
+                transactionId: clientReference,
+            },
+            recipient_name: recipient.full_name,
+            completed_at: completedAt,
+        });
 
         logger.info('Internal transfer completed', { userId, reference: clientReference, amount: amountKobo });
 
@@ -114,11 +155,28 @@ export async function POST(request: NextRequest) {
             ok: true,
             message: 'Transfer successful!',
             data: {
-                recipient: recipientAccountNumber,
-                recipientName: recipient.full_name,
-                amount,
+                id: crypto.randomUUID(),
+                user_id: userId,
+                type: 'internal-transfer',
+                status: 'completed',
                 reference: clientReference,
-                timestamp: new Date().toISOString(),
+                amount,
+                data: {
+                    data: pendingTxData,
+                    type: 'internal-transfer',
+                    amount,
+                    reference: clientReference,
+                    completedAt: new Date().toLocaleString(),
+                    recipientName: recipient.full_name,
+                    transactionId: clientReference,
+                },
+                recipient_name: recipient.full_name,
+                bank_name: null,
+                error_message: null,
+                completed_at: completedAt,
+                expires_at: null,
+                created_at: completedAt,
+                updated_at: completedAt,
                 newBalanceInKobo: newSenderBalance,
                 transactionId: clientReference,
             }

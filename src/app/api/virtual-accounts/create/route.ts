@@ -22,12 +22,32 @@ export async function POST(request: NextRequest) {
 
     const txnRef = `VA_${userId}_${Date.now()}`;
     
-    // Mock VFD response for testing (replace with real VFD call when credentials are activated)
-    const vfdResult = {
-      status: '00',
-      accountNumber: `90${Math.floor(Math.random() * 100000000)}`, // Mock account number
-      message: 'Virtual account created successfully'
-    };
+    // Real VFD API call for virtual account creation
+    const vfdResponse = await fetch(`${process.env.VFD_WALLET_API_BASE}/virtualaccount`, {
+      method: 'POST',
+      headers: {
+        'AccessToken': process.env.VFD_ACCESS_TOKEN || '',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: (amount / 100).toString(),
+        merchantName: 'Ovomonie',
+        merchantId: userId,
+        reference: txnRef,
+        validityTime: '4320',
+        amountValidation: 'A4'
+      })
+    });
+
+    const vfdResult = await vfdResponse.json();
+    
+    if (vfdResult.status !== '00' || !vfdResult.accountNumber) {
+      console.error('VFD API error:', vfdResult);
+      return NextResponse.json(
+        { error: vfdResult.message || 'VFD virtual account creation failed' },
+        { status: 500 }
+      );
+    }
 
     // Store in Supabase
     const { supabaseAdmin } = await import('@/lib/supabase');

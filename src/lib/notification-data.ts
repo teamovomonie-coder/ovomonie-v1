@@ -13,4 +13,11 @@ export interface Notification {
   reference?: string;
   metadata?: any;
   type?: 'debit' | 'credit';
+  sender_name?: string;
+  sender_phone?: string;
+  sender_account?: string;
+  recipient_name?: string;
+  recipient_phone?: string;
+  recipient_account?: string;
+  body?: string;
 }

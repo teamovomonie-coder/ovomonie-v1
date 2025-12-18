@@ -204,33 +204,6 @@ export const performTransfer = async (
             transaction.set(db.collection('financialTransactions').doc(), debitLog);
             transaction.set(db.collection('financialTransactions').doc(), creditLog);
 
-            // Create notifications for both users
-            const debitNotification = {
-              userId: senderUserId,
-              title: 'Money Sent',
-              body: `Debited to ${recipientData.fullName}`,
-              category: 'transfer',
-              read: false,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              type: 'debit',
-              amount: amountInKobo,
-              recipientName: recipientData.fullName,
-            };
-            const creditNotification = {
-              userId: recipientDocRef.id,
-              title: 'Money Received',
-              body: `Account credited by ${senderData.fullName}`,
-              category: 'transfer',
-              read: false,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              type: 'credit',
-              amount: amountInKobo,
-              senderName: senderData.fullName,
-            };
-
-            transaction.set(db.collection('notifications').doc(), debitNotification);
-            transaction.set(db.collection('notifications').doc(), creditNotification);
-
             finalSenderBalance = newSenderBalance;
         });
 
@@ -238,6 +211,55 @@ export const performTransfer = async (
             const senderDoc = await db.collection('users').doc(senderUserId).get();
             if (senderDoc.exists) finalSenderBalance = (senderDoc.data() as any).balance || 0;
         }
+
+        // Create Supabase notifications after successful transfer
+        const { createNotifications } = await import('@/lib/notification-helper');
+        const senderData = senderDocPreCheck.data();
+        const recipientData = recipientSnapshot.docs[0].data();
+        
+        console.log('DEBUG: Sender data:', {
+            fullName: senderData?.fullName,
+            phoneNumber: senderData?.phoneNumber,
+            accountNumber: senderData?.accountNumber
+        });
+        console.log('DEBUG: Recipient data:', {
+            fullName: recipientData?.fullName,
+            phoneNumber: recipientData?.phoneNumber,
+            accountNumber: recipientAccountNumber
+        });
+        
+        await createNotifications([
+            {
+                userId: senderUserId,
+                title: 'Money Sent',
+                body: `₦${(amountInKobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} sent to ${recipientName}`,
+                category: 'transfer',
+                type: 'debit',
+                amount: amountInKobo,
+                reference: clientReference,
+                senderName: senderData?.fullName,
+                senderPhone: senderData?.phoneNumber,
+                senderAccount: senderData?.accountNumber,
+                recipientName,
+                recipientPhone: recipientData?.phoneNumber,
+                recipientAccount: recipientAccountNumber,
+            },
+            {
+                userId: recipientSnapshot.docs[0].id,
+                title: 'Money Received',
+                body: `₦${(amountInKobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} received from ${senderData?.fullName || 'Unknown'}`,
+                category: 'transfer',
+                type: 'credit',
+                amount: amountInKobo,
+                reference: clientReference,
+                senderName: senderData?.fullName,
+                senderPhone: senderData?.phoneNumber,
+                senderAccount: senderData?.accountNumber,
+                recipientName,
+                recipientPhone: recipientData?.phoneNumber,
+                recipientAccount: recipientAccountNumber,
+            },
+        ]);
 
         return { success: true, newSenderBalance: finalSenderBalance, recipientName, reference: clientReference };
 

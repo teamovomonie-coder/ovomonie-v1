@@ -112,19 +112,27 @@ export const notificationService = {
     user_id: string;
     title: string;
     body: string;
-    category?: string;
+    category: string;
+    type?: string;
+    amount?: number;
     reference?: string;
+    sender_name?: string;
+    sender_phone?: string;
+    sender_account?: string;
+    recipient_name?: string;
+    recipient_phone?: string;
+    recipient_account?: string;
     metadata?: any;
   }) {
     const { data, error } = await db
       .from('notifications')
-      .insert([{ ...notification, read: false }])
+      .insert([notification])
       .select('id')
       .single();
     
     if (error) {
       logger.error('Failed to create notification', error);
-      return null;
+      throw error;
     }
     return data;
   },

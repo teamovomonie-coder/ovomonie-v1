@@ -53,23 +53,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       if (!supabase) {
-        throw new Error("Supabase not configured. Please check your environment variables.");
+        throw new Error("Supabase not configured");
       }
 
-      // Fetch user from Supabase
       const { data: userData, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error("Supabase fetch error:", error);
-        throw new Error(error.message || "Failed to fetch user data");
-      }
-
-      if (!userData) {
-        throw new Error("User not found.");
+      if (error || !userData) {
+        throw new Error("User not found");
       }
 
       const accountNumber = userData.account_number || "";
@@ -84,27 +78,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         balance: typeof userData.balance === "number" ? userData.balance : 0,
         email: userData.email,
         status: userData.status || "active",
-        avatarUrl: userData.avatar_url || userData.avatarUrl,
-        photoUrl: userData.photo_url || userData.photoUrl || userData.avatar_url || userData.avatarUrl,
+        avatarUrl: null,
+        photoUrl: null,
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);
-
-      // Sync with VFD balance in background
-      if (accountNumber) {
-        fetch('/api/wallet/sync-balance', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result.ok && result.data?.balance) {
-              setBalance(result.data.balance);
-              setUser(prev => prev ? { ...prev, balance: result.data.balance } : prev);
-            }
-          })
-          .catch(err => console.warn('Balance sync failed:', err));
-      }
     } catch (err) {
       console.error("Auth fetch failed:", err);
       performLogout();

@@ -21,7 +21,11 @@ export interface NotificationPayload {
   amount?: number; // in kobo
   reference?: string;
   senderName?: string;
+  senderPhone?: string;
+  senderAccount?: string;
   recipientName?: string;
+  recipientPhone?: string;
+  recipientAccount?: string;
   metadata?: Record<string, unknown>; // Additional context for the notification
 }
 
@@ -48,7 +52,11 @@ export async function createNotification(payload: NotificationPayload): Promise<
         amount: payload.amount,
         reference: payload.reference,
         sender_name: payload.senderName,
+        sender_phone: payload.senderPhone,
+        sender_account: payload.senderAccount,
         recipient_name: payload.recipientName,
+        recipient_phone: payload.recipientPhone,
+        recipient_account: payload.recipientAccount,
       })
       .select();
 
@@ -90,7 +98,11 @@ export async function createNotifications(payloads: NotificationPayload[]): Prom
       amount: payload.amount,
       reference: payload.reference,
       sender_name: payload.senderName,
+      sender_phone: payload.senderPhone,
+      sender_account: payload.senderAccount,
       recipient_name: payload.recipientName,
+      recipient_phone: payload.recipientPhone,
+      recipient_account: payload.recipientAccount,
     }));
 
     logger.info('[NotificationHelper] Insert data:', { insertData: JSON.stringify(insertData) });

@@ -85,6 +85,12 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           amount: item.amount,
           reference: item.reference,
           type: item.type,
+          sender_name: item.sender_name,
+          sender_phone: item.sender_phone,
+          sender_account: item.sender_account,
+          recipient_name: item.recipient_name,
+          recipient_phone: item.recipient_phone,
+          recipient_account: item.recipient_account,
         }));
         console.log('[NotificationContext] Setting mapped notifications from API:', mapped.length, mapped);
         setNotifications(mapped);
@@ -126,12 +132,27 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                   amount: newData.amount,
                   reference: newData.reference,
                   type: newData.type,
+                  sender_name: newData.sender_name,
+                  sender_phone: newData.sender_phone,
+                  sender_account: newData.sender_account,
+                  recipient_name: newData.recipient_name,
+                  recipient_phone: newData.recipient_phone,
+                  recipient_account: newData.recipient_account,
                 };
                 setNotifications(prev => [notification, ...prev]);
               } else if (payload.eventType === 'UPDATE') {
                 const updatedData = payload.new as any;
                 setNotifications(prev =>
-                  prev.map(n => n.id === updatedData.id ? { ...n, read: updatedData.read } : n)
+                  prev.map(n => n.id === updatedData.id ? { 
+                    ...n, 
+                    read: updatedData.read,
+                    sender_name: updatedData.sender_name || n.sender_name,
+                    sender_phone: updatedData.sender_phone || n.sender_phone,
+                    sender_account: updatedData.sender_account || n.sender_account,
+                    recipient_name: updatedData.recipient_name || n.recipient_name,
+                    recipient_phone: updatedData.recipient_phone || n.recipient_phone,
+                    recipient_account: updatedData.recipient_account || n.recipient_account,
+                  } : n)
                 );
               } else if (payload.eventType === 'DELETE') {
                 const deletedData = payload.old as any;
