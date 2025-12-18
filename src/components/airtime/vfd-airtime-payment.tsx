@@ -35,7 +35,7 @@ const MOBILE_PROVIDERS = [
   { id: 'mtn', name: 'MTN', color: 'bg-yellow-500' },
   { id: 'airtel', name: 'Airtel', color: 'bg-red-500' },
   { id: 'glo', name: 'Globacom (GLO)', color: 'bg-green-600' },
-  { id: 'etisalat', name: 'Etisalat (9Mobile)', color: 'bg-purple-600' },
+  { id: 't2', name: 'T2', color: 'bg-purple-700' },
 ];
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000, 10000];

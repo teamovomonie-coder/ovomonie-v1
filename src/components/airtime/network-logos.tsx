@@ -16,15 +16,15 @@ export const AirtelLogo: React.FC<{ className?: string }> = ({ className }) => (
 
 export const GloLogo: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Glo logo">
-    <rect width="100%" height="100%" rx="12" fill="#8CC63F" />
-    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight={700} fontSize={20} fill="#fff">GLO</text>
+    <circle cx="60" cy="60" r="54" fill="#8CC63F" />
+    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight={800} fontSize={20} fill="#fff">GLO</text>
   </svg>
 );
 
-export const NineMobileLogo: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="9mobile logo">
-    <rect width="100%" height="100%" rx="12" fill="#5B2D90" />
-    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight={700} fontSize={18} fill="#fff">9mobile</text>
+export const T2Logo: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="T2 logo">
+    <rect width="100%" height="100%" rx="12" fill="#461d6a" />
+    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight={800} fontSize={26} fill="#fff">T2</text>
   </svg>
 );
 
@@ -46,7 +46,8 @@ export const networks: Record<string, { name: string; Logo: React.FC<{ className
   mtn: { name: 'MTN', Logo: MtnLogo },
   airtel: { name: 'Airtel', Logo: AirtelLogo },
   glo: { name: 'Glo', Logo: GloLogo },
-  '9mobile': { name: '9mobile', Logo: NineMobileLogo },
+  '9mobile': { name: '9mobile', Logo: T2Logo },
+  t2: { name: 'T2', Logo: T2Logo },
   smile: { name: 'Smile', Logo: SmileLogo },
   ntel: { name: 'NTEL', Logo: NtelLogo },
 };
