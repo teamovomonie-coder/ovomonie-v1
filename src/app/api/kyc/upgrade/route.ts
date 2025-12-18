@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Upgrade account with VFD using BVN
-        await vfdWalletService.upgradeAccountWithBVN(user.account_number, bvn);
+        await vfdWalletService.upgradeAccountWithBVN(user.account_number || user.accountNumber || '', bvn);
 
         // Update user tier in Supabase
         await db

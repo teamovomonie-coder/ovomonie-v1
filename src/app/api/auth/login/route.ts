@@ -11,16 +11,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Phone number and PIN are required.' }, { status: 400 });
     }
 
-    const user = await getUserByPhone(phone);
+    // normalize phone for logging and lookup
+    const phoneSanitized = String(phone).replace(/\s+/g, '');
+    const user = await getUserByPhone(phoneSanitized);
 
     if (!user) {
+      logger.info('Login attempt failed - user not found', { phone: phoneSanitized });
       return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
     }
 
     const providedPin = String(pin).trim();
-    const isValid = verifySecret(providedPin, user.login_pin_hash);
+    const isValid = verifySecret(providedPin, user.login_pin_hash || '');
 
     if (!isValid) {
+      logger.info('Login attempt failed - invalid PIN', { phone: phoneSanitized, userId: user.id, hasPin: !!user.login_pin_hash });
       return NextResponse.json({ message: 'Invalid phone number or PIN.' }, { status: 401 });
     }
 

@@ -24,9 +24,9 @@ export async function POST(request: Request) {
         // Idempotency
         const existing = await transactionService.getByReference(clientReference);
         if (existing) {
-            const user = await userService.getById(userId);
-            return NextResponse.json({ message: 'Already processed', newBalanceInKobo: user.balance }, { status: 200 });
-        }
+                const user = await userService.getById(userId);
+                return NextResponse.json({ message: 'Already processed', newBalanceInKobo: user?.balance ?? 0 }, { status: 200 });
+            }
 
         const amountInKobo = Math.round(amount * 100);
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
             // Execute VFD transaction and update balance
             const newBalance = await executeVFDTransaction(
                 userId,
-                user.accountNumber,
+                user?.accountNumber || user?.account_number || '',
                 async () => {}, // VFD already processed
                 amountInKobo,
                 'credit'

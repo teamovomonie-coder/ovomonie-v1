@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ 
                 ok: true, 
                 message: 'Transfer already processed.',
-                data: { newBalanceInKobo: sender.balance }
+                data: { newBalanceInKobo: sender?.balance ?? 0 }
             });
         }
 
@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
         // 6. Execute transfer via VFD and update balance
         const newSenderBalance = await executeVFDTransaction(
             userId,
-            sender.accountNumber,
+            sender.accountNumber || sender.account_number || '',
             async () => {
                 await vfdWalletService.withdrawToBank({
-                    walletId: sender.accountNumber,
+                    walletId: sender.accountNumber || sender.account_number || '',
                     accountNumber,
                     bankCode,
                     amount: (transferAmountInKobo / 100).toString(),

@@ -16,7 +16,7 @@ export async function syncBalanceWithVFD(userId: string, accountNumber: string):
     // Skip in dev mode
     if (process.env.NODE_ENV !== 'production') {
       const user = await userService.getById(userId);
-      return user.balance;
+      return user?.balance ?? 0;
     }
 
     // Get VFD wallet balance
@@ -32,7 +32,7 @@ export async function syncBalanceWithVFD(userId: string, accountNumber: string):
     logger.error('Balance sync failed', { error, userId });
     // Return current balance if sync fails
     const user = await userService.getById(userId);
-    return user.balance;
+    return user?.balance ?? 0;
   }
 }
 
@@ -47,11 +47,12 @@ export async function executeVFDTransaction(
   type: 'credit' | 'debit'
 ): Promise<number> {
   const user = await userService.getById(userId);
-  
+  if (!user) throw new Error('User not found');
+
   // Calculate new balance
-  const newBalance = type === 'credit' 
-    ? user.balance + amountInKobo 
-    : user.balance - amountInKobo;
+  const newBalance = type === 'credit'
+    ? (user.balance || 0) + amountInKobo
+    : (user.balance || 0) - amountInKobo;
 
   // Execute VFD transaction (skip in dev)
   if (process.env.NODE_ENV === 'production') {

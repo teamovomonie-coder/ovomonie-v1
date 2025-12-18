@@ -167,6 +167,10 @@ export function InternalTransferForm() {
     }
 
     const dataWithPhoto = { ...data, photo: photoPreview };
+    // Debugging: capture exact amount type/value to help investigate rounding issues
+    try {
+      console.debug('[InternalTransfer][DEBUG] Submitted amount raw', { value: data.amount, type: typeof data.amount });
+    } catch (e) {}
     setSubmittedData(dataWithPhoto);
     setStep('summary');
   }
@@ -191,6 +195,10 @@ export function InternalTransferForm() {
       // Debug: log outgoing internal transfer request
       console.debug('[InternalTransfer] internal transfer request', { url: '/api/transfers/internal', tokenPresent: Boolean(token), payload: { clientReference, recipientAccountNumber: submittedData.accountNumber, amount: submittedData.amount } });
 
+      // Normalize amount to integer (naira) to avoid floating-point/formatting issues
+      const amountToSend = Math.round(submittedData.amount);
+      console.debug('[InternalTransfer][DEBUG] amountToSend', { amountToSend, raw: submittedData.amount });
+
       const response = await fetch('/api/transfers/internal', {
         method: 'POST',
         headers: {
@@ -200,7 +208,7 @@ export function InternalTransferForm() {
         body: JSON.stringify({
           clientReference,
           recipientAccountNumber: submittedData.accountNumber,
-          amount: submittedData.amount,
+          amount: amountToSend,
           narration: submittedData.narration,
           senderPin: pin,
         }),
@@ -235,7 +243,7 @@ export function InternalTransferForm() {
           data: submittedData,
           recipientName,
           reference: `int-${Date.now()}`,
-          amount: submittedData.amount,
+          amount: amountToSend,
           transactionId: result.data.transactionId || `OVO-INT-${Date.now()}`,
           completedAt: new Date().toLocaleString(),
         };

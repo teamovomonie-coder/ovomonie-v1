@@ -57,7 +57,8 @@ export async function performTransfer(
     }
 
     // Check sender debit limit
-    const senderDailyLimit = DAILY_DEBIT_LIMITS_BY_KYC[sender.kyc_tier] ?? DAILY_DEBIT_LIMITS_BY_KYC[1];
+    const senderTier = (sender.kyc_tier ?? sender.kycTier) ?? 1;
+    const senderDailyLimit = DAILY_DEBIT_LIMITS_BY_KYC[senderTier] ?? DAILY_DEBIT_LIMITS_BY_KYC[1];
     const senderTodayDebit = await getTodayDebitTotal(senderUserId);
     if (senderTodayDebit + amountInKobo > senderDailyLimit) {
       return { 
@@ -67,7 +68,8 @@ export async function performTransfer(
     }
 
     // Check recipient receive limit
-    const recipientDailyLimit = DAILY_RECEIVE_LIMITS_BY_KYC[recipient.kyc_tier] ?? DAILY_RECEIVE_LIMITS_BY_KYC[1];
+    const recipientTier = (recipient.kyc_tier ?? recipient.kycTier) ?? 1;
+    const recipientDailyLimit = DAILY_RECEIVE_LIMITS_BY_KYC[recipientTier] ?? DAILY_RECEIVE_LIMITS_BY_KYC[1];
     const recipientTodayCredit = await getTodayCreditTotal(recipient.id);
     if (recipientTodayCredit + amountInKobo > recipientDailyLimit) {
       return { 
@@ -126,7 +128,7 @@ export async function performTransfer(
     return { 
       success: true, 
       newSenderBalance, 
-      recipientName: recipient.full_name, 
+      recipientName: recipient.full_name || '', 
       reference: clientReference 
     };
 

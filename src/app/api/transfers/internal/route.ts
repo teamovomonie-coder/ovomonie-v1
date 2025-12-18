@@ -3,6 +3,7 @@ import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
 import { db, userService, transactionService, notificationService } from '@/lib/db';
+import { toKobo } from '@/lib/amount';
 
 export async function POST(request: NextRequest) {
     try {
@@ -44,13 +45,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: false, message: 'Cannot transfer to yourself.' }, { status: 400 });
         }
 
-        // 6. Get recipient details
+                // 6. Get recipient details
         const recipient = await userService.getByAccountNumber(recipientAccountNumber);
         if (!recipient) {
             return NextResponse.json({ ok: false, message: 'Recipient account not found.' }, { status: 404 });
         }
 
-        const amountKobo = Math.round(amount * 100);
+                // Debugging: log incoming amount and the kobo conversion to detect rounding issues
+                try {
+                    logger.debug('Incoming transfer amount', { amountReceived: amount, type: typeof amount });
+                } catch (e) {}
+
+                const amountKobo = toKobo(amount);
+                try {
+                    logger.debug('Converted amount to kobo', { amountKobo });
+                } catch (e) {}
 
         // 7. Check sufficient balance
         if (sender.balance < amountKobo) {

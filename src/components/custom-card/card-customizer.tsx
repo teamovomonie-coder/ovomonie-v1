@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -440,7 +440,7 @@ export function CardCustomizer() {
   }, []);
 
   // Refresh virtual cards from server (reusable)
-  const refreshVirtualCards = async () => {
+  const refreshVirtualCards = useCallback(async () => {
     if (!user?.userId) return;
     let mounted = true;
     try {
@@ -493,7 +493,7 @@ export function CardCustomizer() {
     } finally {
       setIsFetchingVirtualCards(false);
     }
-  };
+  }, [user?.userId, toast, logout]);
 
   // Load persisted virtual cards from Supabase API for the logged-in user
   useEffect(() => {
@@ -501,7 +501,7 @@ export function CardCustomizer() {
     let mounted = true;
     refreshVirtualCards();
     return () => { mounted = false; };
-  }, [user?.userId]);
+  }, [user?.userId, refreshVirtualCards]);
 
   useEffect(() => {
     try {

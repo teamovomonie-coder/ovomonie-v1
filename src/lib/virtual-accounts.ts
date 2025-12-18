@@ -117,7 +117,8 @@ export async function processInboundTransfer(webhookData: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const { accountNumber, amount, senderName, reference, sessionId } = webhookData;
-    const amountInKobo = Math.round(parseFloat(amount) * 100);
+    const { toKobo } = await import('./amount');
+    const amountInKobo = toKobo(amount as any);
 
     // Find virtual account
     const { data: virtualAccount, error: vaError } = await supabase

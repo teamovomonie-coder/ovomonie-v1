@@ -1,0 +1,85 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - button "Go back" [ref=e2] [cursor=pointer]:
+    - img [ref=e3]
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - img "OVOMONIE Logo" [ref=e10]
+          - generic [ref=e11]:
+            - paragraph [ref=e12]: OVOMONIE Microfinance
+            - paragraph [ref=e13]: Digital Branch
+        - generic [ref=e14]: CBN Licensed
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - paragraph [ref=e17]: Secure Sign In
+          - heading "Bank securely. Grow steadily." [level=1] [ref=e18]
+          - paragraph [ref=e19]: Protected sign in for individuals, agents, and SMEs across Nigeria with NDIC-backed coverage.
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - img [ref=e23]
+              - paragraph [ref=e26]: CBN Licensed & NDIC Covered
+            - paragraph [ref=e27]: Protected microfinance operations built for Nigerian customers.
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - img [ref=e30]
+              - paragraph [ref=e32]: Device-Aware Security
+            - paragraph [ref=e33]: PIN-only sign in with fraud monitoring for agents and customers.
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - img [ref=e36]
+              - paragraph [ref=e39]: 24/7 Availability
+            - paragraph [ref=e40]: Always-on access for cash-in, savings, and transfers.
+          - generic [ref=e41]:
+            - generic [ref=e42]:
+              - img [ref=e43]
+              - paragraph [ref=e45]: Built for Nigeria
+            - paragraph [ref=e46]: Local rails, agency network support, and BVN-aligned controls.
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - paragraph [ref=e50]: Need help logging in?
+            - paragraph [ref=e51]: Call 0700-OVO-CARE or reach out to your account officer.
+          - generic [ref=e52]: 24/7 Support
+        - paragraph [ref=e53]: Your deposits remain insured and device-bound.
+    - generic [ref=e55]:
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - img "OVOMONIE Logo" [ref=e59]
+            - generic [ref=e60]: Sign in to continue
+          - generic [ref=e61]: Secure PIN
+        - generic [ref=e62]: Welcome back
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - text: Phone Number
+            - textbox "Phone Number" [ref=e66]:
+              - /placeholder: 0801 234 5678
+          - generic [ref=e67]:
+            - text: 6-Digit PIN
+            - generic [ref=e68]:
+              - textbox "••••••" [ref=e69]
+              - button [ref=e70] [cursor=pointer]:
+                - img [ref=e71]
+          - generic [ref=e74]:
+            - link "Forgot PIN?" [ref=e75] [cursor=pointer]:
+              - /url: /forgot-pin
+            - link "Open an account" [ref=e76] [cursor=pointer]:
+              - /url: /register
+          - button "Log In" [ref=e77] [cursor=pointer]
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - img [ref=e80]
+            - generic [ref=e83]: Protected session
+          - paragraph [ref=e84]: We verify your device, enforce PIN retry limits, and align with NDIC coverage for every customer.
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e90] [cursor=pointer]:
+    - img [ref=e91]
+  - alert [ref=e94]
+```

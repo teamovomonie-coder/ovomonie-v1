@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -82,10 +82,7 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
     },
   });
 
-  // Fetch billers on mount
-  useEffect(() => {
-    fetchBillers();
-  }, [fetchBillers]);
+  // Fetch billers on mount (declared after fetchBillers)
 
   const fetchBillers = useCallback(async () => {
     setIsLoadingBillers(true);
@@ -118,6 +115,11 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
       setIsLoadingBillers(false);
     }
   }, [toast]);
+
+  // Fetch billers on mount
+  useEffect(() => {
+    fetchBillers();
+  }, [fetchBillers]);
 
   const validateCustomer = async (customerId: string) => {
     if (!selectedBiller || customerId.length < 3) return;

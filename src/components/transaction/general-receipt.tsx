@@ -18,9 +18,11 @@ type GeneralReceiptProps = {
   paymentMethod?: string;
   date?: string;
   onReport?: () => void;
+  /** route to return to when user clicks Transfer Again (defaults to '/') */
+  returnPath?: string;
 };
 
-export default function GeneralReceipt({ title = 'Transfer', amount, status = 'Successful', recipient, accountInfo, transactionId, paymentMethod, date, onReport }: GeneralReceiptProps) {
+export default function GeneralReceipt({ title = 'Transfer', amount, status = 'Successful', recipient, accountInfo, transactionId, paymentMethod, date, onReport, returnPath }: GeneralReceiptProps) {
   const router = useRouter();
   const receiptRef = useRef<HTMLDivElement | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -62,7 +64,7 @@ export default function GeneralReceipt({ title = 'Transfer', amount, status = 'S
           </div>
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => router.push('/payments')}>View Records</Button>
-            <Button onClick={() => router.push('/')}>Transfer Again</Button>
+            <Button onClick={() => router.push(returnPath || '/')}>Transfer Again</Button>
           </div>
         </CardFooter>
         </Card>

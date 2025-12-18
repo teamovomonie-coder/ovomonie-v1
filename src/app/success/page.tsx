@@ -139,7 +139,7 @@ export default function SuccessPage() {
       };
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
-          <DynamicReceipt receipt={receipt} />
+          <DynamicReceipt receipt={{ ...receipt, data: { ...receipt.data, completedAt: receipt.data?.completedAt ?? '' } }} />
         </div>
       );
     }
@@ -165,7 +165,7 @@ export default function SuccessPage() {
           accountId: pending.data?.phoneNumber,
           planName: pending.data?.planName,
           transactionId: pending.transactionId || pending.data?.transactionId,
-          completedAt: pending.completedAt,
+          completedAt: pending.completedAt ?? '',
         },
       };
       return (
@@ -202,11 +202,11 @@ export default function SuccessPage() {
         },
         data: pending.data,
       };
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <DynamicReceipt receipt={receipt} />
-        </div>
-      );
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <DynamicReceipt receipt={{ ...receipt, data: { ...receipt.data, completedAt: receipt.data?.completedAt ?? pending.completedAt ?? '' } }} />
+          </div>
+        );
     }
 
       if (pending.type === 'virtual-card') {
@@ -222,6 +222,18 @@ export default function SuccessPage() {
       }
 
     // Always show a general receipt if any pending receipt exists
+    // Determine where the user should be returned to when they click "Transfer Again"
+    let returnPath = '/';
+    if (pending.type === 'external-transfer') {
+      returnPath = '/external-transfer';
+    } else if (pending.type === 'internal-transfer') {
+      returnPath = '/internal-transfer';
+    } else if (pending.data?.isInternalTransfer === true) {
+      returnPath = '/internal-transfer';
+    } else if (pending.data?.isInternalTransfer === false) {
+      returnPath = '/external-transfer';
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <GeneralReceipt
@@ -233,6 +245,7 @@ export default function SuccessPage() {
           paymentMethod={pending.bankName || pending.data?.paymentMethod || pending.data?.method}
           date={pending.completedAt || pending.data?.date || new Date().toLocaleString()}
           onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
+          returnPath={returnPath}
         />
       </div>
     );
