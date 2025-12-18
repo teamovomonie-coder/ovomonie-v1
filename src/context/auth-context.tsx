@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { User as FirestoreUser } from "@/types/user";
+import { accountNumberToDisplay } from "@/lib/account-utils";
 
 type ClientUser = Pick<
   FirestoreUser,
@@ -53,18 +54,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const userData = await res.json();
 
+      const accountNumber = (userData?.account_number || userData?.accountNumber || "").toString();
+
       setUser({
-        userId: userData.userId || userId,
-        phone: userData.phone || "",
-        fullName: userData.fullName || "",
-        accountNumber: userData.accountNumber || "",
-        isAgent: userData.isAgent || false,
-        kycTier: userData.kycTier || 1,
-        balance: typeof userData.balance === "number" ? userData.balance : 0,
-        email: userData.email,
-        status: userData.status || "active",
-        avatarUrl: userData.avatarUrl,
-        photoUrl: userData.photoUrl || userData.avatarUrl,
+        userId: userData?.id || userData?.userId || userId,
+        phone: userData?.phone || "",
+        fullName: userData?.full_name || userData?.fullName || "",
+        accountNumber,
+        displayAccountNumber: accountNumber ? accountNumberToDisplay(accountNumber) : undefined,
+        isAgent: userData?.is_agent || userData?.isAgent || false,
+        kycTier: userData?.kyc_tier || userData?.kycTier || 1,
+        balance: typeof userData?.balance === "number" ? userData.balance : Number(userData?.balance) || 0,
+        email: userData?.email,
+        status: userData?.status || "active",
+        avatarUrl: userData?.avatar_url || userData?.avatarUrl,
+        photoUrl: userData?.photoUrl || userData?.avatar_url || userData?.avatarUrl,
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);

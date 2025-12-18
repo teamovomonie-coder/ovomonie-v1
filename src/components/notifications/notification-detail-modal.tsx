@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -26,15 +26,7 @@ export function NotificationDetailModal({
   const [transactionData, setTransactionData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isOpen && notification.reference) {
-      fetchTransactionDetails();
-    } else if (isOpen) {
-      setLoading(false);
-    }
-  }, [isOpen, notification.reference]);
-
-  const fetchTransactionDetails = async () => {
+  const fetchTransactionDetails = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('ovo-auth-token');
@@ -53,7 +45,15 @@ export function NotificationDetailModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [notification.reference]);
+
+  useEffect(() => {
+    if (isOpen && notification.reference) {
+      fetchTransactionDetails();
+    } else if (isOpen) {
+      setLoading(false);
+    }
+  }, [isOpen, notification.reference, fetchTransactionDetails]);
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);

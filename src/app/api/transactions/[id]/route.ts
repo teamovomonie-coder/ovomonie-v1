@@ -3,17 +3,14 @@ import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
     const userId = getUserIdFromToken(request.headers);
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = context?.params || {};
 
     // Try to find by ID first
     let { data, error } = await db
@@ -47,17 +44,14 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, context: any) {
   try {
     const userId = getUserIdFromToken(request.headers);
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = context?.params || {};
     const body = await request.json();
     const { status } = body;
 
