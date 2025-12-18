@@ -8,6 +8,7 @@ type ClientUser = Pick<
   FirestoreUser,
   "phone" | "fullName" | "accountNumber" | "balance" | "kycTier" | "isAgent" | "email" | "status" | "avatarUrl"
 > & { userId: string; photoUrl?: string | null };
+ ) & { userId: string; photoUrl?: string | null; displayAccountNumber?: string };
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
