@@ -19,6 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { useAirtimePayment } from '@/hooks/use-vfd-payment';
 import { Loader2, AlertCircle, CheckCircle, Phone } from 'lucide-react';
+import networks from './network-logos';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -132,27 +133,36 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
                 <FormItem>
                   <FormLabel>Select Mobile Provider</FormLabel>
                   <div className="grid grid-cols-2 gap-3">
-                    {MOBILE_PROVIDERS.map((provider) => (
-                      <Card
-                        key={provider.id}
-                        className="cursor-pointer transition-all hover:border-primary"
-                        onClick={() => field.onChange(provider.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex flex-col items-center gap-2">
-                            <div
-                              className={`h-12 w-12 rounded-lg ${provider.color} flex items-center justify-center text-white font-bold text-sm`}
-                            >
-                              {provider.name.slice(0, 3)}
+                    {MOBILE_PROVIDERS.map((provider) => {
+                      const Logo = networks[provider.id]?.Logo;
+                      return (
+                        <Card
+                          key={provider.id}
+                          className="cursor-pointer transition-all hover:border-primary"
+                          onClick={() => field.onChange(provider.id)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex flex-col items-center gap-2">
+                              {Logo ? (
+                                <div className="h-12 w-12">
+                                  <Logo className="h-full w-full" />
+                                </div>
+                              ) : (
+                                <div
+                                  className={`h-12 w-12 rounded-lg ${provider.color} flex items-center justify-center text-white font-bold text-sm`}
+                                >
+                                  {provider.name.slice(0, 3)}
+                                </div>
+                              )}
+                              <p className="font-medium text-center">{provider.name}</p>
+                              {field.value === provider.id && (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              )}
                             </div>
-                            <p className="font-medium text-center">{provider.name}</p>
-                            {field.value === provider.id && (
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                   <FormMessage />
                 </FormItem>

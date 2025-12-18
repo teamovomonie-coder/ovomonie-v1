@@ -10,36 +10,13 @@ import React, { useRef, useState } from 'react';
 import ShareModal from '@/components/transaction/share-modal';
 
 const MtnLogo = ({ className }: { className?: string }) => (
-  <div className={`w-6 h-6 rounded-md bg-[#FFCC00] flex items-center justify-center ${className || ''}`}>
-    <span className="text-[#004A99] font-bold text-xs">MTN</span>
-  </div>
-);
-const AirtelLogo = ({ className }: { className?: string }) => (
-  <div className={`w-6 h-6 rounded-md bg-[#E40000] flex items-center justify-center ${className || ''}`}>
-    <span className="text-white font-bold text-[10px]">Airtel</span>
-  </div>
-);
-const GloLogo = ({ className }: { className?: string }) => (
-  <div className={`w-6 h-6 rounded-md bg-[#8CC63F] flex items-center justify-center ${className || ''}`}>
-    <span className="text-white font-bold text-xs">glo</span>
-  </div>
-);
-const NineMobileLogo = ({ className }: { className?: string }) => (
-  <div className={`w-6 h-6 rounded-md bg-black flex items-center justify-center ${className || ''}`}>
-    <span className="text-white font-bold text-[10px]">Tmobile</span>
-  </div>
+  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MTN logo">
+    <rect width="100%" height="100%" rx="12" fill="#FFCC00" />
+    <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontWeight="700" fontSize="36" fill="#004A99">MTN</text>
+  </svg>
 );
 
-const networks: Record<string, { name: string; Logo: React.FC<{ className?: string }> }> = {
-  mtn: { name: 'MTN', Logo: MtnLogo },
-  airtel: { name: 'Airtel', Logo: AirtelLogo },
-  glo: { name: 'Glo', Logo: GloLogo },
-  '9mobile': { name: '9mobile', Logo: NineMobileLogo },
-};
-
-export interface AirtimeReceiptData {
-  type: 'airtime';
-  network: string;
+import networks from './network-logos';
   phoneNumber: string;
   amount: number;
   planName?: string;
