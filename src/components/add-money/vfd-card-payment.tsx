@@ -214,7 +214,28 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     onChange(cleaned);
   };
 
-  // Poll payment status after 3D Secure redirect
+    const handlePaymentSuccess = useCallback((amount: number, shouldSaveCard?: boolean) => {
+      addNotification({
+        title: 'Wallet Funded',
+        description: `You successfully added ₦${amount.toLocaleString()} to your wallet via card.`,
+        category: 'transaction',
+      });
+
+      toast({ title: 'Success', description: 'Payment completed successfully' });
+
+      onSuccess?.(amount);
+      vfdPayment.resetState();
+      form.reset();
+      setCardData(null);
+      setOtp('');
+      setPaymentReference(null);
+      setCardNumberValue('');
+      setExpiryValue('');
+      setCvvValue('');
+      setSelectedSavedCard(null);
+    }, [addNotification, toast, onSuccess, vfdPayment, form]);
+
+    // Poll payment status after 3D Secure redirect
   const pollPaymentStatus = useCallback(async (reference: string, amount: number) => {
     setIsPolling(true);
     const token = localStorage.getItem('ovo-auth-token');
@@ -513,26 +534,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     }
   };
 
-  const handlePaymentSuccess = useCallback((amount: number, shouldSaveCard?: boolean) => {
-    addNotification({
-      title: 'Wallet Funded',
-      description: `You successfully added ₦${amount.toLocaleString()} to your wallet via card.`,
-      category: 'transaction',
-    });
 
-    toast({ title: 'Success', description: 'Payment completed successfully' });
-
-    onSuccess?.(amount);
-    vfdPayment.resetState();
-    form.reset();
-    setCardData(null);
-    setOtp('');
-    setPaymentReference(null);
-    setCardNumberValue('');
-    setExpiryValue('');
-    setCvvValue('');
-    setSelectedSavedCard(null);
-  }, [addNotification, toast, onSuccess, vfdPayment, form]);
 
   const selectSavedCard = (card: SavedCard | null) => {
     setSelectedSavedCard(card);
