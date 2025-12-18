@@ -147,7 +147,7 @@ export const transactionService = {
   },
   async getByUserId(userId: string, limit = 50, category?: string): Promise<DbTransaction[]> {
     if (!supabaseAdmin) return [];
-    let query = supabaseAdmin.from('financial_transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    let query = supabaseAdmin.from('financial_transactions').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
     if (category && category !== 'all') query = query.eq('category', category);
     const { data } = await query.limit(limit as any);
     return (data as any) ?? [];
@@ -159,7 +159,10 @@ export const notificationService = {
   async create(n: DbNotification): Promise<string | null> {
     if (!supabaseAdmin) return null;
     const { data, error } = await supabaseAdmin.from('notifications').insert([n]).select('id').limit(1).single();
-    if (error) return null;
+    if (error) {
+      console.error('Failed to create notification', error);
+      throw error;
+    }
     return (data as any)?.id ?? null;
   },
   async getByUserId(userId: string, limit = 50): Promise<DbNotification[]> {
@@ -200,7 +203,7 @@ export async function getTodayDebitTotal(userId: string): Promise<number> {
   if (!supabaseAdmin) return 0;
   const start = new Date();
   start.setHours(0,0,0,0);
-  const { data } = await supabaseAdmin.from('financial_transactions').select('amount').eq('user_id', userId).eq('type', 'debit').gte('created_at', start.toISOString());
+  const { data } = await supabaseAdmin.from('financial_transactions').select('amount').eq('user_id', userId).eq('type', 'debit').gte('timestamp', start.toISOString());
   const arr: any[] = (data as any) ?? [];
   return arr.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 }
@@ -209,7 +212,7 @@ export async function getTodayCreditTotal(userId: string): Promise<number> {
   if (!supabaseAdmin) return 0;
   const start = new Date();
   start.setHours(0,0,0,0);
-  const { data } = await supabaseAdmin.from('financial_transactions').select('amount').eq('user_id', userId).eq('type', 'credit').gte('created_at', start.toISOString());
+  const { data } = await supabaseAdmin.from('financial_transactions').select('amount').eq('user_id', userId).eq('type', 'credit').gte('timestamp', start.toISOString());
   const arr: any[] = (data as any) ?? [];
   return arr.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 }
