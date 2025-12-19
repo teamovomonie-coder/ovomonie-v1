@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserById } from '@/lib/db';
+import { getDb } from '@/lib/firebaseAdmin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,55 +27,42 @@ function getUserIdFromRequest(request: Request) {
 export async function GET(request: Request) {
     try {
         const userId = getUserIdFromRequest(request);
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
-        let user: any = null;
-        // First try exact id match
-        let resp: any = await supabase
-            .from('users')
-            .select('id, referral_code, invites_count, signups_count, referral_earnings')
-            .eq('id', userId)
-            .maybeSingle();
-        if (resp?.data) {
-            user = resp.data;
-        } else {
-            // Fallback: try matching common alternate identifiers (phone, account_number)
-            try {
-                const alt = await supabase
-                    .from('users')
-                    .select('id, referral_code, invites_count, signups_count, referral_earnings')
-                    .or(`phone.eq.${userId},account_number.eq.${userId}`)
-                    .limit(1)
-                    .maybeSingle();
-                if (alt?.data) user = alt.data;
-            } catch (e) {
-                // ignore and proceed to error return below
-            }
-        }
+        if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+        // Use centralized user retrieval which can fallback to Firestore
+        let user = await getUserById(userId);
         if (!user) {
             const xHeaderPresent = !!request.headers.get('x-ovo-user-id');
             const authHeader = request.headers.get('authorization');
             const parsedFromToken = getUserIdFromToken(request.headers as any);
-            logger.info('invitations.stats: user lookup failed', { provided: userId, xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null });
+            logger.info('invitations.stats: user lookup failed in primary store', { provided: userId, xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null });
 
-            // Additional fallback: if provided id looks like a phone, try suffix match
+            // Try Supabase direct fallback: id or phone/account match (legacy)
             try {
-                const cleaned = String(userId || '').replace(/\D/g, '');
-                if (cleaned.length >= 7) {
-                    const last7 = cleaned.slice(-7);
-                    const like = await supabase
-                        .from('users')
-                        .select('id, referral_code, invites_count, signups_count, referral_earnings')
-                        .ilike('phone', `%${last7}`)
-                        .limit(1)
-                        .maybeSingle();
-                    if (like?.data) {
-                        user = like.data;
-                    }
-                }
+                const resp: any = await supabase
+                    .from('users')
+                    .select('id, referral_code, invites_count, signups_count, referral_earnings')
+                    .or(`id.eq.${userId},phone.eq.${userId},account_number.eq.${userId}`)
+                    .limit(1)
+                    .maybeSingle();
+                if (resp?.data) user = resp.data;
             } catch (e) {
-                logger.debug('phone suffix lookup failed', e);
+                logger.debug('supabase fallback lookup failed', e);
+            }
+
+            // Try Firestore suffix match if still missing
+            if (!user) {
+                try {
+                    const cleaned = String(userId || '').replace(/\D/g, '');
+                    if (cleaned.length >= 7) {
+                        const last7 = cleaned.slice(-7);
+                        const db = await getDb();
+                        const snap = await db.collection('users').where('phone', '>=', last7).get();
+                        if (!snap.empty) user = snap.docs[0].data();
+                    }
+                } catch (e) {
+                    logger.debug('firestore fallback lookup failed', e);
+                }
             }
 
             if (!user) {

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase';
+import { getDb, admin } from './firebaseAdmin';
 
 // DB types used across the app
 export interface DbUser {
@@ -98,8 +99,42 @@ export const supabase: any = supabaseAdmin;
 export const userService = {
   async getById(userId: string): Promise<DbUser | null> {
     if (!supabaseAdmin) return null;
-    const { data } = await supabaseAdmin.from('users').select('*').eq('id', userId).limit(1).single();
-    return mapUser((data as any) ?? null);
+    try {
+      const { data } = await supabaseAdmin.from('users').select('*').eq('id', userId).limit(1).maybeSingle();
+      if (data) return mapUser(data as any);
+    } catch (err) {
+      // continue to firestore fallback
+    }
+
+    // Fallback to Firestore (some environments migrated users to Firebase)
+    try {
+      const db = await getDb();
+      const doc = await db.collection('users').doc(userId).get();
+      if (doc.exists) {
+        const row = doc.data() || {};
+        // normalize firestore fields to match supabase row shape expected by mapUser
+        const mappedRow = {
+          id: doc.id,
+          phone: row.phone || row.phoneNumber || row.phone_number,
+          email: row.email,
+          full_name: row.fullName || row.full_name || row.full_name,
+          account_number: row.accountNumber || row.account_number,
+          balance: row.balance,
+          kyc_tier: row.kycTier || row.kyc_tier,
+          is_agent: row.isAgent || row.is_agent,
+          avatar_url: row.avatarUrl || row.avatar_url,
+          status: row.status,
+          referral_code: row.referralCode || row.referral_code || null,
+          invites_count: row.invites_count ?? row.invitesCount ?? 0,
+          signups_count: row.signups_count ?? row.signupsCount ?? 0,
+          referral_earnings: row.referral_earnings ?? row.referralEarnings ?? 0,
+        };
+        return mapUser(mappedRow as any);
+      }
+    } catch (err) {
+      console.error('Firestore fallback getById failed', err);
+    }
+    return null;
   },
   async getByPhone(phone: string): Promise<DbUser | null> {
     if (!supabaseAdmin) return null;
