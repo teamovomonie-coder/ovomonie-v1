@@ -218,20 +218,20 @@ export function InvitationDashboard() {
         }
     };
 
-  const handleCopyToClipboard = (message?: string) => {
-    const textToCopy = message || referralLink;
-    navigator.clipboard.writeText(textToCopy);
-    toast({ 
-        title: 'Copied to Clipboard!', 
-        description: message ? 'Your message has been copied.' : 'Your referral link has been copied.'
-    });
-  };
+    const handleCopyToClipboard = (message?: string) => {
+        const textToCopy = message || referralUrl;
+        navigator.clipboard.writeText(textToCopy);
+        toast({
+            title: 'Copied to Clipboard!',
+            description: message ? 'Your message has been copied.' : 'Your referral link has been copied.',
+        });
+    };
 
   const handleUniversalShare = async () => {
       const shareData = {
           title: 'Join Ovomonie',
-          text: `Join Ovomonie and earn while you bank. Sign up with my link.`,
-          url: referralLink,
+          text: `Join Ovomonie and earn while you bank. Sign up with my link: ${referralUrl}`,
+          url: referralUrl,
       };
       if (navigator.share) {
           try {
@@ -256,7 +256,7 @@ export function InvitationDashboard() {
   };
   
   const handleShareToContact = async () => {
-    const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: https://ovomonie-v1-pgrm.vercel.app/register`;
+    const message = `Hey! I use Ovomonie for secure digital banking. Sign up using my referral link and get rewarded: ${referralUrl}`;
 
     if ('contacts' in navigator && 'select' in (navigator as any).contacts) {
         try {
