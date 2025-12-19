@@ -30,7 +30,7 @@
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@genkit-ai/firebase": "^1.25.0",
-    "@genkit-ai/google-genai": "^1.25.0",
+    "@genkit-ai/google-genai": "^1.27.0",
     "@genkit-ai/googleai": "^1.13.0",
     "@genkit-ai/next": "^1.13.0",
     "@hookform/resolvers": "^4.1.3",
