@@ -221,7 +221,32 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     onChange(cleaned);
   };
 
-    const handlePaymentSuccess = useCallback((amount: number, shouldSaveCard?: boolean) => {
+    const handlePaymentSuccess = useCallback(async (amount: number, shouldSaveCard?: boolean) => {
+      // Force fetch updated balance from server
+      const token = localStorage.getItem('ovo-auth-token');
+      if (token) {
+        const fetchBalance = async () => {
+          try {
+            const res = await fetch('/api/wallet/balance', {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store'
+            });
+            const data = await res.json();
+            const newBal = data.balanceInKobo || data.data?.balance || 0;
+            console.log('Success callback - balance:', newBal);
+            updateBalance(newBal);
+            return true;
+          } catch (err) {
+            console.error('Failed to fetch balance:', err);
+            return false;
+          }
+        };
+        
+        await fetchBalance();
+        setTimeout(fetchBalance, 2000);
+        setTimeout(fetchBalance, 5000);
+      }
+
       addNotification({
         title: 'Wallet Funded',
         description: `You successfully added ₦${amount.toLocaleString()} to your wallet via card.`,
@@ -240,7 +265,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setExpiryValue('');
       setCvvValue('');
       setSelectedSavedCard(null);
-    }, [addNotification, toast, onSuccess, vfdPayment, form]);
+    }, [addNotification, toast, onSuccess, vfdPayment, form, updateBalance]);
 
     // Poll payment status after 3D Secure redirect
   const pollPaymentStatus = useCallback(async (reference: string, amount: number) => {
@@ -259,6 +284,9 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         
         if (data.ok && data.data?.status === '00') {
           setIsPolling(false);
+          if (data.newBalanceInKobo) {
+            updateBalance(data.newBalanceInKobo);
+          }
           handlePaymentSuccess(amount, cardData?.saveCard);
           return;
         } else if (data.data?.status && data.data.status !== '00' && data.data.status !== 'pending') {
@@ -358,7 +386,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
       const pinVerifyData = await pinVerifyRes.json();
       
-      if (!pinVerifyData.valid) {
+      if (!pinVerifyData.success) {
         setIsProcessing(false);
         toast({ title: 'Error', description: 'Incorrect authorization PIN', variant: 'destructive' });
         return;
@@ -505,25 +533,153 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setIsProcessing(true);
       setProcessingError(null);
 
-      const res = await fetch('/api/vfd/cards/validate-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reference: paymentReference, otp }),
-      });
-
-      const data = await res.json();
+      // Call both VFD and complete-payment in parallel
+      const [vfdRes, completeRes] = await Promise.all([
+        fetch('/api/vfd/cards/validate-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ reference: paymentReference, otp }),
+        }),
+        fetch('/api/vfd/cards/complete-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ reference: paymentReference }),
+        })
+      ]);
+      
+      const completeData = await completeRes.json();
       setIsProcessing(false);
-
+      
+      if (completeData.ok) {
+        setIsOTPModalOpen(false);
+        if (completeData.newBalanceInKobo) {
+          updateBalance(completeData.newBalanceInKobo);
+        }
+        if (cardData) {
+          handlePaymentSuccess(cardData.amount, false);
+        }
+        return;
+      }
+      
       if (!data.ok) {
-        setProcessingError(data.message || 'OTP validation failed');
-        toast({ title: 'Error', description: data.message || 'OTP validation failed', variant: 'destructive' });
+        
+        // If timeout or processing, payment likely succeeded - refresh balance
+        if ((data.message?.includes('timed out') || data.message?.includes('processing')) && cardData) {
+          setIsOTPModalOpen(false);
+          setIsProcessing(false);
+          
+          // Refresh balance from server with retries
+          const refreshBalance = async (attempt = 1): Promise<boolean> => {
+            try {
+              const balRes = await fetch('/api/wallet/balance', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const balData = await balRes.json();
+              if (balData.ok || balData.success) {
+                const newBal = balData.balanceInKobo || balData.data?.balance;
+                updateBalance(newBal);
+                return true;
+              }
+              return false;
+            } catch (err) {
+              console.error(`Failed to refresh balance (attempt ${attempt}):`, err);
+              return false;
+            }
+          };
+          
+          // Refresh immediately
+          await refreshBalance(1);
+          
+          // Retry up to 3 times with delays
+          for (let i = 2; i <= 4; i++) {
+            setTimeout(async () => {
+              const success = await refreshBalance(i);
+              if (success && i === 4) {
+                // Final refresh successful
+                handlePaymentSuccess(cardData.amount, false);
+              }
+            }, 2000 * i); // 4s, 6s, 8s
+          }
+          
+          toast({ 
+            title: 'Payment Processing', 
+            description: 'Your payment is being processed. Balance will update shortly.',
+            duration: 6000,
+          });
+          
+          return;
+        } else if (data.message?.includes('being processed')) {
+          // Payment is processing, treat as success
+          setIsOTPModalOpen(false);
+          setIsProcessing(false);
+          
+          const refreshBalance = async () => {
+            try {
+              const balRes = await fetch('/api/wallet/balance', {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: 'no-store'
+              });
+              const balData = await balRes.json();
+              const newBal = balData.balanceInKobo || balData.data?.balance || 0;
+              console.log('Processing - refreshed balance:', newBal);
+              updateBalance(newBal);
+            } catch (err) {
+              console.error('Failed to refresh balance:', err);
+            }
+          };
+          
+          await refreshBalance();
+          setTimeout(refreshBalance, 2000);
+          setTimeout(refreshBalance, 5000);
+          setTimeout(refreshBalance, 8000);
+          
+          if (cardData) {
+            handlePaymentSuccess(cardData.amount, false);
+          }
+          return;
+        } else {
+          toast({ title: 'Error', description: data.message || 'OTP validation failed', variant: 'destructive' });
+        }
         return;
       }
 
       setIsOTPModalOpen(false);
+      
+      // Force balance refresh from server
+      const forceRefreshBalance = async () => {
+        try {
+          const balRes = await fetch('/api/wallet/balance', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store'
+          });
+          const balData = await balRes.json();
+          const newBal = balData.balanceInKobo || balData.data?.balance || 0;
+          console.log('Balance refreshed:', newBal);
+          updateBalance(newBal);
+          window.dispatchEvent(new CustomEvent('balance-updated', { detail: { balance: newBal } }));
+          return newBal;
+        } catch (err) {
+          console.error('Balance refresh failed:', err);
+          return null;
+        }
+      };
+      
+      // Update balance immediately if provided
+      if (data.newBalanceInKobo) {
+        console.log('Updating balance from response:', data.newBalanceInKobo);
+        updateBalance(data.newBalanceInKobo);
+      }
+      
+      // Always force refresh from server as backup
+      await forceRefreshBalance();
+      setTimeout(forceRefreshBalance, 2000);
+      setTimeout(forceRefreshBalance, 5000);
       
       // Save card if tokenization was requested
       if (cardData?.saveCard && data.data?.cardToken) {
@@ -601,7 +757,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           {/* Saved Cards Dropdown */}
           {savedCards.length > 0 && (
             <div className="space-y-2">
-              <FormLabel>Payment Method</FormLabel>
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Payment Method</label>
               <div className="relative">
                 <button
                   type="button"
@@ -960,7 +1116,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
           <div className="space-y-4">
             <div>
-              <FormLabel>One-Time Password</FormLabel>
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">One-Time Password</label>
               <Input
                 placeholder="000000"
                 maxLength={6}

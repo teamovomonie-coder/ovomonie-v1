@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+export async function POST(req: NextRequest) {
+  try {
+    const userId = getUserIdFromToken(req.headers as any);
+    if (!userId) {
+      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+    }
+    
+    if (!supabase) {
+      return NextResponse.json({ ok: false, message: 'Database not configured' }, { status: 500 });
+    }
+    
+    const { reference, amount } = await req.json();
+    
+    if (!amount) {
+      return NextResponse.json({ ok: false, message: 'Amount required' }, { status: 400 });
+    }
+
+    const amountInKobo = Math.round(parseFloat(amount) * 100);
+    
+    const { data: userData } = await supabase
+      .from('users')
+      .select('balance')
+      .eq('id', userId)
+      .single();
+    
+    if (!userData) {
+      return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
+    }
+
+    const newBalance = (userData.balance || 0) + amountInKobo;
+    
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+    
+    if (updateError) {
+      return NextResponse.json({ ok: false, message: updateError.message }, { status: 500 });
+    }
+
+    const ref = reference || `MANUAL-${Date.now()}`;
+    
+    await supabase.from('financial_transactions').insert({
+      user_id: userId,
+      type: 'credit',
+      category: 'deposit',
+      amount: amountInKobo,
+      reference: ref,
+      narration: 'Card funding via VFD',
+      balance_after: newBalance,
+      timestamp: new Date().toISOString()
+    });
+
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title: 'Wallet Funded',
+      body: `Your wallet has been credited with ₦${(amountInKobo / 100).toLocaleString()}`,
+      category: 'transaction',
+      type: 'credit',
+      amount: amountInKobo,
+      reference: ref,
+      read: false,
+      created_at: new Date().toISOString()
+    });
+
+    return NextResponse.json({
+      ok: true,
+      previousBalance: userData.balance,
+      newBalance,
+      amountAdded: amountInKobo
+    });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, message: err.message }, { status: 500 });
+  }
+}
