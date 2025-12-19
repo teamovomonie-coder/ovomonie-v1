@@ -59,6 +59,11 @@ export function InvitationDashboard() {
                 try {
                     const token = localStorage.getItem('ovo-auth-token');
 
+                    // prefer referral code from in-memory auth context when available
+                    if (user?.referralCode) {
+                        setReferralCode(user.referralCode);
+                    }
+
                     // Try to get userId from localStorage first
                     let userId = localStorage.getItem('ovo-user-id');
 
@@ -80,6 +85,8 @@ export function InvitationDashboard() {
                                 if (userId) localStorage.setItem('ovo-user-id', userId);
                                 // refresh app-level user data if missing
                                 if (!user) await fetchUserData();
+                                // also pick up referralCode from auth.me response
+                                if (meData?.referralCode) setReferralCode(meData.referralCode);
                             }
                         } catch (e) {
                             // ignore and rely on fallback below
@@ -190,6 +197,11 @@ export function InvitationDashboard() {
 
     const fetchReferralCodeNow = async () => {
         try {
+            // prefer user.referralCode when available
+            if (user?.referralCode) {
+                setReferralCode(user.referralCode);
+                return;
+            }
             const { token, userId } = await resolveAuth();
             if (!token || !userId) return;
             const res = await fetch('/api/invitations/stats', {
