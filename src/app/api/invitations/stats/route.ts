@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-import { verifyAuthToken } from '@/lib/auth';
+import { getUserIdFromToken } from '@/lib/firestore-helpers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -10,20 +10,16 @@ const supabase = createClient(supabaseUrl!, supabaseKey!);
 
 
 function getUserIdFromRequest(request: Request) {
-  // Try ovo-user-id header (sent from client)
-  const userId = request.headers.get('x-ovo-user-id');
-  if (userId) return userId;
-    // Try Authorization bearer token
-    const auth = request.headers.get('authorization') || request.headers.get('Authorization');
-    if (auth && auth.startsWith('Bearer ')) {
-        const token = auth.split(' ')[1];
-        const payload = verifyAuthToken(token);
-        if (payload && payload.sub) return payload.sub;
-    }
-  // Try query param (for dev/testing)
-  const url = new URL(request.url);
-  if (url.searchParams.has('userId')) return url.searchParams.get('userId');
-  return null;
+    // Prefer explicit header if provided
+    const userId = request.headers.get('x-ovo-user-id');
+    if (userId) return userId;
+    // Try Authorization bearer token using shared helper (handles Firebase & legacy tokens)
+    const maybe = getUserIdFromToken(request.headers as any);
+    if (maybe) return maybe;
+    // Try query param (for dev/testing)
+    const url = new URL(request.url);
+    if (url.searchParams.has('userId')) return url.searchParams.get('userId');
+    return null;
 }
 
 export async function GET(request: Request) {

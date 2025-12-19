@@ -296,6 +296,9 @@ export function InvitationDashboard() {
         <CardDescription className="text-primary-foreground/80">
           Earn <span className="font-bold text-yellow-400">₦500</span> for every friend who signs up and completes their first transaction.
         </CardDescription>
+                {user?.userId && (
+                    <p className="text-xs text-primary-foreground/70 mt-2">User ID: {user.userId}</p>
+                )}
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-6">
