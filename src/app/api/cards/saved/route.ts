@@ -30,6 +30,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[Saved Cards] Error fetching cards:', error);
+      // Return empty array if table doesn't exist yet
+      if (error.message?.includes('relation') || error.code === '42P01') {
+        return NextResponse.json({ ok: true, data: [] });
+      }
       return NextResponse.json({ ok: false, message: 'Failed to fetch saved cards' }, { status: 500 });
     }
 

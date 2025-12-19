@@ -26,6 +26,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<ClientUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
+  const updateBalance = useCallback((newBalanceInKobo: number) => {
+    if (typeof newBalanceInKobo === 'number' && !isNaN(newBalanceInKobo)) {
+      setBalance(newBalanceInKobo);
+      setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
+    }
+  }, []);
+
   const performLogout = useCallback(() => {
     localStorage.removeItem("ovo-auth-token");
     localStorage.removeItem("ovo-user-id");
@@ -80,7 +87,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     fetchUserData();
-  }, [fetchUserData]);
+    
+    const handleBalanceUpdate = (event: any) => {
+      console.log('[AuthContext] Balance update event:', event.detail);
+      if (event.detail?.balance !== undefined) {
+        const newBal = Number(event.detail.balance);
+        console.log('[AuthContext] Setting balance to:', newBal);
+        setBalance(newBal);
+        setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+      }
+    };
+    
+    window.addEventListener('balance-updated', handleBalanceUpdate);
+    
+    const intervalId = setInterval(async () => {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (token) {
+        try {
+          const res = await fetch('/api/wallet/balance', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store'
+          });
+          const data = await res.json();
+          const newBal = data.balanceInKobo || data.data?.balance || 0;
+          if (newBal !== balance) {
+            console.log('[AuthContext] Balance changed:', balance, '->', newBal);
+            setBalance(newBal);
+            setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+          }
+        } catch (err) {
+          console.error('[AuthContext] Balance refresh failed:', err);
+        }
+      }
+    }, 30000);
+    
+    return () => {
+      window.removeEventListener('balance-updated', handleBalanceUpdate);
+      clearInterval(intervalId);
+    };
+  }, [fetchUserData, balance]);
 
   const login = useCallback(async (phone: string, pin: string) => {
     // Use existing API route for login; relies on Firestore user store.
@@ -113,11 +158,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     performLogout();
   }, [performLogout]);
-
-  const updateBalance = useCallback((newBalanceInKobo: number) => {
-    setBalance(newBalanceInKobo);
-    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
-  }, []);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance }}>

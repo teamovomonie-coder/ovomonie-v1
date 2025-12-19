@@ -1,3 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  checks:
+    name: Lint / Typecheck / Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test --if-present
+
+  auto-fix:
+    name: Auto-fix lint/format and open PR
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run auto-fix (eslint/prettier)
+        run: npm run ci:fix
+
+      - name: Create pull request with fixes (if any)
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated fixes (eslint/prettier)"
+          branch: "auto-fixes/${{ github.sha }}"
+          title: "Automated fixes: lint & format"
+          body: "This PR applies auto-fixes from CI: eslint --fix and prettier. Please review and merge."
+          labels: automated, ci
 name: CI — Lint, Test, Build
 
 on:

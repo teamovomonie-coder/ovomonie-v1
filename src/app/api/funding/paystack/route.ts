@@ -1,20 +1,8 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import {
-  collection,
-  doc,
-  query,
-  where,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  runTransaction,
-  serverTimestamp,
-} from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { logger } from '@/lib/logger';
 import { initiatePaystackTransaction, verifyPaystackTransaction, resolveBankAccount } from '@/lib/paystack';
+import { userService, transactionService } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -63,23 +51,18 @@ export async function POST(request: Request) {
         return NextResponse.json(initiation.data || { message: 'Paystack initialization failed' }, { status: initiation.status });
       }
 
-      // Create pending transaction record
-      const financialTransactionsRef = collection(db, 'financialTransactions');
-      const pending = {
-        userId,
+      // Create pending transaction record in Supabase
+      await transactionService.create({
+        user_id: userId,
         category: 'deposit',
         type: 'credit',
         amount: amountInKobo,
         reference: clientReference || reference,
         narration: 'Card deposit via Paystack (pending)',
         party: { name: 'Paystack' },
-        status: 'pending',
-        provider: 'paystack',
-        providerReference: reference,
-        createdAt: serverTimestamp(),
-      };
-      const pendingRef = await addDoc(financialTransactionsRef, pending as any);
-      logger.debug('Created pending Paystack transaction', { pendingRef: pendingRef.id });
+        balance_after: 0,
+      });
+      logger.debug('Created pending Paystack transaction', { reference });
 
       return NextResponse.json({
         message: 'Paystack transaction initialized',
@@ -116,36 +99,31 @@ export async function POST(request: Request) {
       // Extract amount from Paystack response (in kobo)
       const amountInKobo = transactionData.amount || 0;
 
-      // Finalize in Firestore
-      let newBalance = 0;
-      const financialTransactionsRef = collection(db, 'financialTransactions');
-      const pendingQuery = query(
-        financialTransactionsRef,
-        where('providerReference', '==', reference),
-        where('status', '==', 'pending')
-      );
-      const pendingDocs = await getDocs(pendingQuery);
+      // Finalize in Supabase
+      const user = await userService.getById(userId);
+      if (!user) {
+        return NextResponse.json({ message: 'User not found' }, { status: 404 });
+      }
 
-      await runTransaction(db, async (tx) => {
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await tx.get(userRef as any);
-        if (!userDoc.exists()) throw new Error('User not found');
-
-        const userData = userDoc.data() as { balance?: number };
-        const currentBalance = typeof userData.balance === 'number' ? userData.balance : 0;
-        newBalance = currentBalance + amountInKobo;
-        tx.update(userRef, { balance: newBalance });
-
-        // Update pending transaction to completed
-        for (const pendingDoc of pendingDocs.docs) {
-          tx.update(pendingDoc.ref, {
-            status: 'completed',
-            completedAt: serverTimestamp(),
-            balanceAfter: newBalance,
-            providerData: transactionData,
-          });
-        }
+      const currentBalance = user.balance || 0;
+      const newBalance = currentBalance + amountInKobo;
+      
+      // Update user balance
+      await userService.updateBalance(userId, newBalance);
+      
+      // Create completed transaction
+      await transactionService.create({
+        user_id: userId,
+        category: 'deposit',
+        type: 'credit',
+        amount: amountInKobo,
+        reference: `${reference}-completed`,
+        narration: 'Card deposit via Paystack',
+        party: { name: 'Paystack' },
+        balance_after: newBalance,
       });
+      
+      logger.info('Paystack funding completed', { userId, amount: amountInKobo, newBalance });
 
       return NextResponse.json(
         {
