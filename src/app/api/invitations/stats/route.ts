@@ -32,12 +32,30 @@ export async function GET(request: Request) {
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-        const { data: user, error } = await supabase
+        let user: any = null;
+        // First try exact id match
+        let resp: any = await supabase
             .from('users')
             .select('id, referral_code, invites_count, signups_count, referral_earnings')
             .eq('id', userId)
-            .single();
-        if (error || !user) {
+            .maybeSingle();
+        if (resp?.data) {
+            user = resp.data;
+        } else {
+            // Fallback: try matching common alternate identifiers (phone, account_number)
+            try {
+                const alt = await supabase
+                    .from('users')
+                    .select('id, referral_code, invites_count, signups_count, referral_earnings')
+                    .or(`phone.eq.${userId},account_number.eq.${userId}`)
+                    .limit(1)
+                    .maybeSingle();
+                if (alt?.data) user = alt.data;
+            } catch (e) {
+                // ignore and proceed to error return below
+            }
+        }
+        if (!user) {
             return NextResponse.json({ message: 'User not found.' }, { status: 404 });
         }
 
