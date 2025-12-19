@@ -16,6 +16,12 @@ export interface DbUser {
   isAgent?: boolean;
   avatar_url?: string;
   status?: string;
+  // referral/invite fields
+  referral_code?: string;
+  referralCode?: string;
+  invites_count?: number;
+  signups_count?: number;
+  referral_earnings?: number;
   // legacy/extra fields
   login_pin_hash?: string;
   transaction_pin_hash?: string;
@@ -73,6 +79,12 @@ function mapUser(row: any): DbUser | null {
     isAgent: row.is_agent ?? row.isAgent,
     avatar_url: row.avatar_url || row.avatarUrl,
     status: row.status,
+    // referral/invite fields (preserve raw names too)
+    referral_code: row.referral_code || row.referralCode || null,
+    referralCode: row.referral_code || row.referralCode || null,
+    invites_count: typeof row.invites_count === 'number' ? row.invites_count : Number(row.invites_count) || (typeof row.invitesCount === 'number' ? row.invitesCount : Number(row.invitesCount) || 0),
+    signups_count: typeof row.signups_count === 'number' ? row.signups_count : Number(row.signups_count) || (typeof row.signupsCount === 'number' ? row.signupsCount : Number(row.signupsCount) || 0),
+    referral_earnings: typeof row.referral_earnings === 'number' ? row.referral_earnings : Number(row.referral_earnings) || (typeof row.referralEarnings === 'number' ? row.referralEarnings : Number(row.referralEarnings) || 0),
     login_pin_hash: row.login_pin_hash || row.loginPinHash || null,
     transaction_pin_hash: row.transaction_pin_hash || row.transactionPinHash || null,
   };
