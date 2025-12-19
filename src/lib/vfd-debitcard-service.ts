@@ -6,7 +6,7 @@
 import { getVFDHeaders } from './vfd-auth';
 import { logger } from './logger';
 
-const BASE_URL = process.env.VFD_WALLET_API_BASE || 'https://api-devapps.vfdbank.systems/vtech-wallet/api/v2/wallet2';
+const BASE_URL = process.env.VFD_DEBIT_CARD_API_BASE || process.env.VFD_CARDS_API_BASE || 'https://api-devapps.vfdbank.systems/vtech-cards/api/v2/baas-cards';
 
 interface VFDResponse<T> {
   status: string;

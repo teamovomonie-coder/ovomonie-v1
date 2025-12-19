@@ -39,18 +39,46 @@ import { useNotifications } from '@/context/notification-context';
 import { PinModal } from '@/components/auth/pin-modal';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
+// UUID polyfill for environments without crypto.randomUUID
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // --- Mock Data & Logos ---
 
-const MtnLogo = ({ className }: { className?: string }) => <div className={cn("w-6 h-6 rounded-md bg-[#FFCC00] flex items-center justify-center", className)}><span className="text-[#004A99] font-bold text-xs">MTN</span></div>;
-const AirtelLogo = ({ className }: { className?: string }) => <div className={cn("w-6 h-6 rounded-md bg-[#E40000] flex items-center justify-center", className)}><span className="text-white font-bold text-[10px]">Airtel</span></div>;
-const GloLogo = ({ className }: { className?: string }) => <div className={cn("w-6 h-6 rounded-md bg-[#8CC63F] flex items-center justify-center", className)}><span className="text-white font-bold text-xs">glo</span></div>;
-const NineMobileLogo = ({ className }: { className?: string }) => <div className={cn("w-6 h-6 rounded-md bg-black flex items-center justify-center", className)}><span className="text-white font-bold text-[10px]">9mobile</span></div>;
+const MtnLogo = ({ className }: { className?: string }) => (
+  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
+    <img src="/mtn.jpg" alt="MTN" className="w-full h-full object-contain" />
+  </div>
+);
+const AirtelLogo = ({ className }: { className?: string }) => (
+  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
+    <img src="/airtel.png" alt="Airtel" className="w-full h-full object-contain" />
+  </div>
+);
+const GloLogo = ({ className }: { className?: string }) => (
+  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
+    <img src="/glo.png" alt="Glo" className="w-full h-full object-contain" />
+  </div>
+);
+const T2Logo = ({ className }: { className?: string }) => (
+  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
+    <img src="/t2.png" alt="T2" className="w-full h-full object-contain" />
+  </div>
+);
 
 const networks = [
   { id: 'mtn', name: 'MTN', Logo: MtnLogo },
   { id: 'airtel', name: 'Airtel', Logo: AirtelLogo },
-  { id: 'glo', name: 'Glo', Logo: NineMobileLogo },
-  { id: '9mobile', name: '9mobile', Logo: NineMobileLogo },
+  { id: 'glo', name: 'Glo', Logo: GloLogo },
+  { id: '9mobile', name: 'T2', Logo: T2Logo },
 ];
 
 const dataPlans: Record<string, { id: string, name: string, price: number }[]> = {
@@ -70,9 +98,9 @@ const dataPlans: Record<string, { id: string, name: string, price: number }[]> =
     { id: 'glo-3', name: '13.5GB - 30 Days', price: 3000 },
   ],
   '9mobile': [
-    { id: '9mobile-1', name: '1GB - 30 Days', price: 1000 },
-    { id: '9mobile-2', name: '4.5GB - 30 Days', price: 2000 },
-    { id: '9mobile-3', name: '11GB - 30 Days', price: 4000 },
+    { id: 't2-1', name: '1GB - 30 Days', price: 1000 },
+    { id: 't2-2', name: '4.5GB - 30 Days', price: 2000 },
+    { id: 't2-3', name: '11GB - 30 Days', price: 4000 },
   ],
 };
 
@@ -137,7 +165,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         const token = localStorage.getItem('ovo-auth-token');
         if (!token) throw new Error('Authentication token not found.');
         
-        const clientReference = `airtime-${crypto.randomUUID()}`;
+        const clientReference = `airtime-${generateUUID()}`;
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

@@ -192,22 +192,29 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     onChange(formatted);
   };
 
-  // Format expiry as user types (auto-insert /)
+  // Format expiry as user types (auto-insert / for MM/YY, or accept YYMM)
   const handleExpiryChange = (value: string, onChange: (value: string) => void) => {
     let cleaned = value.replace(/\D/g, '');
     
-    // If user entered 4 digits and no slash yet, could be YYMM format
+    // Limit to 4 digits
     if (cleaned.length > 4) {
       cleaned = cleaned.slice(0, 4);
     }
     
-    // Auto-insert slash for MM/YY format
-    if (cleaned.length >= 2 && !value.includes('/')) {
-      // Check if it looks like MM/YY format (first two digits are 01-12)
+    // Only auto-insert slash if it looks like MM/YY format
+    // (first two digits are 01-12 and user is typing 3rd digit)
+    if (cleaned.length === 3 && !value.includes('/')) {
       const firstTwo = parseInt(cleaned.slice(0, 2), 10);
       if (firstTwo >= 1 && firstTwo <= 12) {
         cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
       }
+    } else if (cleaned.length === 4 && !value.includes('/')) {
+      // Check if it's MM/YY format
+      const firstTwo = parseInt(cleaned.slice(0, 2), 10);
+      if (firstTwo >= 1 && firstTwo <= 12) {
+        cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+      }
+      // Otherwise keep as YYMM format (like 5003)
     }
     
     setExpiryValue(cleaned);

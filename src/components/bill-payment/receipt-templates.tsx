@@ -232,6 +232,18 @@ export function AirtimeDataReceipt({ receipt }: { receipt: ReceiptData }) {
   const { template, data } = receipt;
   const Icon = ICONS[template.icon as keyof typeof ICONS] || Phone;
   const isData = template.category === 'data';
+  
+  // Network logo mapping
+  const getNetworkLogo = (network: string) => {
+    const networkLower = network?.toLowerCase() || '';
+    if (networkLower.includes('mtn')) return '/mtn.jpg';
+    if (networkLower.includes('airtel')) return '/airtel.png';
+    if (networkLower.includes('glo')) return '/glo.png';
+    if (networkLower.includes('9mobile') || networkLower.includes('t2')) return '/t2.png';
+    return null;
+  };
+  
+  const networkLogo = getNetworkLogo(data.biller.name);
 
   return (
     <Card className="w-full shadow-lg border-2 overflow-visible relative" style={{ borderColor: template.color_scheme.secondary }}>
@@ -242,6 +254,13 @@ export function AirtimeDataReceipt({ receipt }: { receipt: ReceiptData }) {
       </CardHeader>
       <CardContent className="p-6 relative z-10">
         <div className="text-center space-y-2 mb-6">
+          {networkLogo && (
+            <div className="flex justify-center mb-3">
+              <div className="w-16 h-16 rounded-lg bg-white flex items-center justify-center p-2 shadow-md">
+                <img src={networkLogo} alt={data.biller.name} className="w-full h-full object-contain" />
+              </div>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">{data.biller.name}</p>
           <p className="text-4xl font-bold">₦{data.amount.toLocaleString()}</p>
         </div>

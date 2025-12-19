@@ -24,6 +24,18 @@ import { VirtualCardDisplay } from './virtual-card-display';
 import type { VirtualCard } from './virtual-card-display';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
+// UUID polyfill for environments without crypto.randomUUID
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // --- Card Customization Data ---
 const templates = {
   colors: [
@@ -122,7 +134,7 @@ export function CardCustomizer() {
   const [showVirtualCardNumbers, setShowVirtualCardNumbers] = useState<Set<string>>(new Set());
   const [isActivatingCard, setIsActivatingCard] = useState(false);
   const [virtualCardApiError, setVirtualCardApiError] = useState<string | null>(null);
-  const [isPinModalOpenForVirtual, setIsPinModalOpenForVirtual] = useState(false);
+
 
   const cardDetailsForm = useForm<CardDetailsForm>({
     resolver: zodResolver(cardDetailsSchema),
@@ -212,7 +224,7 @@ export function CardCustomizer() {
                 designType: cardData.design.type,
                 designValue: cardData.design.value,
                 shippingInfo: shippingData,
-                clientReference: `card-order-${crypto.randomUUID()}`,
+                clientReference: `card-order-${generateUUID()}`,
             }),
         });
 
@@ -252,7 +264,8 @@ export function CardCustomizer() {
       toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦1,000 to create a virtual card.' });
       return;
     }
-    setIsPinModalOpenForVirtual(true);
+    // Use VFD API directly
+    await handleCreateVFDCard('VIRTUAL');
   };
 
   const handleCreateVFDCard = async (cardType: 'PHYSICAL' | 'VIRTUAL') => {
@@ -262,6 +275,23 @@ export function CardCustomizer() {
     }
     setIsActivatingCard(true);
     setVirtualCardApiError(null);
+    
+    const tempId = `temp-${generateUUID()}`;
+    if (cardType === 'VIRTUAL') {
+      const tempCard: VirtualCard & { pending?: boolean } = {
+        id: tempId,
+        cardNumber: '•••• •••• •••• ••••',
+        expiryDate: '',
+        cvv: '',
+        isActive: false,
+        balance: typeof balance === 'number' ? balance : 0,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        pending: true,
+      } as any;
+      setVirtualCards(prev => [tempCard, ...prev]);
+    }
+    
     try {
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) throw new Error('Authentication token not found.');
@@ -295,10 +325,13 @@ export function CardCustomizer() {
           cardType: cardType,
           status: result.data.status,
         };
-        setVirtualCards(prev => [newCard, ...prev]);
+        setVirtualCards(prev => prev.map(c => c.id === tempId ? newCard : c));
         setView('virtual-card');
       }
     } catch (error: any) {
+      if (cardType === 'VIRTUAL') {
+        setVirtualCards(prev => prev.filter(c => c.id !== tempId));
+      }
       setVirtualCardApiError(error.message || 'Card creation failed');
       toast({ variant: 'destructive', title: 'Card Creation Failed', description: error.message });
     } finally {
@@ -306,118 +339,7 @@ export function CardCustomizer() {
     }
   };
 
-  const handleConfirmVirtualCard = async () => {
-    setIsActivatingCard(true);
-    setVirtualCardApiError(null);
-    const clientReference = `virtual-card-${crypto.randomUUID()}`;
 
-    // Optimistic UI: add a temporary pending card so user sees immediate result
-    const tempId = `temp-${crypto.randomUUID()}`;
-    const tempCard: VirtualCard & { pending?: boolean } = {
-      id: tempId,
-      cardNumber: '•••• •••• •••• ••••',
-      expiryDate: '',
-      cvv: '',
-      isActive: false,
-      balance: typeof balance === 'number' ? balance : 0,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      pending: true,
-    } as any;
-    setVirtualCards(prev => [tempCard, ...prev]);
-    try {
-      const token = localStorage.getItem('ovo-auth-token');
-      if (!token) throw new Error('Authentication token not found.');
-
-      const response = await fetch('/api/cards/virtual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          clientReference,
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        const error: any = new Error(result.message || 'Failed to create virtual card.');
-        error.response = response;
-        throw error;
-      }
-
-      // Log for debugging
-      console.log('Virtual card created:', result);
-
-      const newCard: VirtualCard = {
-        id: result.cardId,
-        cardNumber: result.cardNumber,
-        expiryDate: result.expiryDate,
-        cvv: result.cvv,
-        isActive: true,
-        // Use the wallet balance returned by the API (in kobo)
-        balance: typeof result.newBalanceInKobo === 'number' ? result.newBalanceInKobo : 0,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      };
-
-      // Replace the optimistic temp card with the server-provided card
-      setVirtualCards(prev => {
-        console.log('Replacing temp card with server card', tempId, newCard);
-        return prev.map(c => c.id === tempId ? newCard : c);
-      });
-      
-      updateBalance(result.newBalanceInKobo);
-
-      addNotification({
-        title: 'Virtual Card Created!',
-        description: 'Your new virtual card is ready to use.',
-        category: 'transaction',
-      });
-
-      toast({ title: "Virtual Card Created!", description: "Your card is ready to use for online transactions." });
-      // Persist a pending receipt for the virtual card so `/success` can render it
-      try {
-        const pendingReceipt = {
-          type: 'virtual-card' as const,
-          data: {
-            cardId: result.cardId,
-            cardNumber: result.cardNumber,
-            expiryDate: result.expiryDate,
-            cvv: result.cvv,
-          },
-          reference: clientReference,
-          transactionId: clientReference,
-          completedAt: new Date().toISOString(),
-        };
-        await pendingTransactionService.savePendingReceipt(pendingReceipt);
-      } catch (e) {
-        console.error('Failed to persist virtual-card pending receipt', e);
-      }
-
-      // Close modal and navigate to virtual card view
-      setIsPinModalOpenForVirtual(false);
-      
-      // Use setTimeout to ensure state updates propagate before changing view
-      setTimeout(() => {
-        console.log('Setting view to virtual-card');
-        setView('virtual-card');
-      }, 100);
-    } catch (error: any) {
-      let description = 'An unknown error occurred.';
-      if (error.response?.status === 401) {
-        description = 'Your session has expired. Please log in again.';
-        logout();
-      } else if (error.message) {
-        description = error.message;
-      }
-      console.error('Virtual card creation error:', error);
-      setVirtualCardApiError(description);
-      // Mark the optimistic card as failed so user can retry or see status
-      setVirtualCards(prev => prev.map(c => c.id === tempId ? { ...c, pending: false, failed: true } : c));
-      // Don't close modal on error
-    } finally {
-      setIsActivatingCard(false);
-    }
-  };
 
   // Persist virtual cards to localStorage so they remain across navigation
   useEffect(() => {
@@ -876,31 +798,19 @@ export function CardCustomizer() {
                     <p className="text-sm font-medium mb-1 text-primary">Activation Fee</p>
                     <p className="text-3xl font-bold text-primary mb-4">₦1,000</p>
                     <p className="text-xs text-muted-foreground mb-6">One-time fee per virtual card</p>
-                    <div className="flex gap-2">
-                      <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="flex-1">
-                        {isActivatingCard ? (
-                          <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="mr-2 h-5 w-5" />
-                            Create Virtual Card
-                          </>
-                        )}
-                      </Button>
-                      <Button onClick={() => handleCreateVFDCard('VIRTUAL')} disabled={isActivatingCard} size="lg" variant="outline" className="flex-1">
-                        {isActivatingCard ? (
+                    <Button onClick={handleCreateVirtualCard} disabled={isActivatingCard} size="lg" className="w-full">
+                      {isActivatingCard ? (
+                        <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        ) : (
-                          <>
-                            <CreditCard className="mr-2 h-5 w-5" />
-                            VFD Virtual Card
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          Create Virtual Card
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -929,27 +839,15 @@ export function CardCustomizer() {
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button 
-                      onClick={handleCreateVirtualCard} 
-                      disabled={isActivatingCard}
-                      size="lg"
-                      className="h-12 font-semibold"
-                    >
-                      {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                      Create Virtual Card
-                    </Button>
-                    <Button 
-                      onClick={() => handleCreateVFDCard('VIRTUAL')} 
-                      disabled={isActivatingCard}
-                      size="lg"
-                      variant="outline"
-                      className="h-12 font-semibold"
-                    >
-                      {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                      VFD Virtual Card
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={handleCreateVirtualCard} 
+                    disabled={isActivatingCard}
+                    size="lg"
+                    className="w-full h-12 font-semibold"
+                  >
+                    {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                    Create Virtual Card
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -976,20 +874,7 @@ export function CardCustomizer() {
         title="Confirm Card Order"
         description="A fee of ₦1,500 will be deducted from your wallet for the custom card."
       />
-      <PinModal
-        open={isPinModalOpenForVirtual}
-        onOpenChange={setIsPinModalOpenForVirtual}
-        // Prevent PinModal from navigating to `/success` for virtual-card flows.
-        // We want users to remain on the Virtual Card view so the newly created
-        // card is immediately visible.
-        successUrl={null}
-        onConfirm={handleConfirmVirtualCard}
-        isProcessing={isActivatingCard}
-        error={virtualCardApiError}
-        onClearError={() => setVirtualCardApiError(null)}
-        title="Create Virtual Card"
-        description="A one-time fee of ₦1,000 will be deducted from your wallet to activate this virtual card."
-      />
+
         <PinModal
           open={manageModalOpen}
           onOpenChange={setManageModalOpen}
