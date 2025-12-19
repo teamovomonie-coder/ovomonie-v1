@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { getUserById } from '@/lib/db';
-import { getDb } from '@/lib/firebaseAdmin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
             const xHeaderPresent = !!request.headers.get('x-ovo-user-id');
             const authHeader = request.headers.get('authorization');
             const parsedFromToken = getUserIdFromToken(request.headers as any);
-            logger.info('invitations.stats: user lookup failed in primary store', { provided: userId, xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null });
+            logger.info('invitations.stats: user not found in primary store, attempting supabase fallback/upsert', { provided: userId, xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null });
 
             // Try Supabase direct fallback: id or phone/account match (legacy)
             try {
@@ -50,23 +49,27 @@ export async function GET(request: Request) {
                 logger.debug('supabase fallback lookup failed', e);
             }
 
-            // Try Firestore suffix match if still missing
+            // If still not found, attempt to create a minimal user record in Supabase
             if (!user) {
                 try {
-                    const cleaned = String(userId || '').replace(/\D/g, '');
-                    if (cleaned.length >= 7) {
-                        const last7 = cleaned.slice(-7);
-                        const db = await getDb();
-                        const snap = await db.collection('users').where('phone', '>=', last7).get();
-                        if (!snap.empty) user = snap.docs[0].data();
+                    const generatedCode = (Math.random().toString(36).substring(2, 10) + Date.now().toString(36)).toUpperCase().slice(0,8);
+                    const insertResp: any = await supabase
+                        .from('users')
+                        .insert([{ id: userId, referral_code: generatedCode, invites_count: 0, signups_count: 0, referral_earnings: 0 }])
+                        .select('id, referral_code, invites_count, signups_count, referral_earnings')
+                        .maybeSingle();
+                    if (insertResp?.error) {
+                        logger.error('Failed to insert minimal user in supabase:', insertResp.error);
+                    } else if (insertResp?.data) {
+                        user = insertResp.data;
                     }
                 } catch (e) {
-                    logger.debug('firestore fallback lookup failed', e);
+                    logger.error('Supabase insert for missing user failed', e);
                 }
             }
 
             if (!user) {
-                return NextResponse.json({ message: 'User not found.', details: { provided: userId, xHeaderPresent: xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null } }, { status: 404 });
+                return NextResponse.json({ message: 'User not found and automatic creation failed. Ensure `users` table exists in Supabase.' }, { status: 404 });
             }
         }
 
