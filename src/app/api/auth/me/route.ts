@@ -30,6 +30,7 @@ export async function GET() {
       status: user.status,
       avatarUrl: user.avatar_url,
       photoUrl: user.avatar_url,
+      referralCode: (user as any).referral_code || (user as any).referralCode || null,
     });
   } catch (error) {
     console.error('Error fetching user:', error);

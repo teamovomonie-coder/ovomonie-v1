@@ -4,10 +4,10 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { User as FirestoreUser } from "@/types/user";
 import { accountNumberToDisplay } from "@/lib/account-utils";
 
-type ClientUser = Pick<
+ type ClientUser = Pick<
   FirestoreUser,
   "phone" | "fullName" | "accountNumber" | "balance" | "kycTier" | "isAgent" | "email" | "status" | "avatarUrl"
-> & { userId: string; photoUrl?: string | null; displayAccountNumber?: string };
+> & { userId: string; photoUrl?: string | null; displayAccountNumber?: string; referralCode?: string | null };
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         status: userData?.status || "active",
         avatarUrl: userData?.avatar_url || userData?.avatarUrl,
         photoUrl: userData?.photoUrl || userData?.avatar_url || userData?.avatarUrl,
+        referralCode: userData?.referralCode || userData?.referral_code || null,
       });
       setBalance(typeof userData.balance === "number" ? userData.balance : 0);
       setIsAuthenticated(true);

@@ -114,7 +114,7 @@ export function InvitationDashboard() {
                 }
             };
             fetchReferralData();
-        }, [toast]);
+        }, [toast, fetchUserData, user]);
 
     const handleClaimReward = async () => {
         setIsClaiming(true);
