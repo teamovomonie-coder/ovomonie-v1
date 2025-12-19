@@ -52,7 +52,33 @@ export async function GET(request: Request) {
             }
         }
         if (!user) {
-            return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+            const xHeaderPresent = !!request.headers.get('x-ovo-user-id');
+            const authHeader = request.headers.get('authorization');
+            const parsedFromToken = getUserIdFromToken(request.headers as any);
+            logger.info('invitations.stats: user lookup failed', { provided: userId, xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null });
+
+            // Additional fallback: if provided id looks like a phone, try suffix match
+            try {
+                const cleaned = String(userId || '').replace(/\D/g, '');
+                if (cleaned.length >= 7) {
+                    const last7 = cleaned.slice(-7);
+                    const like = await supabase
+                        .from('users')
+                        .select('id, referral_code, invites_count, signups_count, referral_earnings')
+                        .ilike('phone', `%${last7}`)
+                        .limit(1)
+                        .maybeSingle();
+                    if (like?.data) {
+                        user = like.data;
+                    }
+                }
+            } catch (e) {
+                logger.debug('phone suffix lookup failed', e);
+            }
+
+            if (!user) {
+                return NextResponse.json({ message: 'User not found.', details: { provided: userId, xHeaderPresent: xHeaderPresent, hasAuthHeader: !!authHeader, parsedFromToken: parsedFromToken ?? null } }, { status: 404 });
+            }
         }
 
         // If user has no referral_code, generate one and persist it
