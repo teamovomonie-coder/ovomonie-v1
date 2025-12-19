@@ -67,7 +67,7 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^11.2.10",
-    "genkit": "^1.25.0",
+    "genkit": "^1.27.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "lucide-react": "^0.475.0",
