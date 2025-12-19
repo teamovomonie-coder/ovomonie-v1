@@ -18,35 +18,90 @@ interface ReferralStats {
 }
 
 export function InvitationDashboard() {
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+    const [referralCode, setReferralCode] = useState<string>('');
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClaiming, setIsClaiming] = useState(false);
-  const { toast } = useToast();
-  const { updateBalance } = useAuth();
+    const { toast } = useToast();
+    const { updateBalance, user, fetchUserData } = useAuth();
   const { addNotification } = useNotifications();
+
+    // Resolve token and userId robustly and persist userId to localStorage when found
+    const resolveAuth = async (): Promise<{ token: string | null; userId: string | null }> => {
+        const token = localStorage.getItem('ovo-auth-token');
+        let userId = localStorage.getItem('ovo-user-id');
+
+        if (!userId && user?.userId) {
+            userId = user.userId;
+            localStorage.setItem('ovo-user-id', userId);
+        }
+
+        if (!userId && token) {
+            try {
+                const meRes = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+                if (meRes.ok) {
+                    const meData = await meRes.json();
+                    userId = meData?.id || meData?.userId || null;
+                    if (userId) localStorage.setItem('ovo-user-id', userId);
+                    if (!user) await fetchUserData();
+                }
+            } catch (e) {
+                // ignore — caller will handle missing credentials
+            }
+        }
+
+        return { token: token || null, userId: userId || null };
+    };
 
         useEffect(() => {
             const fetchReferralData = async () => {
                 setIsLoading(true);
                 try {
                     const token = localStorage.getItem('ovo-auth-token');
-                    const userId = localStorage.getItem('ovo-user-id');
-                    if (!token || !userId) throw new Error("Authentication failed.");
+
+                    // Try to get userId from localStorage first
+                    let userId = localStorage.getItem('ovo-user-id');
+
+                    // If missing, try to get from in-memory auth context
+                    if (!userId && user?.userId) {
+                        userId = user.userId;
+                        localStorage.setItem('ovo-user-id', userId);
+                    }
+
+                    // If still missing but token exists, attempt to resolve via /api/auth/me
+                    if (!userId && token) {
+                        try {
+                            const meRes = await fetch('/api/auth/me', {
+                                headers: { Authorization: `Bearer ${token}` },
+                            });
+                            if (meRes.ok) {
+                                const meData = await meRes.json();
+                                userId = meData?.id || meData?.userId || null;
+                                if (userId) localStorage.setItem('ovo-user-id', userId);
+                                // refresh app-level user data if missing
+                                if (!user) await fetchUserData();
+                            }
+                        } catch (e) {
+                            // ignore and rely on fallback below
+                        }
+                    }
+
+                    if (!token || !userId) throw new Error('Authentication failed.');
 
                     const response = await fetch('/api/invitations/stats', {
                         headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'x-ovo-user-id': userId
-                        }
+                            Authorization: `Bearer ${token}`,
+                            'x-ovo-user-id': userId,
+                        },
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
+                        const errorData = await response.json().catch(() => ({}));
                         throw new Error(errorData.message || 'Failed to fetch referral data');
                     }
+
                     const data = await response.json();
-                    setReferralCode(data.referralCode);
+                    setReferralCode(data.referralCode || '');
                     setStats(data.stats);
                 } catch (error) {
                     toast({
@@ -64,16 +119,15 @@ export function InvitationDashboard() {
     const handleClaimReward = async () => {
         setIsClaiming(true);
         try {
-            const token = localStorage.getItem('ovo-auth-token');
-            const userId = localStorage.getItem('ovo-user-id');
-            if (!token || !userId) throw new Error("Authentication failed.");
+            const { token, userId } = await resolveAuth();
+            if (!token || !userId) throw new Error('Authentication failed.');
 
             const response = await fetch('/api/invitations/claim-reward', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'x-ovo-user-id': userId
-                }
+                    Authorization: `Bearer ${token}`,
+                    'x-ovo-user-id': userId,
+                },
             });
 
             const result = await response.json();
@@ -81,27 +135,30 @@ export function InvitationDashboard() {
 
             updateBalance(result.newBalanceInKobo);
             addNotification({
-                title: "Referral Reward Earned!",
+                title: 'Referral Reward Earned!',
                 description: `You've received ₦500 for a successful referral.`,
                 category: 'transaction',
             });
-            setStats(prev => prev ? {
-            ...prev,
-            signups: prev.signups + 1,
-            earnings: prev.earnings + 500,
-        } : null);
-        toast({ title: "Reward Credited!", description: "₦500 has been added to your wallet." });
-
-      } catch (error) {
-           toast({
+            setStats((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          signups: prev.signups + 1,
+                          earnings: prev.earnings + 500,
+                      }
+                    : null
+            );
+            toast({ title: 'Reward Credited!', description: '₦500 has been added to your wallet.' });
+        } catch (error) {
+            toast({
                 variant: 'destructive',
                 title: 'Claim Failed',
                 description: error instanceof Error ? error.message : 'An unexpected error occurred.',
             });
-      } finally {
-          setIsClaiming(false);
-      }
-  };
+        } finally {
+            setIsClaiming(false);
+        }
+    };
 
     const referralLink = 'https://ovomonie-v1-pgrm.vercel.app/register';
 
@@ -109,14 +166,13 @@ export function InvitationDashboard() {
 
     const saveReferralCode = async (newCode: string) => {
         try {
-            const token = localStorage.getItem('ovo-auth-token');
-            const userId = localStorage.getItem('ovo-user-id');
+            const { token, userId } = await resolveAuth();
             if (!token || !userId) throw new Error('Authentication failed.');
             const res = await fetch('/api/invitations/code', {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
+                    Authorization: `Bearer ${token}`,
                     'x-ovo-user-id': userId,
                 },
                 body: JSON.stringify({ referralCode: newCode }),
@@ -129,6 +185,24 @@ export function InvitationDashboard() {
             toast({ title: 'Saved', description: 'Referral code updated.' });
         } catch (err) {
             toast({ variant: 'destructive', title: 'Save failed', description: err instanceof Error ? err.message : 'Failed to save' });
+        }
+    };
+
+    const fetchReferralCodeNow = async () => {
+        try {
+            const { token, userId } = await resolveAuth();
+            if (!token || !userId) return;
+            const res = await fetch('/api/invitations/stats', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'x-ovo-user-id': userId,
+                },
+            });
+            if (!res.ok) return;
+            const data = await res.json().catch(() => ({}));
+            if (data?.referralCode) setReferralCode(data.referralCode);
+        } catch (e) {
+            // silent
         }
     };
 
@@ -230,14 +304,17 @@ export function InvitationDashboard() {
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <div className="flex gap-2 items-center">
-                                    <Input
-                                        type="text"
-                                        value={referralCode || ''}
-                                        onChange={(e) => setReferralCode(e.target.value)}
-                                        placeholder="Your referral code"
-                                        className="flex-1"
-                                    />
+                                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                                    <div className="flex-1 w-full">
+                                        <Input
+                                            type="text"
+                                            value={referralCode}
+                                            onChange={(e) => setReferralCode(e.target.value)}
+                                            onFocus={() => fetchReferralCodeNow()}
+                                            placeholder="Your referral code"
+                                            className="w-full"
+                                        />
+                                    </div>
                                     <Button onClick={() => saveReferralCode(referralCode || '')} disabled={!referralCode}>
                                         Save Code
                                     </Button>
