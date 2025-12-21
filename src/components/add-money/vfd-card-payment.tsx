@@ -567,10 +567,10 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         return;
       }
       
-      if (!data.ok) {
+      if (!completeData.ok) {
         
         // If timeout or processing, payment likely succeeded - refresh balance
-        if ((data.message?.includes('timed out') || data.message?.includes('processing')) && cardData) {
+        if ((completeData.message?.includes('timed out') || completeData.message?.includes('processing')) && cardData) {
           setIsOTPModalOpen(false);
           setIsProcessing(false);
           
@@ -614,7 +614,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           });
           
           return;
-        } else if (data.message?.includes('being processed')) {
+        } else if (completeData.message?.includes('being processed')) {
           // Payment is processing, treat as success
           setIsOTPModalOpen(false);
           setIsProcessing(false);
@@ -643,8 +643,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
             handlePaymentSuccess(cardData.amount, false);
           }
           return;
-        } else {
-          toast({ title: 'Error', description: data.message || 'OTP validation failed', variant: 'destructive' });
+          } else {
+          toast({ title: 'Error', description: completeData.message || 'OTP validation failed', variant: 'destructive' });
         }
         return;
       }
@@ -671,9 +671,9 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       };
       
       // Update balance immediately if provided
-      if (data.newBalanceInKobo) {
-        console.log('Updating balance from response:', data.newBalanceInKobo);
-        updateBalance(data.newBalanceInKobo);
+      if (completeData.newBalanceInKobo) {
+        console.log('Updating balance from response:', completeData.newBalanceInKobo);
+        updateBalance(completeData.newBalanceInKobo);
       }
       
       // Always force refresh from server as backup
@@ -682,8 +682,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setTimeout(forceRefreshBalance, 5000);
       
       // Save card if tokenization was requested
-      if (cardData?.saveCard && data.data?.cardToken) {
-        await saveCard(data.data.cardToken);
+      if (cardData?.saveCard && completeData.data?.cardToken) {
+        await saveCard(completeData.data.cardToken);
       }
       
       if (cardData) {
