@@ -478,7 +478,7 @@ export function CardCustomizer() {
   // Retry a failed virtual card creation by removing the failed card and opening create modal again
   const handleRetryVirtualCard = (cardId: string) => {
     setVirtualCards(prev => prev.filter(c => c.id !== cardId));
-    setIsPinModalOpenForVirtual(true);
+    setIsPinModalOpen(true);
   };
 
   // Manage (deactivate/delete) modal state
