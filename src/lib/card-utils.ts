@@ -169,8 +169,8 @@ export function validateExpiry(expiry: string): { isValid: boolean; isExpired: b
     return { isValid: false, isExpired: true, message: 'Card has expired' };
   }
   
-  // Card valid for max 20 years from now
-  if (year > currentYear + 20) {
+  // Card valid for max 50 years from now (to support test cards)
+  if (year > currentYear + 50) {
     return { isValid: false, isExpired: false, message: 'Invalid expiry year' };
   }
   

@@ -3,7 +3,7 @@
  * Handles VFD virtual account creation, mapping, and reconciliation
  */
 
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 import { VirtualAccountRequest } from './vfd-wallet';
 import { logger } from './logger';
 
@@ -85,7 +85,9 @@ export async function createUserVirtualAccount(
  */
 export async function getUserVirtualAccounts(userId: string): Promise<VirtualAccount[]> {
   try {
-    const { data, error } = await supabase
+    if (!supabaseAdmin) return [];
+
+    const { data, error } = await supabaseAdmin
       .from('virtual_accounts')
       .select('*')
       .eq('user_id', userId)
@@ -116,12 +118,13 @@ export async function processInboundTransfer(webhookData: {
   sessionId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!supabaseAdmin) return { success: false, error: 'Database not configured' };
+
     const { accountNumber, amount, senderName, reference, sessionId } = webhookData;
     const { toKobo } = await import('./amount');
     const amountInKobo = toKobo(amount as any);
 
-    // Find virtual account
-    const { data: virtualAccount, error: vaError } = await supabase
+    const { data: virtualAccount, error: vaError } = await supabaseAdmin
       .from('virtual_accounts')
       .select('*')
       .eq('vfdAccountNumber', accountNumber)
@@ -133,8 +136,7 @@ export async function processInboundTransfer(webhookData: {
       return { success: false, error: 'Virtual account not found' };
     }
 
-    // Check for duplicate transaction
-    const { data: existingTxn } = await supabase
+    const { data: existingTxn } = await supabaseAdmin
       .from('wallet_transactions')
       .select('id')
       .eq('reference', reference)
@@ -145,8 +147,7 @@ export async function processInboundTransfer(webhookData: {
       return { success: true };
     }
 
-    // Start transaction
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('balance')
       .eq('id', virtualAccount.userId)
@@ -159,8 +160,7 @@ export async function processInboundTransfer(webhookData: {
 
     const newBalance = user.balance + amountInKobo;
 
-    // Update user balance and create transaction record
-    const { error: updateError } = await supabase.rpc('process_inbound_transfer', {
+    const { error: updateError } = await supabaseAdmin.rpc('process_inbound_transfer', {
       p_user_id: virtualAccount.userId,
       p_amount: amountInKobo,
       p_reference: reference,
@@ -174,8 +174,7 @@ export async function processInboundTransfer(webhookData: {
       return { success: false, error: 'Failed to process transfer' };
     }
 
-    // Mark virtual account as used if single-use
-    await supabase
+    await supabaseAdmin
       .from('virtual_accounts')
       .update({ status: 'used', updatedAt: new Date().toISOString() })
       .eq('id', virtualAccount.id);
@@ -199,26 +198,47 @@ export async function processInboundTransfer(webhookData: {
  */
 export async function getWalletBalance(userId: string): Promise<WalletBalance | null> {
   try {
-    const { data, error } = await supabase
+    if (!supabaseAdmin) {
+      logger.error('Supabase admin client not available');
+      return {
+        userId,
+        balance: 0,
+        ledgerBalance: 0,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('users')
       .select('balance')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
       logger.error('Failed to fetch wallet balance', { error, userId });
-      return null;
+      return {
+        userId,
+        balance: 0,
+        ledgerBalance: 0,
+        lastUpdated: new Date().toISOString()
+      };
     }
 
+    const balance = data?.balance || 0;
     return {
       userId,
-      balance: data.balance,
-      ledgerBalance: data.balance, // For now, same as balance
+      balance,
+      ledgerBalance: balance,
       lastUpdated: new Date().toISOString()
     };
   } catch (error) {
     logger.error('Error fetching wallet balance', { error, userId });
-    return null;
+    return {
+      userId,
+      balance: 0,
+      ledgerBalance: 0,
+      lastUpdated: new Date().toISOString()
+    };
   }
 }
 
@@ -227,13 +247,14 @@ export async function getWalletBalance(userId: string): Promise<WalletBalance | 
  */
 export async function initiateOutboundTransfer(
   userId: string,
-  amount: number, // in kobo
+  amount: number,
   recipientAccount: string,
   recipientBank: string,
   narration: string
 ): Promise<{ success: boolean; reference?: string; error?: string }> {
   try {
-    // Check user balance
+    if (!supabaseAdmin) return { success: false, error: 'Database not configured' };
+
     const balance = await getWalletBalance(userId);
     if (!balance || balance.balance < amount) {
       return { success: false, error: 'Insufficient balance' };
@@ -241,8 +262,7 @@ export async function initiateOutboundTransfer(
 
     const reference = `OUT_${userId}_${Date.now()}`;
     
-    // Debit user wallet first
-    const { error: debitError } = await supabase.rpc('process_outbound_transfer', {
+    const { error: debitError } = await supabaseAdmin.rpc('process_outbound_transfer', {
       p_user_id: userId,
       p_amount: amount,
       p_reference: reference,
@@ -256,7 +276,6 @@ export async function initiateOutboundTransfer(
       return { success: false, error: 'Failed to process transfer' };
     }
 
-    // Execute VFD transfer
     const { executeVFDTransfer } = await import('./vfd-transfer');
     const vfdResult = await executeVFDTransfer(
       amount,
@@ -267,8 +286,7 @@ export async function initiateOutboundTransfer(
     );
 
     if (vfdResult.success) {
-      // Mark as completed
-      await supabase
+      await supabaseAdmin
         .from('wallet_transactions')
         .update({ 
           status: 'completed',
@@ -279,8 +297,7 @@ export async function initiateOutboundTransfer(
       logger.info('Outbound transfer completed', { userId, amount, reference });
       return { success: true, reference };
     } else {
-      // Mark as failed and refund
-      await supabase.rpc('refund_failed_transfer', {
+      await supabaseAdmin.rpc('refund_failed_transfer', {
         p_user_id: userId,
         p_amount: amount,
         p_reference: reference

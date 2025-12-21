@@ -83,7 +83,7 @@ export async function getVFDAccessToken(): Promise<string> {
 export async function getVFDHeaders(): Promise<Record<string, string>> {
   const token = await getVFDAccessToken();
   return {
-    'Authorization': `Bearer ${token}`,
+    'AccessToken': token,
     'Content-Type': 'application/json',
   };
 }
