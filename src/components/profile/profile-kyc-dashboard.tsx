@@ -172,43 +172,6 @@ export function ProfileKycDashboard() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-4 order-1">
-          <Card className="border border-slate-200 shadow-md rounded-2xl bg-white/95 backdrop-blur">
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#0a56ff]/15 to-[#0b1b3a]/12 text-[#0a56ff] flex items-center justify-center shadow-inner">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <span className="hidden sm:inline text-sm font-medium text-slate-600">Full Name</span>
-                </div>
-                <span className="font-semibold">{user?.fullName}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#0a56ff]/15 to-[#0b1b3a]/12 text-[#0a56ff] flex items-center justify-center shadow-inner">
-                    <Mail className="h-4 w-4" />
-                  </div>
-                  <span className="hidden sm:inline text-sm font-medium text-slate-600">Email Address</span>
-                </div>
-                <span className="font-semibold">{user?.email || "Not provided"}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#0a56ff]/15 to-[#0b1b3a]/12 text-[#0a56ff] flex items-center justify-center shadow-inner">
-                    <Phone className="h-4 w-4" />
-                  </div>
-                  <span className="hidden sm:inline text-sm font-medium text-slate-600">Phone Number</span>
-                </div>
-                <span className="font-semibold">{user?.phone || "Not provided"}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         <Card className="border border-slate-200 shadow-md rounded-2xl order-2 lg:order-1 bg-white/95 backdrop-blur">
           <CardHeader>
             <CardTitle>KYC Verification</CardTitle>
@@ -281,6 +244,18 @@ export function ProfileKycDashboard() {
             ))}
           </CardContent>
         </Card>
+
+        <div className="space-y-4 order-1">
+          <Card className="border border-slate-200 shadow-md rounded-2xl bg-white/95 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Profile Information</CardTitle>
+              <CardDescription>View and edit your profile details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <EditProfileForm />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-4 order-3 lg:col-span-2">
           <Card className="border border-slate-200 shadow-md rounded-2xl bg-white/95 backdrop-blur">
@@ -600,3 +575,84 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenC
     </Dialog>
   );
 ``}
+
+
+const profileSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters').optional(),
+});
+
+function EditProfileForm() {
+  const { user, fetchUserData } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { username: (user as any)?.username || '' },
+  });
+
+  const onSubmit = async (data: z.infer<typeof profileSchema>) => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...data, userId: user?.userId }),
+      });
+      if (!res.ok) throw new Error('Update failed');
+      toast({ title: 'Profile Updated', description: 'Username saved successfully' });
+      await fetchUserData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormItem>
+          <FormLabel>Full Name</FormLabel>
+          <FormControl>
+            <Input value={user?.fullName || ''} disabled className="bg-gray-50" />
+          </FormControl>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input value={user?.email || ''} disabled className="bg-gray-50" />
+          </FormControl>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Mobile Number</FormLabel>
+          <FormControl>
+            <Input value={user?.phone || ''} disabled className="bg-gray-50" />
+          </FormControl>
+        </FormItem>
+
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Enter username" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes
+        </Button>
+      </form>
+    </Form>
+  );
+}
+

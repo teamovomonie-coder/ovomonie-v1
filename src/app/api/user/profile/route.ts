@@ -27,14 +27,14 @@ export async function PATCH(request: NextRequest) {
     
     // Get request body to extract user ID
     const body = await request.json();
-    const { fullName, email, phone, userId } = body;
+    const { fullName, email, phone, userId, avatarUrl, username } = body;
 
     // Validate input
     if (!userId) {
       return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
     }
 
-    if (!fullName && !email && !phone) {
+    if (!fullName && !email && !phone && !avatarUrl && !username) {
       return NextResponse.json({ message: 'At least one field must be provided' }, { status: 400 });
     }
 
@@ -46,6 +46,8 @@ export async function PATCH(request: NextRequest) {
     if (fullName) updateData.full_name = fullName;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
+    if (avatarUrl) updateData.avatar_url = avatarUrl;
+    if (username) updateData.username = username;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

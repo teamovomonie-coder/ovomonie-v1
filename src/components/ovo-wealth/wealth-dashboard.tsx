@@ -403,9 +403,9 @@ export function WealthDashboard() {
   return (
     <>
         <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                 <h2 className="text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mt-2 sm:mt-0">
                     <WithdrawDialog>
                         <Button>Withdraw</Button>
                     </WithdrawDialog>
@@ -415,7 +415,7 @@ export function WealthDashboard() {
                 </div>
             </div>
             <Tabs defaultValue="portfolio" className="space-y-4">
-                <TabsList>
+                <TabsList className="overflow-x-auto scrollbar-none">
                     <TabsTrigger value="portfolio">My Portfolio</TabsTrigger>
                     <TabsTrigger value="explore">Explore Products</TabsTrigger>
                 </TabsList>
@@ -460,8 +460,8 @@ export function WealthDashboard() {
                             </CardContent>
                         </Card>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <Card className="col-span-4">
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+                        <Card className="col-span-1 md:col-span-1 lg:col-span-4">
                             <CardHeader>
                                 <CardTitle>Portfolio Performance</CardTitle>
                             </CardHeader>
@@ -479,7 +479,7 @@ export function WealthDashboard() {
                                 </ChartContainer>
                             </CardContent>
                         </Card>
-                        <Card className="col-span-4 lg:col-span-3">
+                        <Card className="col-span-1 md:col-span-1 lg:col-span-3">
                             <CardHeader>
                                 <CardTitle>My Investments</CardTitle>
                                 <CardDescription>Your active investment plans.</CardDescription>
@@ -492,7 +492,8 @@ export function WealthDashboard() {
                                         <Skeleton className="h-10 w-full" />
                                     </div>
                                 ) : userInvestments.length > 0 ? (
-                                    <Table>
+                                    <div className="overflow-auto">
+                                        <Table>
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>Plan</TableHead>
@@ -516,7 +517,8 @@ export function WealthDashboard() {
                                                 </TableRow>
                                             ))}
                                         </TableBody>
-                                    </Table>
+                                        </Table>
+                                    </div>
                                 ) : (
                                     <div className="text-center py-10 text-muted-foreground">
                                         <p>You have no active investments.</p>
