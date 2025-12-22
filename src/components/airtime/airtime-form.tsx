@@ -189,33 +189,13 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         }
 
         updateBalance(result.newBalanceInKobo);
-        addNotification({
-            title: 'Airtime Purchase Successful',
-            description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
-            category: 'transaction',
-        });
-        toast({
-          title: "Purchase Successful!",
-          description: `You bought ₦${purchaseData.amount.toLocaleString()} airtime for ${purchaseData.phoneNumber}.`,
-        });
         
-        // Save pending receipt and navigate to /success
-        const pendingReceipt = {
-          type: 'airtime' as const,
-          data: {
-            network: purchaseData.network,
-            phoneNumber: purchaseData.phoneNumber,
-            amount: purchaseData.amount,
-          },
-          reference: clientReference,
-          amount: purchaseData.amount,
-          transactionId: clientReference,
-          completedAt: new Date().toISOString(),
-        };
-        await pendingTransactionService.savePendingReceipt(pendingReceipt);
+        setIsPinModalOpen(false);
         form.reset();
         setPurchaseData(null);
-        router.push('/success');
+        
+        // Navigate to receipt page with transaction reference
+        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
 
     } catch(error: any) {
         let description = "An unknown error occurred.";
@@ -348,35 +328,13 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         }
 
         updateBalance(result.newBalanceInKobo);
-        addNotification({
-            title: 'Data Purchase Successful',
-            description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
-            category: 'transaction',
-        });
-        toast({
-          title: "Purchase Successful!",
-          description: `You bought ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}.`,
-        });
         
-        // Save pending receipt and navigate to /success
-        const pendingReceipt = {
-          type: 'airtime' as const,
-          data: {
-            network: purchaseData.values.network,
-            phoneNumber: purchaseData.values.phoneNumber,
-            amount: purchaseData.plan.price,
-            planName: purchaseData.plan.name,
-            isDataPlan: true,
-          },
-          reference: clientReference,
-          amount: purchaseData.plan.price,
-          transactionId: clientReference,
-          completedAt: new Date().toISOString(),
-        };
-        await pendingTransactionService.savePendingReceipt(pendingReceipt);
+        setIsPinModalOpen(false);
         form.reset();
         setPurchaseData(null);
-        router.push('/success');
+        
+        // Navigate to receipt page with transaction reference
+        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
     } catch (error: any) {
         let description = "An unknown error occurred.";
         if (error.response?.status === 401) {

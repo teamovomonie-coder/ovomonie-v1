@@ -81,10 +81,26 @@ export async function POST(request: Request) {
             party: party,
             balance_after: newBalance,
         });
+        
+        // Save to pending_transactions for receipt display
+        const { db: supabase } = await import('@/lib/db');
+        await supabase.from('pending_transactions').insert({
+            user_id: userId,
+            type: category,
+            reference: clientReference,
+            amount: amount,
+            data: {
+                network: party.name,
+                phoneNumber: party.billerId,
+                amount: amount,
+            },
+            status: 'completed',
+        });
 
         return NextResponse.json({
             message: 'Payment successful!',
             newBalanceInKobo: newBalance,
+            transactionId: clientReference,
         }, { status: 200 });
 
     } catch (error: any) {
