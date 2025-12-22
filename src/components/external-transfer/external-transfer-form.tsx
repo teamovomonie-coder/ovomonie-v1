@@ -32,6 +32,7 @@ import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
+import { MockAccounts } from './mock-accounts';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -250,6 +251,14 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
 
     setApiError(null);
     setIsProcessing(true);
+    
+    // Clear any previous receipt data to prevent showing old receipts
+    try {
+      await pendingTransactionService.clearPendingReceipts();
+    } catch (e) {
+      console.warn('[ExternalTransfer] could not clear pending receipts', e);
+    }
+    
     try {
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) {
@@ -382,11 +391,14 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
                       status: 'pending',
                     };
                     await pendingTransactionService.savePendingReceipt(pendingReceipt);
-                    console.debug('[ExternalTransfer] set provisional ovo-pending-receipt', pendingReceipt);
                   }
-                } catch (e) { console.error('[ExternalTransfer] failed to set provisional pending receipt', e); }
+                } catch (e) { 
+                  console.error('[ExternalTransfer] failed to set provisional pending receipt', e); 
+                }
                 setIsPinModalOpen(true);
-              }} disabled={isProcessing}>Confirm Transfer</Button>
+              }} disabled={isProcessing}>
+                Confirm Transfer
+              </Button>
           </CardFooter>
         </Card>
         <PinModal
@@ -396,6 +408,8 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
             isProcessing={isProcessing}
             error={apiError}
             onClearError={() => setApiError(null)}
+            title="Authorize External Transfer"
+            description={`Enter your PIN to transfer ₦${submittedData?.amount.toLocaleString()} to ${recipientName}`}
         />
       </>
     );
@@ -404,6 +418,14 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <MockAccounts 
+          onSelectAccount={(account) => {
+            form.setValue('bankCode', account.bankCode);
+            form.setValue('accountNumber', account.accountNumber);
+            // Trigger validation
+            form.trigger(['bankCode', 'accountNumber']);
+          }}
+        />
         <Alert>
             <Info className="h-4 w-4" />
             <AlertTitle>Bank Transfer via VFD</AlertTitle>

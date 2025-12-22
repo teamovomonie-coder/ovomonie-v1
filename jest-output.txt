@@ -1,0 +1,51 @@
+﻿node.exe : ΓùÅ Validation Warning:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\user\AppData\Roaming\n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ΓùÅ Validation Warning::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+  Unknown option "moduleNameMapping" with value {"^@/(.*)$": "<rootDir>/src/$1"} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+ΓùÅ Validation Warning:
+
+  Unknown option "moduleNameMapping" with value {"^@/(.*)$": "<rootDir>/src/$1"} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+FAIL e2e/critical-flows.spec.ts
+  ΓùÅ Test suite failed to run
+
+    ReferenceError: TransformStream is not defined
+
+    [0m [90m 3 |[39m test[33m.[39mdescribe([32m'Critical User Flows'[39m[33m,[39m () [33m=>[39m {
+     [90m 4 |[39m   
+    [31m[1m>[22m[39m[90m 5 |[39m   test([32m'homepage loads successfully'[39m[33m,[39m [36masync[39m 
+({ page }) [33m=>[39m {
+     [90m   |[39m               [31m[1m^[22m[39m
+     [90m 6 |[39m     [36mawait[39m page[33m.[39mgoto([32m'/'[39m)[33m;[39m
+     [90m 7 |[39m     [36mawait[39m expect(page)[33m.[39mtoHaveTitle([35m/Ovomonie/i[39m)[33m;[39m
+     [90m 8 |[39m   })[33m;[39m[0m
+
+      at Object.<anonymous> (node_modules/playwright/lib/mcpBundleImpl.js:17:5390)
+      at Object.<anonymous> (node_modules/playwright/lib/mcp/sdk/bundle.js:48:22)
+      at Object.<anonymous> (node_modules/playwright/lib/mcp/sdk/server.js:40:25)
+      at Object.<anonymous> (node_modules/playwright/lib/mcp/browser/config.js:50:21)
+      at Object.<anonymous> (node_modules/playwright/lib/mcp/test/browserBackend.js:24:21)
+      at Object.<anonymous> (node_modules/playwright/lib/index.js:45:29)
+      at Object.<anonymous> (node_modules/playwright/test.js:17:13)
+      at Object.<anonymous> (node_modules/@playwright/test/index.js:17:18)
+      at Object.<anonymous> (e2e/critical-flows.spec.ts:5:15)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        3.191 s
+Ran all test suites.

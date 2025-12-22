@@ -86,8 +86,11 @@ export const supabase: any = supabaseAdmin;
 // User service
 export const userService = {
   async getById(userId: string): Promise<DbUser | null> {
-    if (!supabaseAdmin) return null;
-    const { data } = await supabaseAdmin.from('users').select('*').eq('id', userId).limit(1).single();
+    if (!supabaseAdmin) throw new Error('Database not initialized');
+    const { data, error } = await supabaseAdmin.from('users').select('*').eq('id', userId).limit(1).single();
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw new Error(`Database error: ${error.message}`);
+    }
     return mapUser((data as any) ?? null);
   },
   async getByPhone(phone: string): Promise<DbUser | null> {
@@ -127,23 +130,31 @@ export const userService = {
     return mapUser((data as any) ?? null);
   },
   async updateBalance(userId: string, newBalance: number): Promise<boolean> {
-    if (!supabaseAdmin) return false;
+    if (!supabaseAdmin) throw new Error('Database not initialized');
     const { error } = await supabaseAdmin.from('users').update({ balance: newBalance }).eq('id', userId);
-    return !error;
+    if (error) {
+      throw new Error(`Failed to update balance: ${error.message}`);
+    }
+    return true;
   }
 };
 
 // Transaction service
 export const transactionService = {
   async create(tx: DbTransaction): Promise<string | null> {
-    if (!supabaseAdmin) return null;
+    if (!supabaseAdmin) throw new Error('Database not initialized');
     const { data, error } = await supabaseAdmin.from('financial_transactions').insert([tx]).select('id').limit(1).single();
-    if (error) return null;
+    if (error) {
+      throw new Error(`Failed to create transaction: ${error.message}`);
+    }
     return (data as any)?.id ?? null;
   },
   async getByReference(reference: string): Promise<DbTransaction | null> {
-    if (!supabaseAdmin) return null;
-    const { data } = await supabaseAdmin.from('financial_transactions').select('*').eq('reference', reference).limit(1).single();
+    if (!supabaseAdmin) throw new Error('Database not initialized');
+    const { data, error } = await supabaseAdmin.from('financial_transactions').select('*').eq('reference', reference).limit(1).single();
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw new Error(`Database error: ${error.message}`);
+    }
     return (data as any) ?? null;
   },
   async getByUserId(userId: string, limit = 50, category?: string): Promise<DbTransaction[]> {
@@ -158,11 +169,10 @@ export const transactionService = {
 // Notification service
 export const notificationService = {
   async create(n: DbNotification): Promise<string | null> {
-    if (!supabaseAdmin) return null;
+    if (!supabaseAdmin) throw new Error('Database not initialized');
     const { data, error } = await supabaseAdmin.from('notifications').insert([n]).select('id').limit(1).single();
     if (error) {
-      console.error('Failed to create notification', error);
-      throw error;
+      throw new Error(`Failed to create notification: ${error.message}`);
     }
     return (data as any)?.id ?? null;
   },

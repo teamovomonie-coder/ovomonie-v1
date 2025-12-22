@@ -260,15 +260,44 @@ class VFDWalletService {
       body: JSON.stringify(request),
     });
 
+    const responseText = await response.text();
+    logger.info('VFD Wallet: Withdrawal raw response', { 
+      status: response.status, 
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseText.substring(0, 500) // Log first 500 chars
+    });
+
     if (!response.ok) {
-      const error = await response.text();
-      logger.error('VFD Wallet: Withdrawal failed', { status: response.status, error });
-      throw new Error(`Withdrawal failed: ${response.status}`);
+      logger.error('VFD Wallet: Withdrawal failed', { 
+        status: response.status, 
+        statusText: response.statusText,
+        error: responseText 
+      });
+      throw new Error(`Withdrawal failed: ${response.status} ${response.statusText}`);
     }
 
-    const result: VFDResponse<any> = await response.json();
+    if (!responseText.trim()) {
+      logger.error('VFD Wallet: Empty response from withdrawal API');
+      throw new Error('Empty response from VFD withdrawal API');
+    }
+
+    let result: VFDResponse<any>;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      logger.error('VFD Wallet: Invalid JSON response from withdrawal', { 
+        responseText: responseText.substring(0, 200),
+        parseError: e instanceof Error ? e.message : 'Unknown parse error'
+      });
+      throw new Error('Invalid response from VFD withdrawal API');
+    }
 
     if (result.status !== '00') {
+      logger.error('VFD Wallet: Withdrawal API returned error status', { 
+        status: result.status, 
+        message: result.message 
+      });
       throw new Error(result.message || 'Withdrawal failed');
     }
 
@@ -540,22 +569,43 @@ class VFDWalletService {
     });
 
     const responseText = await response.text();
-    logger.info('VFD Wallet: Raw response', { status: response.status, body: responseText });
+    logger.info('VFD Wallet: Raw response', { 
+      status: response.status, 
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseText.substring(0, 500) // Log first 500 chars
+    });
 
     if (!response.ok) {
-      logger.error('VFD Wallet: Account verification failed', { status: response.status, error: responseText });
-      throw new Error(`Account verification failed: ${response.status}`);
+      logger.error('VFD Wallet: Account verification failed', { 
+        status: response.status, 
+        statusText: response.statusText,
+        error: responseText 
+      });
+      throw new Error(`Account verification failed: ${response.status} ${response.statusText}`);
+    }
+
+    if (!responseText.trim()) {
+      logger.error('VFD Wallet: Empty response from API');
+      throw new Error('Empty response from VFD API');
     }
 
     let result: VFDResponse<BankAccountVerificationResult>;
     try {
       result = JSON.parse(responseText);
     } catch (e) {
-      logger.error('VFD Wallet: Invalid JSON response', { responseText });
+      logger.error('VFD Wallet: Invalid JSON response', { 
+        responseText: responseText.substring(0, 200),
+        parseError: e instanceof Error ? e.message : 'Unknown parse error'
+      });
       throw new Error('Invalid response from VFD API');
     }
 
     if (result.status !== '00') {
+      logger.error('VFD Wallet: API returned error status', { 
+        status: result.status, 
+        message: result.message 
+      });
       throw new Error(result.message || 'Account verification failed');
     }
 

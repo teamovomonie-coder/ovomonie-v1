@@ -172,7 +172,19 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-xs">
+      <DialogContent className="sm:max-w-xs relative z-50 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
+        {/* Loading overlay - only show during transaction processing, not PIN verification */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm text-muted-foreground">
+                Processing transaction...
+              </p>
+            </div>
+          </div>
+        )}
+        
         <DialogHeader>
           <DialogTitle>{title || 'Enter Transaction PIN'}</DialogTitle>
           <DialogDescription>
@@ -206,9 +218,9 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={isProcessing || isVerifying}>
-                {(isProcessing || isVerifying) && <Loader2 className="animate-spin mr-2" />}
-                Authorize
+              <Button type="submit" className="w-full" disabled={isVerifying}>
+                {isVerifying && <Loader2 className="animate-spin mr-2" />}
+                {isVerifying ? 'Verifying PIN...' : 'Authorize'}
               </Button>
             </DialogFooter>
           </form>

@@ -23,6 +23,9 @@
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run lint && npm run typecheck && npm run test:unit && npm run test:e2e",
     "fix:auth": "node scripts/fix-auth.js",
+    "test:vfd": "node scripts/test-vfd-connectivity.js",
+    "debug:vfd": "node scripts/debug-vfd-api.js",
+    "debug:vfd-withdrawal": "node scripts/debug-vfd-withdrawal.js",
     "tx:view": "node scripts/view-transaction.js",
     "tx:update": "node scripts/update-transaction-status.js"
   },
