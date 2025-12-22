@@ -21,6 +21,8 @@ import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { useVFDPayment } from '@/hooks/use-vfd-payment';
+import { useRouter } from 'next/navigation';
+import { submitPurchase } from '@/lib/purchase-helper';
 import { Loader2, AlertCircle, CreditCard, Trash2, Star, ChevronDown, Check, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -86,6 +88,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   const { updateBalance } = useAuth();
   const { addNotification } = useNotifications();
   const vfdPayment = useVFDPayment();
+  const router = useRouter();
 
   // State
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -396,6 +399,30 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         };
       }
 
+      // Try the centralized charge middleware first
+      try {
+        const payload: any = {
+          amount: cardData.amount,
+          reference,
+          type: 'deposit',
+          paymentMethod: 'card',
+          cardDetails: requestBody,
+          shouldTokenize: cardData.saveCard,
+        };
+
+        const result = await submitPurchase(payload);
+        if (result.ok && result.transactionId) {
+          // navigate to receipt which will fetch canonical transaction
+          router.push(`/receipt/${result.transactionId}`);
+          return;
+        }
+
+        // If middleware couldn't handle it (e.g., needs 3DS or OTP), fall back to previous direct VFD initiate
+      } catch (err) {
+        // Continue to fallback flow
+      }
+
+      // Fallback: call VFD initiate directly (keeps previous 3DS/OTP behavior)
       const res = await fetch('/api/vfd/cards/initiate', {
         method: 'POST',
         headers: {
@@ -415,7 +442,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       }
 
       const responseData = data.data?.data || data.data;
-      
+
       // Handle 3D Secure redirect
       if (responseData?.redirectHtml) {
         window.open(responseData.redirectHtml, '_blank', 'width=500,height=600');
@@ -426,7 +453,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         pollPaymentStatus(reference, cardData.amount);
         return;
       }
-      
+
       // Handle OTP required
       if (responseData?.code === '01' || 
           responseData?.narration?.toLowerCase().includes('otp') ||

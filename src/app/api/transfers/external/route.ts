@@ -7,16 +7,19 @@ import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { executeVFDTransaction } from '@/lib/balance-sync';
 
 export async function POST(request: NextRequest) {
+    let userId: string | null = null;
+    let clientReference: string | null = null;
     try {
         // 1. Authentication
-        const userId = getUserIdFromToken(request.headers);
+        userId = getUserIdFromToken(request.headers);
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         // 2. Parse and validate input
         const body = await request.json();
-        const { recipientName, bankCode, accountNumber, amount, narration, clientReference, message, photo } = body;
+        const { recipientName, bankCode, accountNumber, amount, narration, clientReference: clientRefFromBody, message, photo } = body;
+        clientReference = clientRefFromBody;
 
         if (!recipientName || !bankCode || !accountNumber || !amount || typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json({ ok: false, message: 'Invalid request. Recipient details and amount are required.' }, { status: 400 });
@@ -45,7 +48,14 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. Get sender details from Supabase
-        const sender = await userService.getById(userId);
+        let sender: any | null;
+        try {
+            sender = await userService.getById(userId);
+        } catch (dbError: any) {
+            logger.error('Database error getting user', { userId, error: dbError.message });
+            throw new Error('Database connection failed. Please try again.');
+        }
+
         if (!sender) {
             return NextResponse.json({ ok: false, message: 'Sender account not found.' }, { status: 404 });
         }

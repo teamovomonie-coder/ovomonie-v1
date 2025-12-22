@@ -9,13 +9,17 @@ import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
+  let accountNumber: string | undefined;
+  let bankCode: string | undefined;
   try {
     const userId = getUserIdFromToken(req.headers);
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { accountNumber, bankCode } = await req.json();
+    const body = await req.json();
+    accountNumber = body?.accountNumber;
+    bankCode = body?.bankCode;
 
     if (!accountNumber || !bankCode) {
       return NextResponse.json(
