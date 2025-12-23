@@ -5,18 +5,12 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import BackButton from '@/components/layout/back-button';
-import { ensureFirestoreInit } from '@/lib/firestore-ping';
 import { OfflineBanner } from "@/components/layout/offline-banner";
 
 export const metadata: Metadata = {
   title: 'OVOMONIE',
   description: 'A revolutionary platform that combines modern banking with innovative lifestyle and financial solutions.',
 };
-
-if (typeof window === 'undefined') {
-  // Initialize Firestore immediately on app start (server side).
-  ensureFirestoreInit();
-}
 
 export default function RootLayout({
   children,

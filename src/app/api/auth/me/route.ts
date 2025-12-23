@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getUserById } from '@/lib/db';
 
 export async function GET() {

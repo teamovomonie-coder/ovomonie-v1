@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { db, userService, notificationService } from '@/lib/db';
@@ -29,9 +29,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Upgrade account with VFD using BVN
-        await vfdWalletService.upgradeAccountWithBVN(user.account_number || user.accountNumber || '', bvn);
+        await vfdWalletService.upgradeAccountWithBVN(user.account_number || '', bvn);
 
         // Update user tier in Supabase
+        if (!db) {
+            throw new Error('Database not available');
+        }
+        
         await db
             .from('users')
             .update({ 

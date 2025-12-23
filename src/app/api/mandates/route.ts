@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdMandateService } from '@/lib/vfd-mandate-service';
 

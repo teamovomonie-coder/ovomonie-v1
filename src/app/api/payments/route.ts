@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
+// Firebase removed - using Supabase
 import {
     collection,
     runTransaction,
@@ -12,14 +12,17 @@ import {
     getDocs,
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
 
 export async function POST(request: Request) {
     try {
-        const reqHeaders = request.headers as { get(name: string): string | null };
+        const reqHeaders = request.headers as { get(name: string): string };
         const userId = getUserIdFromToken(reqHeaders);
+        
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
 
         // Debug: log that the payment request arrived and whether auth header was present
         try {
@@ -75,10 +78,9 @@ export async function POST(request: Request) {
             user_id: userId,
             reference: clientReference,
             type: 'debit',
-            category: category,
             amount: amountInKobo,
             narration: narration || `Payment for ${party.name}`,
-            party: party,
+            party_name: "Transaction",
             balance_after: newBalance,
         });
         
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
                 phoneNumber: party.billerId,
                 amount: amount,
             },
-            status: 'completed',
+            status: "completed",
         });
 
         return NextResponse.json({

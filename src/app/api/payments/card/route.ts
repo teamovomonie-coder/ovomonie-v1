@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdCardService } from '@/lib/vfd-card-service';
 import { transactionService, notificationService } from '@/lib/db';
@@ -7,6 +7,10 @@ import { transactionService, notificationService } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const userId = getUserIdFromToken(request.headers);
+        
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -55,12 +59,11 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             reference,
             type: 'debit',
-            category: 'card_payment',
             amount: 0,
             narration: 'Card payment',
-            party: { gateway: 'VFD' },
+            party_name: "Transaction",
             balance_after: 0,
-            status: 'completed',
+            status: "completed",
             metadata: { vfdReference: reference },
           });
         }
@@ -82,12 +85,11 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             reference,
             type: 'debit',
-            category: 'card_payment',
             amount: 0,
             narration: 'Card payment',
-            party: { gateway: 'VFD' },
+            party_name: "Transaction",
             balance_after: 0,
-            status: 'completed',
+            status: "completed",
             metadata: { vfdReference: reference },
           });
         }

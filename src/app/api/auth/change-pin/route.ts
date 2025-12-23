@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { hashSecret } from '@/lib/auth';
 import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';

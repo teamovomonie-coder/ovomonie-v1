@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export type KycTier = 1 | 2 | 3;
 export type UserStatus = 'active' | 'locked' | 'pending';
 
@@ -51,11 +49,11 @@ export interface User {
 
   // Auth / security
   loginPinHash: string;          // must match salt:hash format from lib/auth.ts
-  lastLogoutAll?: Timestamp;
+  lastLogoutAll?: string;
   status: UserStatus;
 
-  readonly createdAt: Timestamp;
-  updatedAt: Timestamp;
+  readonly createdAt: string;
+  updatedAt: string;
 
   // Privacy-aware IDs (hashed, not raw)
   bvnHash?: string;
@@ -65,7 +63,7 @@ export interface User {
   agent?: AgentDetails;
 
   // Security / risk signals
-  lastLoginAt?: Timestamp;
+  lastLoginAt?: string;
   failedLoginCount?: number;
 
   // Device / context (optional, for security & UX)
@@ -78,7 +76,7 @@ export interface User {
     title: string;
     body: string;
     read: boolean;
-    createdAt: Timestamp;
+    createdAt: string;
     category?: string;
   }>;
 
@@ -86,4 +84,42 @@ export interface User {
   mfaEnabled?: boolean;
   preferredLanguage?: string;    // e.g. "en", "fr", "yo"
   avatarUrl?: string;
+}
+
+export interface DbUser {
+  id: string;
+  email: string;
+  phone: string;
+  full_name: string;
+  account_number: string;
+  balance: number;
+  pin: string;
+  kyc_tier: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTransaction {
+  id: string;
+  user_id: string;
+  type: string;
+  amount: number;
+  description: string;
+  status: string;
+  reference: string;
+  party_name?: string;
+  party_account?: string;
+  balance_after?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  type: string;
+  read: boolean;
+  created_at: string;
 }

@@ -1,20 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function PUT(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const body = await _request.json();
         const { id } = await params;
-        const docRef = doc(db, "categories", id);
 
         const { id: _bodyId, ...updateData } = body;
-        await updateDoc(docRef, {
-            ...updateData,
-            updatedAt: serverTimestamp()
-        });
+        const { error } = await supabaseAdmin
+            .from('categories')
+            .update({
+                ...updateData,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) throw error;
         
         return NextResponse.json({ id, ...body });
     } catch (error) {
@@ -25,9 +31,18 @@ export async function PUT(_request: NextRequest, { params }: { params: Promise<{
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const { id } = await params;
-        const docRef = doc(db, "categories", id);
-        await deleteDoc(docRef);
+        const { error } = await supabaseAdmin
+            .from('categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
         return NextResponse.json({ message: 'Category deleted' }, { status: 200 });
     } catch (error) {
         logger.error("Error deleting category: ", error);

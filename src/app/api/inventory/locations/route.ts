@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function GET() {
     try {
-        const querySnapshot = await getDocs(collection(db, "locations"));
-        const locations = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return NextResponse.json(locations);
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
+        const { data: locations, error } = await supabaseAdmin
+            .from('locations')
+            .select('*');
+
+        if (error) throw error;
+
+        return NextResponse.json(locations || []);
     } catch (error) {
         logger.error("Error fetching locations: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
@@ -17,13 +23,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const body = await request.json();
-        const docRef = await addDoc(collection(db, "locations"), {
-            ...body,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
-        return NextResponse.json({ id: docRef.id, ...body }, { status: 201 });
+        const { data, error } = await supabaseAdmin
+            .from('locations')
+            .insert({
+                ...body,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return NextResponse.json(data, { status: 201 });
     } catch (error) {
         logger.error("Error creating location: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });

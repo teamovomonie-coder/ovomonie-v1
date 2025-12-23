@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdLoansService } from '@/lib/vfd-loans-service';
 import { vfdMandateService } from '@/lib/vfd-mandate-service';
@@ -12,6 +12,10 @@ import { db, transactionService, notificationService, userService } from '@/lib/
 export async function GET(request: NextRequest) {
     try {
         const userId = getUserIdFromToken(request.headers);
+        
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
@@ -38,15 +42,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const userId = getUserIdFromToken(request.headers);
+        
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const { amount, tenure, purpose, reference, accountNumber, bankCode } = await request.json();
         
-        if (!amount || !tenure || !purpose || !reference || !accountNumber || !bankCode) {
+        if (!amount || !tenure || !purpose || !reference) {
             return NextResponse.json({ ok: false, message: 'Missing required fields' }, { status: 400 });
         }
+
+        const accountNumberStr = accountNumber || '';
+        const bankCodeStr = bankCode || '';
 
         const existing = await transactionService.getByReference(reference);
         if (existing) {
@@ -69,8 +80,8 @@ export async function POST(request: NextRequest) {
 
         const mandate = await vfdMandateService.createMandate({
             customerId: userId,
-            accountNumber,
-            bankCode,
+            accountNumber: accountNumberStr,
+            bankCode: bankCodeStr,
             amount: loan.monthlyRepayment,
             frequency: 'MONTHLY',
             startDate: startDate.toISOString().split('T')[0],
@@ -84,12 +95,11 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             reference,
             type: 'credit',
-            category: 'loan',
             amount: Number(amount) * 100,
             narration: `Loan disbursement - ${purpose}`,
-            party: { loanId: loan.loanId },
+            party_name: loan.loanId || 'Loan',
             balance_after: 0,
-            status: 'completed',
+            status: "completed",
             metadata: { 
                 loanId: loan.loanId, 
                 tenure, 
@@ -102,7 +112,6 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             title: 'Loan Approved',
             body: `Your loan of ₦${amount.toLocaleString()} has been approved. A mandate has been set up for automatic monthly repayment.`,
-            category: 'loan',
             reference,
         });
 

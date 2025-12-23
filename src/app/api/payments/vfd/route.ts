@@ -4,7 +4,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import {
   initiateVFDPayment,
@@ -14,7 +14,7 @@ import {
   type VFDPaymentRequest,
   type PaymentCategory,
 } from '@/lib/vfd-processor';
-import { getDb } from '@/lib/firebaseAdmin';
+// Firebase Admin removed - using Supabase
 import admin from 'firebase-admin';
 
 export async function POST(request: NextRequest) {

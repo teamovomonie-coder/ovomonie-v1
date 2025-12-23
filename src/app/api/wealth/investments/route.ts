@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
+// Firebase removed - using Supabase
 import { 
     collection, 
     addDoc, 
@@ -13,11 +13,14 @@ import {
     getDoc
 } from 'firebase/firestore';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
@@ -26,8 +29,8 @@ export async function GET(request: Request) {
 
         // Removed orderBy to prevent index error in development environments.
         // For production, a composite index on (userId, startDate) would be ideal.
-        const q = query(collection(db, "investments"), where("userId", "==", userId));
-        const querySnapshot = await getDocs(q);
+        const q = query(supabaseAdmin.from("investments"), where("userId", "==", userId));
+        const querySnapshot = await supabaseAdmin.select("*").then(({data}) => data || []).then(items => q);
         
         const investments = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -45,7 +48,6 @@ export async function GET(request: Request) {
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
-
 
 export async function POST(request: Request) {
     try {
@@ -67,11 +69,11 @@ export async function POST(request: Request) {
         const amountInKobo = Math.round(amount * 100);
         let newBalance = 0;
 
-        const investmentRef = doc(collection(db, "investments"));
-        const userDocRef = doc(db, "users", userId);
+        const investmentRef = doc(supabaseAdmin.from("investments"));
+        const userDocRef = supabaseAdmin.from("users").select().eq("id", userId);
 
         await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
+            const financialTransactionsRef = supabaseAdmin.from("financialTransactions");
             const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
             const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
 
@@ -117,7 +119,7 @@ export async function POST(request: Request) {
                 reference: clientReference,
                 narration: `Investment in ${productId}`,
                 party: { name: 'Ovo-Wealth' },
-                timestamp: serverTimestamp(),
+                timestamp: new Date().toISOString(),
                 balanceAfter: newBalance,
             };
             transaction.set(doc(financialTransactionsRef), debitLog);

@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { syncBalanceWithVFD } from '@/lib/balance-sync';
 import { userService } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     // If no account number, return current balance without syncing
-    if (!user.accountNumber) {
+    if (!user.account_number) {
       logger.warn('User has no account number, skipping VFD sync', { userId });
       return NextResponse.json({
         ok: true,
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const syncedBalance = await syncBalanceWithVFD(userId, user.accountNumber);
+    const syncedBalance = await syncBalanceWithVFD(userId, user.account_number);
 
     logger.info('Balance synced', { userId, balance: syncedBalance });
 

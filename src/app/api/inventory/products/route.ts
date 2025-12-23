@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function GET() {
     try {
-        const querySnapshot = await getDocs(collection(db, "products"));
-        const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return NextResponse.json(products);
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
+        const { data: products, error } = await supabaseAdmin
+            .from('products')
+            .select('*');
+
+        if (error) throw error;
+
+        return NextResponse.json(products || []);
     } catch (error) {
         logger.error("Error fetching products: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
@@ -17,14 +23,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const body = await request.json();
-        // Firestore will automatically generate an ID
-        const docRef = await addDoc(collection(db, "products"), {
-            ...body,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
-        return NextResponse.json({ id: docRef.id, ...body }, { status: 201 });
+        const { data, error } = await supabaseAdmin
+            .from('products')
+            .insert({
+                ...body,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return NextResponse.json(data, { status: 201 });
     } catch (error) {
         logger.error("Error creating product: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });

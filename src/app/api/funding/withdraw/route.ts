@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { processVFDWithdrawal, queryVFDTransaction } from '@/lib/vfd-transactions';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { validateBothPins } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
 import { createNotification, NotificationTemplates } from '@/lib/notification-helper';

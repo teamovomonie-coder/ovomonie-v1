@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
 import { db, userService, transactionService, notificationService } from '@/lib/db';
@@ -9,6 +9,10 @@ export async function POST(request: NextRequest) {
     try {
         // 1. Authentication
         const userId = getUserIdFromToken(request.headers);
+        
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
@@ -77,22 +81,20 @@ export async function POST(request: NextRequest) {
         await transactionService.create({
             user_id: userId,
             type: 'debit',
-            category: 'transfer',
             amount: amountKobo,
             reference: `${clientReference}-debit`,
             narration: `Transfer to Ovomonie user ${recipient.full_name}`,
-            party: { to: recipient.phone, name: recipient.full_name },
+            party_name: "Transaction",
             balance_after: newSenderBalance,
         });
 
         await transactionService.create({
             user_id: recipient.id,
             type: 'credit',
-            category: 'transfer',
             amount: amountKobo,
             reference: `${clientReference}-credit`,
             narration: `Transfer from Ovomonie user ${sender.full_name}`,
-            party: { from: sender.phone, name: sender.full_name },
+            party_name: "Transaction",
             balance_after: newRecipientBalance,
         });
 
@@ -101,12 +103,10 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             title: 'Money Sent',
             body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} sent to ${recipient.full_name}`,
-            category: 'transfer',
             type: 'debit',
             amount: amountKobo,
             reference: clientReference,
             sender_name: sender.full_name,
-            sender_phone: sender.phone,
             sender_account: sender.account_number,
             recipient_name: recipient.full_name,
             recipient_phone: recipient.phone,
@@ -117,12 +117,10 @@ export async function POST(request: NextRequest) {
             user_id: recipient.id,
             title: 'Money Received',
             body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} received from ${sender.full_name}`,
-            category: 'transfer',
             type: 'credit',
             amount: amountKobo,
             reference: clientReference,
             sender_name: sender.full_name,
-            sender_phone: sender.phone,
             sender_account: sender.account_number,
             recipient_name: recipient.full_name,
             recipient_phone: recipient.phone,
@@ -142,7 +140,7 @@ export async function POST(request: NextRequest) {
         await db.from('pending_transactions').insert({
             user_id: userId,
             type: 'internal-transfer',
-            status: 'completed',
+            status: "completed",
             reference: clientReference,
             amount: amountKobo,
             data: {
@@ -167,7 +165,7 @@ export async function POST(request: NextRequest) {
                 id: crypto.randomUUID(),
                 user_id: userId,
                 type: 'internal-transfer',
-                status: 'completed',
+                status: "completed",
                 reference: clientReference,
                 amount,
                 data: {

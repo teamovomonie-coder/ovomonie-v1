@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { nigerianBanks } from '@/lib/banks';
 import { logger } from '@/lib/logger';
 import { db, userService, transactionService, notificationService } from '@/lib/db';
@@ -7,8 +7,8 @@ import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { executeVFDTransaction } from '@/lib/balance-sync';
 
 export async function POST(request: NextRequest) {
-    let userId: string | null = null;
-    let clientReference: string | null = null;
+    let userId: string = null;
+    let clientReference: string = null;
     try {
         // 1. Authentication
         userId = getUserIdFromToken(request.headers);
@@ -87,17 +87,12 @@ export async function POST(request: NextRequest) {
         await transactionService.create({
             user_id: userId,
             type: 'debit',
-            category: 'transfer',
             amount: transferAmountInKobo,
             reference: clientReference,
             narration: narration || `Transfer to ${recipientName}`,
-            party: {
-                name: recipientName,
-                account: accountNumber,
-                bank: bank.name,
-            },
+            party_name: "Transaction",
             balance_after: newSenderBalance,
-            status: 'completed',
+            status: "completed",
             metadata: {
                 memoMessage: message || null,
                 memoImageUri: photo || null,
@@ -109,7 +104,6 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             title: 'External Transfer',
             body: `You sent ₦${(transferAmountInKobo/100).toLocaleString()} to ${recipientName} (${bank.name}).`,
-            category: 'transfer',
             reference: clientReference,
             metadata: { recipientName, accountNumber, bankName: bank.name },
         });

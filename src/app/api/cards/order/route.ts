@@ -1,21 +1,7 @@
-
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
-import {
-    collection,
-    runTransaction,
-    doc,
-    serverTimestamp,
-    query,
-    where,
-    getDocs,
-    getDoc,
-} from 'firebase/firestore';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
-
+import { supabaseAdmin } from '@/lib/supabase';
 
 const CARD_FEE_KOBO = 1500_00; // ₦1,500
 
@@ -35,7 +21,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-
         const { nameOnCard, designType, designValue, shippingInfo, clientReference } = await request.json();
 
         if (!nameOnCard || !designType || !designValue || !shippingInfo || !clientReference) {
@@ -44,63 +29,88 @@ export async function POST(request: Request) {
         
         let newBalance = 0;
 
-        // Idempotency: check if this clientReference was already processed
-        const cardOrdersRef = collection(db, 'cardOrders');
-        const idempotencyQuery = query(cardOrdersRef, where("clientReference", "==", clientReference));
-        const existingOrderSnapshot = await getDocs(idempotencyQuery);
+        if (!supabaseAdmin) {
+            throw new Error('Database connection not available');
+        }
 
-        if (!existingOrderSnapshot.empty) {
+        // Idempotency: check if this clientReference was already processed
+        const { data: existingOrder } = await supabaseAdmin
+            .from('card_orders')
+            .select('id')
+            .eq('client_reference', clientReference)
+            .limit(1);
+
+        if (existingOrder && existingOrder.length > 0) {
             logger.info(`Idempotent request for card order: ${clientReference} already processed.`);
-            const userRef = doc(db, 'users', userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap && userSnap.exists()) {
-                const ud = userSnap.data() as any;
-                newBalance = typeof ud.balance === 'number' ? ud.balance : 0;
-            }
+            const { data: user } = await supabaseAdmin
+                .from('users')
+                .select('balance')
+                .eq('id', userId)
+                .single();
+            
+            newBalance = user?.balance || 0;
             return NextResponse.json({ message: 'Card order already processed.', newBalanceInKobo: newBalance }, { status: 200 });
         }
 
-        await runTransaction(db, async (transaction) => {
-            const userRef = doc(db, "users", userId);
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) throw new Error("User not found.");
+        // Start transaction
+        const { data: user, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('balance')
+            .eq('id', userId)
+            .single();
 
-            const userData = userDoc.data();
-            if (userData.balance < CARD_FEE_KOBO) {
-                throw new Error("Insufficient funds to order a custom card.");
-            }
-            
-            newBalance = userData.balance - CARD_FEE_KOBO;
-            transaction.update(userRef, { balance: newBalance });
+        if (userError || !user) {
+            throw new Error("User not found.");
+        }
 
-            // Log the card order
-            const newOrderRef = doc(cardOrdersRef);
-            transaction.set(newOrderRef, {
-                userId,
-                nameOnCard,
-                designType,
-                designValue,
-                shippingInfo,
-                clientReference,
+        if (user.balance < CARD_FEE_KOBO) {
+            throw new Error("Insufficient funds to order a custom card.");
+        }
+        
+        newBalance = user.balance - CARD_FEE_KOBO;
+
+        // Update user balance
+        const { error: balanceError } = await supabaseAdmin
+            .from('users')
+            .update({ balance: newBalance, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (balanceError) throw balanceError;
+
+        // Create card order
+        const { data: orderData, error: orderError } = await supabaseAdmin
+            .from('card_orders')
+            .insert({
+                user_id: userId,
+                name_on_card: nameOnCard,
+                design_type: designType,
+                design_value: designValue,
+                shipping_info: shippingInfo,
+                client_reference: clientReference,
                 status: 'Processing',
-                createdAt: serverTimestamp(),
-            });
+                created_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single();
 
-            // Log the debit transaction
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const debitLog = {
-                userId: userId,
+        if (orderError) throw orderError;
+
+        // Log the debit transaction
+        const { error: txnError } = await supabaseAdmin
+            .from('financial_transactions')
+            .insert({
+                user_id: userId,
                 category: 'card',
                 type: 'debit',
                 amount: CARD_FEE_KOBO,
-                reference: `CARD-ORDER-${newOrderRef.id}`,
-                narration: `Custom ATM card order`,
-                party: { name: 'Ovomonie Card Services' },
-                timestamp: serverTimestamp(),
-                balanceAfter: newBalance,
-            };
-            transaction.set(doc(financialTransactionsRef), debitLog);
-        });
+                reference: `CARD-ORDER-${orderData.id}`,
+                narration: 'Custom ATM card order',
+                party_name: 'Ovomonie Card Services',
+                timestamp: new Date().toISOString(),
+                balance_after: newBalance,
+            });
+
+        if (txnError) throw txnError;
 
         return NextResponse.json({
             message: 'Card order placed successfully!',

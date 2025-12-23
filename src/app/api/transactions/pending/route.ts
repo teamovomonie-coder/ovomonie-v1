@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -139,7 +139,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { reference, status, data, errorMessage, completedAt, transactionId } = body;
+    const { reference, status, data, errorMessage, completedAt, txId } = body;
 
     if (!reference) {
       return NextResponse.json({ ok: false, message: 'Reference is required' }, { status: 400 });
@@ -157,7 +157,7 @@ export async function PATCH(request: NextRequest) {
         .eq('user_id', userId)
         .single();
       
-      updates.data = { ...(existing?.data || {}), ...data, transactionId };
+      updates.data = { ...(existing?.data || {}), ...data, txId };
     }
 
     const { data: updated, error } = await db

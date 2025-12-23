@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -13,21 +13,21 @@ export async function GET(
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const transactionId = params.id;
+    const id = params.id;
 
-    if (!transactionId) {
+    if (!id) {
       return NextResponse.json({ ok: false, message: 'Transaction ID required' }, { status: 400 });
     }
 
     const { data, error } = await db
       .from('pending_transactions')
       .select('*')
-      .eq('reference', transactionId)
+      .eq('reference', id)
       .eq('user_id', userId)
       .single();
 
     if (error || !data) {
-      logger.warn('Transaction not found:', { transactionId, userId });
+      logger.warn('Transaction not found:', { id, userId });
       return NextResponse.json({ ok: false, message: 'Transaction not found' }, { status: 404 });
     }
 

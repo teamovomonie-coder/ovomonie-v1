@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { initiateCardPayment } from '@/lib/vfd';
 import { userService, transactionService } from '@/lib/db';
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
             // Execute VFD transaction and update balance
             const newBalance = await executeVFDTransaction(
                 userId,
-                user?.accountNumber || user?.account_number || '',
+                user?.account_number || '',
                 async () => {}, // VFD already processed
                 amountInKobo,
                 'credit'
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
                 amount: amountInKobo,
                 reference: clientReference,
                 narration: 'Card deposit via VFD',
-                party: { name: 'VFD Card' },
+                party_name: 'VFD Card',
                 balance_after: newBalance,
             });
 

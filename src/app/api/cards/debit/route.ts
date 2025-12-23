@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { vfdDebitCardService } from '@/lib/vfd-debitcard-service';
 import { userService } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
     }
 
-    if (!user.accountNumber) {
+    if (!user.account_number) {
       return NextResponse.json({ ok: false, message: 'Account number not found' }, { status: 400 });
     }
 
@@ -34,14 +34,14 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: false, message: 'Valid cardType required (PHYSICAL or VIRTUAL)' }, { status: 400 });
         }
         const card = await vfdDebitCardService.createCard({
-          accountNumber: user.accountNumber,
+          accountNumber: user.account_number,
           cardType,
           deliveryAddress,
         });
         return NextResponse.json({ ok: true, data: card });
 
       case 'list':
-        const cards = await vfdDebitCardService.getAccountCards(user.accountNumber);
+        const cards = await vfdDebitCardService.getAccountCards(user.account_number);
         return NextResponse.json({ ok: true, data: cards });
 
       case 'details':

@@ -17,7 +17,7 @@ import { logger } from '@/lib/logger';
 /**
  * Centralized Database Service Layer
  * All database operations go through Supabase as primary DB
- * Firebase is used only as backup (handled internally in db.ts)
+ * Supabase is the primary database
  */
 export class DatabaseService {
   

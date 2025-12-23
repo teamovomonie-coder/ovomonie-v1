@@ -1,9 +1,8 @@
-
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, deleteField } from "firebase/firestore";
+import { createClient } from '@supabase/supabase-js';
 import { hashSecret } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { serverEnv } from '@/lib/env.server';
 
 
 export async function POST(request: Request) {
@@ -18,21 +17,38 @@ export async function POST(request: Request) {
              return NextResponse.json({ message: 'New PIN must be 6 digits.' }, { status: 400 });
         }
 
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("phone", "==", phone));
-        const querySnapshot = await getDocs(q);
+        const supabase = createClient(serverEnv.NEXT_PUBLIC_SUPABASE_URL, serverEnv.SUPABASE_SERVICE_ROLE_KEY);
 
-        if (querySnapshot.empty) {
+        const { data: users, error: fetchError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('phone', phone)
+            .limit(1);
+
+        if (fetchError) {
+            throw fetchError;
+        }
+
+        if (!users || users.length === 0) {
             return NextResponse.json({ message: 'No account found with this phone number.' }, { status: 404 });
         }
 
-        // Assuming phone numbers are unique
-        const userDoc = querySnapshot.docs[0];
-        
-        await updateDoc(userDoc.ref, {
-            loginPinHash: hashSecret(String(newPin)),
-            loginPin: deleteField(),
-        });
+        const user = users[0];
+        if (!user) {
+            return NextResponse.json({ message: 'No account found with this phone number.' }, { status: 404 });
+        }
+
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                login_pin_hash: hashSecret(String(newPin)),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
 
         return NextResponse.json({ message: 'Your PIN has been reset successfully.' });
 

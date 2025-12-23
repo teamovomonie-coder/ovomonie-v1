@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { notificationService } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { transactionId, channel = 'in-app' } = body || {};
-    if (!transactionId) return NextResponse.json({ ok: false, message: 'transactionId is required' }, { status: 400 });
+    const { txId, channel = 'in-app' } = body || {};
+    if (!txId) return NextResponse.json({ ok: false, message: 'txId is required' }, { status: 400 });
 
     const title = 'Receipt shared';
-    const bodyText = `You shared receipt ${transactionId} (${channel})`;
+    const bodyText = `You shared receipt ${txId} (${channel})`;
 
     try {
       const notifId = await notificationService.create({
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         title,
         body: bodyText,
         category: 'receipt',
-        reference: transactionId,
+        reference: txId,
         type: 'share',
       });
 

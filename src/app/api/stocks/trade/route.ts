@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { db } from '@/lib/firebase';
+// Firebase removed - using Supabase
 import {
     collection,
     runTransaction,
@@ -12,19 +12,19 @@ import {
     getDocs,
     addDoc,
 } from 'firebase/firestore';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
-
 
 export async function POST(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-
 
         const { stock, quantity, orderType, limitPrice, tradeType, clientReference } = await request.json();
 
@@ -40,19 +40,19 @@ export async function POST(request: Request) {
         let newBalance = 0;
 
         await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
+            const financialTransactionsRef = supabaseAdmin.from("financialTransactions");
             const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
             const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
 
             if (!(existingTxnSnapshot as any).empty) {
                 logger.info(`Idempotent request for trade: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
+                const userRef = supabaseAdmin.from("users").select().eq("id", userId);
                 const userDoc = await transaction.get(userRef);
                 if (userDoc.exists()) newBalance = userDoc.data().balance;
                 return;
             }
             
-            const userRef = doc(db, "users", userId);
+            const userRef = supabaseAdmin.from("users").select().eq("id", userId);
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists()) throw new Error("User not found.");
 
@@ -64,12 +64,12 @@ export async function POST(request: Request) {
             newBalance = userData.balance - totalCostKobo;
             transaction.update(userRef, { balance: newBalance });
 
-            const holdingsQuery = query(collection(db, "stockHoldings"), where("userId", "==", userId), where("symbol", "==", stock.symbol));
-            const holdingsSnapshot = await getDocs(holdingsQuery);
+            const holdingsQuery = query(supabaseAdmin.from("stockHoldings"), where("userId", "==", userId), where("symbol", "==", stock.symbol));
+            const holdingsSnapshot = await supabaseAdmin.select("*").then(({data}) => data || []).then(items => holdingsQuery);
             
             if (holdingsSnapshot.empty) {
                 // New holding
-                const newHoldingRef = doc(collection(db, "stockHoldings"));
+                const newHoldingRef = doc(supabaseAdmin.from("stockHoldings"));
                 transaction.set(newHoldingRef, {
                     userId,
                     symbol: stock.symbol,
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
                 reference: clientReference,
                 narration: `Buy ${quantity} units of ${stock.symbol}`,
                 party: { name: 'NGX Stocks' },
-                timestamp: serverTimestamp(),
+                timestamp: new Date().toISOString(),
                 balanceAfter: newBalance,
             };
             transaction.set(doc(financialTransactionsRef), debitLog);

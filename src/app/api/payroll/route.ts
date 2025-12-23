@@ -1,17 +1,16 @@
 
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+// Firebase removed - using Supabase
+// Firebase removed - using Supabase
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
-
-
-
 
 export async function GET(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
 
@@ -26,8 +25,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const q = query(collection(db, 'payrollBatches'), where('userId', '==', userId));
-        const querySnapshot = await getDocs(q);
+        const q = query(supabaseAdmin.from("payrollBatches"), where('userId', '==', userId));
+        const querySnapshot = await supabaseAdmin.select("*").then(({data}) => data || []).then(items => q);
         const batches = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
@@ -62,11 +61,11 @@ export async function POST(request: Request) {
         const newBatch = {
             ...batchData,
             userId,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
-        const docRef = await addDoc(collection(db, 'payrollBatches'), newBatch);
+        const docRef = await supabaseAdmin.insert(newBatch);
         const savedBatch = { id: docRef.id, ...newBatch };
         
         return NextResponse.json(savedBatch, { status: 201 });
