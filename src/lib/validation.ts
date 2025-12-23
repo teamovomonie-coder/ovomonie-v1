@@ -10,7 +10,7 @@ export const createUserSchema = z.object({
 
 export const loginSchema = z.object({
   phone: z.string().min(10, 'Phone number required'),
-  pin: z.string().length(4, 'PIN must be 4 digits'),
+  pin: z.string().min(1, 'PIN is required'),
 });
 
 export const updateBalanceSchema = z.object({

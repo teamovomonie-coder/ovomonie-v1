@@ -1,7 +1,7 @@
 /**
  * VFD Transaction Handler
  * Primary payment gateway for all transactions and money transfers
- * Supabase/Firestore acts as secondary backup
+ * Supabase PostgreSQL acts as secondary backup
  */
 
 import { logger } from '@/lib/logger';

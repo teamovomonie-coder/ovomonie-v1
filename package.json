@@ -113,7 +113,8 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "@next/bundle-analyzer": "^15.5.7",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "@types/webauthn": "^0.0.1"
   },
   "overrides": {
     "next": "15.5.9"

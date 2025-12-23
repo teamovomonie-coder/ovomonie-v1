@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash } from "lucide-react";
+import { Search, Send, Landmark, Sparkles, Plus, ArrowDownUp, Mic, Nfc, QrCode, Smartphone, Tv, Zap, FileText, Target, Receipt, Briefcase, UserCheck, Store, Package, Monitor, CreditCard, Users, BadgeDollarSign, PiggyBank, CandlestickChart, Gauge, Plane, Hotel, Car, Ticket, ShoppingCart, ShoppingBag, Building2, Vote, Book, Gift, Trophy, Percent, Medal, User, Shield, Settings, MessageCircle, LogOut, Utensils, Fingerprint, Hash, TrendingUp, DollarSign, Bitcoin, ShieldCheck, UserPlus, Star, Exchange } from "lucide-react";
 import CustomLink from "@/components/layout/custom-link";
 import type { LucideIcon } from 'lucide-react';
 import { LogoutDialog } from "@/components/auth/logout-dialog";
@@ -33,6 +33,7 @@ const serviceData: ServiceCategory[] = [
       { label: "Voice Banking", icon: Mic, href: "/ai-assistant" },
       { label: "Contactless", icon: Nfc, href: "/contactless-banking" },
       { label: "Scan to Pay", icon: QrCode, href: "/scan-to-pay" },
+      { label: "Currency Exchange", icon: Exchange, href: "/currency-exchange" },
     ],
   },
   {
@@ -63,7 +64,10 @@ const serviceData: ServiceCategory[] = [
     services: [
       { label: "Loans", icon: BadgeDollarSign, href: "/loan" },
       { label: "Ovo-Wealth", icon: PiggyBank, href: "/ovo-wealth" },
-      { label: "Savings Goals", icon: Target, href: "/ovo-wealth" },
+      { label: "Savings Goals", icon: Target, href: "/savings-goals" },
+      { label: "Budgeting Tools", icon: TrendingUp, href: "/budgeting" },
+      { label: "Crypto Trading", icon: Bitcoin, href: "/crypto-trading" },
+      { label: "Insurance", icon: ShieldCheck, href: "/insurance" },
       { label: "Stock Trading", icon: CandlestickChart, href: "/stock-trading" },
       { label: "Credit Score", icon: Gauge, href: "#" },
     ],
@@ -94,9 +98,10 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Engagement & Rewards",
     services: [
-      { label: "Invite & Earn", icon: Gift, href: "/invitation" },
+      { label: "Invite & Earn", icon: Gift, href: "/referrals" },
+      { label: "Referral Program", icon: UserPlus, href: "/referrals" },
+      { label: "Loyalty Points", icon: Star, href: "/loyalty" },
       { label: "Rewards Hub", icon: Trophy, href: "/rewards" },
-      { label: "Loyalty Points", icon: Medal, href: "/rewards" },
     ],
   },
   {

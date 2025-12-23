@@ -1,25 +1,11 @@
-
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-// Firebase removed - using Supabase
-import {
-    collection,
-    runTransaction,
-    doc,
-    serverTimestamp,
-    query,
-    where,
-    getDocs,
-    addDoc,
-} from 'firebase/firestore';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
+import { userService, transactionService } from '@/lib/db';
 
 export async function POST(request: Request) {
     try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
@@ -37,71 +23,28 @@ export async function POST(request: Request) {
 
         const price = orderType === 'Limit' ? limitPrice : stock.price;
         const totalCostKobo = Math.round(price * quantity * 100);
-        let newBalance = 0;
-
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = supabaseAdmin.from("financialTransactions");
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
-
-            if (!(existingTxnSnapshot as any).empty) {
-                logger.info(`Idempotent request for trade: ${clientReference} already processed.`);
-                const userRef = supabaseAdmin.from("users").select().eq("id", userId);
-                const userDoc = await transaction.get(userRef);
-                if (userDoc.exists()) newBalance = userDoc.data().balance;
-                return;
-            }
-            
-            const userRef = supabaseAdmin.from("users").select().eq("id", userId);
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) throw new Error("User not found.");
-
-            const userData = userDoc.data();
-            if (userData.balance < totalCostKobo) {
-                throw new Error("Insufficient funds for this trade.");
-            }
-            
-            newBalance = userData.balance - totalCostKobo;
-            transaction.update(userRef, { balance: newBalance });
-
-            const holdingsQuery = query(supabaseAdmin.from("stockHoldings"), where("userId", "==", userId), where("symbol", "==", stock.symbol));
-            const holdingsSnapshot = await supabaseAdmin.select("*").then(({data}) => data || []).then(items => holdingsQuery);
-            
-            if (holdingsSnapshot.empty) {
-                // New holding
-                const newHoldingRef = doc(supabaseAdmin.from("stockHoldings"));
-                transaction.set(newHoldingRef, {
-                    userId,
-                    symbol: stock.symbol,
-                    quantity,
-                    avgBuyPrice: price,
-                });
-            } else {
-                // Update existing holding
-                const holdingDoc = holdingsSnapshot.docs[0];
-                const holdingData = holdingDoc.data();
-                const newQuantity = holdingData.quantity + quantity;
-                const newTotalCost = (holdingData.avgBuyPrice * holdingData.quantity) + (price * quantity);
-                const newAvgBuyPrice = newTotalCost / newQuantity;
-                transaction.update(holdingDoc.ref, {
-                    quantity: newQuantity,
-                    avgBuyPrice: newAvgBuyPrice,
-                });
-            }
-
-            // Log the financial transaction
-            const debitLog = {
-                userId: userId,
-                category: 'investment',
-                type: 'debit',
-                amount: totalCostKobo,
-                reference: clientReference,
-                narration: `Buy ${quantity} units of ${stock.symbol}`,
-                party: { name: 'NGX Stocks' },
-                timestamp: new Date().toISOString(),
-                balanceAfter: newBalance,
-            };
-            transaction.set(doc(financialTransactionsRef), debitLog);
+        
+        const user = await userService.getById(userId);
+        if (!user) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
+        }
+        
+        if (user.balance < totalCostKobo) {
+            return NextResponse.json({ message: 'Insufficient funds for this trade.' }, { status: 400 });
+        }
+        
+        const newBalance = user.balance - totalCostKobo;
+        await userService.updateBalance(userId, newBalance);
+        
+        await transactionService.create({
+            user_id: userId,
+            category: 'investment',
+            type: 'debit',
+            amount: totalCostKobo,
+            reference: clientReference,
+            narration: `Buy ${quantity} units of ${stock.symbol}`,
+            party_name: 'NGX Stocks',
+            balance_after: newBalance,
         });
 
         return NextResponse.json({

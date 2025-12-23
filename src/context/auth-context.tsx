@@ -1,11 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { User as FirestoreUser } from "@/types/user";
+import { User } from "@/types/user";
 import { accountNumberToDisplay } from "@/lib/account-utils";
 
 type ClientUser = Pick<
-  FirestoreUser,
+  User,
   "phone" | "fullName" | "accountNumber" | "balance" | "kycTier" | "isAgent" | "email" | "status" | "avatarUrl"
 > & { userId: string; photoUrl?: string | null; displayAccountNumber?: string };
 
@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean | null;
   user: ClientUser | null;
   balance: number | null;
-  login: (phone: string, pin: string) => Promise<void>;
+  login: (phone: string, pin: string, method?: 'pin' | 'biometric') => Promise<void>;
   logout: () => Promise<void>;
   fetchUserData: () => Promise<void>;
   updateBalance: (newBalanceInKobo: number) => void;
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      // Fetch user from Firestore via API
+      // Fetch user from Supabase via API
       const res = await fetch(`/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -82,21 +82,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     fetchUserData();
   }, [fetchUserData]);
 
-  const login = useCallback(async (phone: string, pin: string) => {
-    // Use existing API route for login; relies on Firestore user store.
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, pin }),
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(error.message || "Login failed.");
+  const login = useCallback(async (phone: string, pin: string, method: 'pin' | 'biometric' = 'pin') => {
+    if (method === 'biometric') {
+      // For biometric login, we assume the biometric verification was already done
+      // We just need to get the user data
+      const res = await fetch("/api/auth/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, method: 'biometric' }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.message || "Biometric login failed.");
+      }
+      
+      const { token, userId } = await res.json();
+      localStorage.setItem("ovo-auth-token", token);
+      localStorage.setItem("ovo-user-id", userId);
+      await fetchUserData();
+    } else {
+      // Use existing API route for PIN login
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, pin }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.message || "Login failed.");
+      }
+      const { token, userId } = await res.json();
+      localStorage.setItem("ovo-auth-token", token);
+      localStorage.setItem("ovo-user-id", userId);
+      await fetchUserData();
     }
-    const { token, userId } = await res.json();
-    localStorage.setItem("ovo-auth-token", token);
-    localStorage.setItem("ovo-user-id", userId);
-    await fetchUserData();
   }, [fetchUserData]);
 
   const logout = useCallback(async () => {

@@ -1,16 +1,5 @@
 
 import { NextResponse } from 'next/server';
-// Firebase removed - using Supabase
-import {
-    collection,
-    runTransaction,
-    doc,
-    serverTimestamp,
-    query,
-    where,
-    getDoc,
-    getDocs,
-} from 'firebase/firestore';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
