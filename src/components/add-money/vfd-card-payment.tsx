@@ -305,7 +305,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       description: 'Please check your transaction history for the payment status.',
       variant: 'destructive',
     });
-  }, [cardData, toast, handlePaymentSuccess]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardData, toast]);
 
   const onSubmit = async (data: CardFormData) => {
     // Validate card if entering new card
