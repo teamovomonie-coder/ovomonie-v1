@@ -120,7 +120,14 @@ export default function SuccessPage() {
     if (pending.type === 'memo-transfer' && pending.recipientName) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
-          <MemoReceipt data={pending.data} recipientName={pending.recipientName} onReset={handleReset} transactionId={pending.transactionId} date={pending.completedAt || pending.data?.date} isInternalTransfer={pending.data?.isInternalTransfer} />
+          <MemoReceipt 
+            data={pending.data} 
+            recipientName={pending.recipientName} 
+            onReset={handleReset} 
+            transactionId={pending.transactionId} 
+            date={pending.completedAt || pending.data?.date} 
+            isInternalTransfer={true} 
+          />
         </div>
       );
     }
@@ -242,7 +249,7 @@ export default function SuccessPage() {
           recipient={pending.recipientName || pending.data?.recipient}
           accountInfo={pending.data?.accountNumber || ''}
           transactionId={pending.transactionId || pending.data?.transactionId || `OVO-${Date.now()}`}
-          paymentMethod={pending.bankName || pending.data?.paymentMethod || pending.data?.method}
+          paymentMethod={pending.type === 'internal-transfer' || pending.data?.isInternalTransfer ? 'Ovomonie' : (pending.bankName || pending.data?.paymentMethod || pending.data?.method)}
           date={pending.completedAt || pending.data?.date || new Date().toLocaleString()}
           onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
           returnPath={returnPath}

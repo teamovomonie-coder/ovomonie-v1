@@ -1,48 +1,34 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { inventoryService } from '@/lib/inventory-service';
 
-export async function GET() {
-    try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
-
-        const { data: categories, error } = await supabaseAdmin
-            .from('categories')
-            .select('*');
-
-        if (error) throw error;
-
-        return NextResponse.json(categories || []);
-    } catch (error) {
-        logger.error("Error fetching categories: ", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
-    }
+export async function GET(request: NextRequest) {
+  try {
+    const categories = await inventoryService.getCategories();
+    return NextResponse.json({ success: true, data: categories });
+  } catch (error) {
+    console.error('Categories GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
-export async function POST(request: Request) {
-    try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, description } = body;
 
-        const body = await request.json();
-        const { data, error } = await supabaseAdmin
-            .from('categories')
-            .insert({
-                ...body,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return NextResponse.json(data, { status: 201 });
-    } catch (error) {
-        logger.error("Error creating category: ", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+
+    const category = await inventoryService.createCategory({ name, description });
+    if (!category) {
+      return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data: category });
+  } catch (error) {
+    console.error('Categories POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getWalletBalance } from '@/lib/virtual-accounts';
-import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,19 +12,23 @@ export async function GET(request: NextRequest) {
     const balance = await getWalletBalance(userId);
 
     if (!balance) {
-      return NextResponse.json(
-        { error: 'Failed to fetch balance' },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: true,
+        data: {
+          userId,
+          balance: 0,
+          ledgerBalance: 0,
+          lastUpdated: new Date().toISOString()
+        }
+      });
     }
 
     return NextResponse.json({
       success: true,
       data: balance
     });
-
   } catch (error) {
-    logger.error('Wallet balance fetch error', { error });
+    console.error('Wallet balance error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
