@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -32,24 +32,28 @@ interface Transaction {
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const receiptRef = useRef<HTMLDivElement>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   const transactionId = params.transactionId as string;
+  const timestamp = searchParams.get('t'); // Get timestamp to force refresh
 
   useEffect(() => {
     if (!transactionId) return;
 
     const fetchTransaction = async () => {
+      setLoading(true); // Reset loading state
       try {
         const token = localStorage.getItem('ovo-auth-token');
-        const response = await fetch(`/api/transactions/${transactionId}`, {
+        const response = await fetch(`/api/transactions/${transactionId}?_=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          cache: 'no-store' // Disable caching
         });
 
         if (!response.ok) {
@@ -67,7 +71,7 @@ export default function ReceiptPage() {
     };
 
     fetchTransaction();
-  }, [transactionId, router]);
+  }, [transactionId, timestamp, router]); // Add timestamp to dependencies
 
   const handleTransferAgain = () => {
     if (!transaction) return;

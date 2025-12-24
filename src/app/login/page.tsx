@@ -217,6 +217,7 @@ function LoginFormContent() {
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
                           <Input
+                            data-testid="phone-input"
                             placeholder="0801 234 5678"
                             inputMode="numeric"
                             autoComplete="tel-national"
@@ -236,6 +237,7 @@ function LoginFormContent() {
                         <FormControl>
                           <div className="relative">
                             <Input
+                              data-testid="pin-input"
                               type={showPin ? "text" : "password"}
                               placeholder="••••••"
                               maxLength={6}
@@ -259,11 +261,11 @@ function LoginFormContent() {
                     <CustomLink href="/forgot-pin" className="font-semibold text-primary">
                       Forgot PIN?
                     </CustomLink>
-                    <CustomLink href="/register" className="font-semibold text-primary">
+                    <CustomLink href="/register" className="font-semibold text-primary" data-testid="register-link">
                       Open an account
                     </CustomLink>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full" disabled={isLoading} data-testid="login-button">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log In'}
                   </Button>
                 </form>

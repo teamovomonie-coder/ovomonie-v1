@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import CustomLink from '@/components/layout/custom-link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 import { Loader2, Home, Briefcase, User, Bell, ArrowLeft, Package, CreditCard, MessageCircle, Mic, LogOut, Settings, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -76,6 +77,7 @@ const BottomNavItem = ({ href, label, icon: Icon, aliases = [] }: NavItem) => {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, user } = useAuth();
+    const { unreadCount } = useNotifications();
     const router = useRouter();
     const pathname = usePathname();
     const { toast } = useToast();
@@ -162,10 +164,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         </CustomLink>
                         <CustomLink href="/notifications" className="relative">
                             <Bell className="h-6 w-6" />
-                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                            </span>
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                </span>
+                            )}
                         </CustomLink>
                     </div>
                 </header>
