@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { clientEnv } from './env.client';
+import { serverEnv } from './env.server';
 
 /**
  * Supabase Client for browser/client-side operations
  * Uses anon key which is safe to expose
  */
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  clientEnv.NEXT_PUBLIC_SUPABASE_URL,
+  clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 /**
@@ -21,8 +23,8 @@ export const supabaseAdmin = (() => {
   }
   
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv.SUPABASE_SERVICE_ROLE_KEY
   );
 })();
 

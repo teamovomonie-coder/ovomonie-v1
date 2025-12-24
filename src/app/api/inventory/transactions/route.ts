@@ -1,46 +1,64 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function GET() {
     try {
-        // Fetch all collections in parallel
-        const [transactionsSnapshot, productsSnapshot, locationsSnapshot] = await Promise.all([
-            getDocs(query(collection(db, "inventoryTransactions"), orderBy("date", "desc"))),
-            getDocs(collection(db, "products")),
-            getDocs(collection(db, "locations"))
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
+        // Fetch all data in parallel
+        const [transactionsResult, productsResult, locationsResult] = await Promise.all([
+            supabaseAdmin.from('stock_transactions').select('*').order('created_at', { ascending: false }),
+            supabaseAdmin.from('products').select('*'),
+            supabaseAdmin.from('locations').select('*')
         ]);
 
-        // Create maps for quick lookups
-        const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data()]));
-        const locationsMap = new Map(locationsSnapshot.docs.map(doc => [doc.id, doc.data()]));
+        if (transactionsResult.error) throw transactionsResult.error;
+        if (productsResult.error) throw productsResult.error;
+        if (locationsResult.error) throw locationsResult.error;
 
-        const enrichedTransactions = transactionsSnapshot.docs.map(doc => {
-            const txn = doc.data();
-            const product = productsMap.get(txn.productId);
-            const location = txn.locationId ? locationsMap.get(txn.locationId) : null;
-            
-            // Convert Firestore Timestamp to JSON-serializable string
-            const date = (txn.date as Timestamp).toDate().toISOString();
+        const transactions = transactionsResult.data || [];
+        const products = productsResult.data || [];
+        const locations = locationsResult.data || [];
+
+        // Create lookup maps
+        const productMap = new Map(products.map(p => [p.id, p]));
+        const locationMap = new Map(locations.map(l => [l.id, l]));
+
+        // Enrich transactions with product and location data
+        const enrichedTransactions = transactions.map(transaction => {
+            const product = productMap.get(transaction.product_id);
+            const location = locationMap.get(transaction.location_id);
 
             return {
-                id: doc.id,
-                ...txn,
-                date,
+                id: transaction.id,
+                productId: transaction.product_id,
                 productName: product?.name || 'Unknown Product',
-                locationName: location?.name || 'N/A',
+                locationId: transaction.location_id,
+                locationName: location?.name || 'Unknown Location',
+                type: transaction.type,
+                quantity: transaction.quantity,
+                previousStock: transaction.previous_stock,
+                newStock: transaction.new_stock,
+                unitPrice: transaction.unit_price,
+                totalAmount: transaction.total_amount,
+                customerId: transaction.customer_id,
+                notes: transaction.notes,
+                date: transaction.created_at,
             };
         });
 
         return NextResponse.json(enrichedTransactions);
     } catch (error) {
-        logger.error("Error fetching transactions: ", error);
-        let errorMessage = 'An internal server error occurred.';
-        if (error instanceof Error && error.message.includes('The query requires an index')) {
-            errorMessage = "The database is missing a required index for fetching transactions. Please check the server logs for a link to create it in the Firebase Console.";
+        logger.error("Error fetching inventory transactions: ", error);
+        
+        let errorMessage = 'Internal Server Error';
+        if (error instanceof Error && error.message.includes('index')) {
+            errorMessage = "The database is missing a required index. Please check the server logs for a link to create it in the database console.";
         }
+        
         return NextResponse.json({ message: errorMessage }, { status: 500 });
     }
 }

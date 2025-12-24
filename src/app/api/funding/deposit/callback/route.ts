@@ -53,9 +53,8 @@ export async function GET(request: NextRequest) {
       category: 'funding',
       amount: amountKobo,
       narration: 'Account funding via VFD payment widget',
-      party: { gateway: 'VFD' },
+      party_name: 'VFD',
       balance_after: newBalance,
-      status: 'completed',
     });
 
     // Create notification

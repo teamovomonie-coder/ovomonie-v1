@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Users, Award, Gift, Share2, Contact, Loader2 } from 'lucide-react';
+import { Copy, Users, Award, Gift, Share2, Contact, Loader2, Star, Trophy, Medal } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { LoyaltyPoints, Referral } from '@/types/features';
 
 interface ReferralStats {
   invites: number;
@@ -17,13 +18,21 @@ interface ReferralStats {
   earnings: number;
 }
 
+interface CombinedData {
+  referrals: Referral[];
+  loyalty: LoyaltyPoints | null;
+  stats: ReferralStats;
+}
+
 export function InvitationDashboard() {
-    const [referralCode, setReferralCode] = useState<string>('');
+  const [referralCode, setReferralCode] = useState<string>('');
   const [stats, setStats] = useState<ReferralStats | null>(null);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [loyalty, setLoyalty] = useState<LoyaltyPoints | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClaiming, setIsClaiming] = useState(false);
-    const { toast } = useToast();
-    const { updateBalance, user, fetchUserData } = useAuth();
+  const { toast } = useToast();
+  const { updateBalance, user, fetchUserData } = useAuth();
   const { addNotification } = useNotifications();
 
     // Resolve token and userId robustly and persist userId to localStorage when found
@@ -53,112 +62,108 @@ export function InvitationDashboard() {
         return { token: token || null, userId: userId || null };
     };
 
-        useEffect(() => {
-            const fetchReferralData = async () => {
-                setIsLoading(true);
-                try {
-                    const token = localStorage.getItem('ovo-auth-token');
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('ovo-auth-token');
+        let userId = localStorage.getItem('ovo-user-id');
 
-                    // Try to get userId from localStorage first
-                    let userId = localStorage.getItem('ovo-user-id');
-
-                    // If missing, try to get from in-memory auth context
-                    if (!userId && user?.userId) {
-                        userId = user.userId;
-                        localStorage.setItem('ovo-user-id', userId);
-                    }
-
-                    // If still missing but token exists, attempt to resolve via /api/auth/me
-                    if (!userId && token) {
-                        try {
-                            const meRes = await fetch('/api/auth/me', {
-                                headers: { Authorization: `Bearer ${token}` },
-                            });
-                            if (meRes.ok) {
-                                const meData = await meRes.json();
-                                userId = meData?.id || meData?.userId || null;
-                                if (userId) localStorage.setItem('ovo-user-id', userId);
-                                // refresh app-level user data if missing
-                                if (!user) await fetchUserData();
-                            }
-                        } catch (e) {
-                            // ignore and rely on fallback below
-                        }
-                    }
-
-                    if (!token || !userId) throw new Error('Authentication failed.');
-
-                    const response = await fetch('/api/invitations/stats', {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            'x-ovo-user-id': userId,
-                        },
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.message || 'Failed to fetch referral data');
-                    }
-
-                    const data = await response.json();
-                    setReferralCode(data.referralCode || '');
-                    setStats(data.stats);
-                } catch (error) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Error',
-                        description: error instanceof Error ? error.message : 'Could not load your referral information.',
-                    });
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchReferralData();
-        }, [toast]);
-
-    const handleClaimReward = async () => {
-        setIsClaiming(true);
-        try {
-            const { token, userId } = await resolveAuth();
-            if (!token || !userId) throw new Error('Authentication failed.');
-
-            const response = await fetch('/api/invitations/claim-reward', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'x-ovo-user-id': userId,
-                },
-            });
-
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Failed to claim reward.');
-
-            updateBalance(result.newBalanceInKobo);
-            addNotification({
-                title: 'Referral Reward Earned!',
-                description: `You've received ₦500 for a successful referral.`,
-                category: 'transaction',
-            });
-            setStats((prev) =>
-                prev
-                    ? {
-                          ...prev,
-                          signups: prev.signups + 1,
-                          earnings: prev.earnings + 500,
-                      }
-                    : null
-            );
-            toast({ title: 'Reward Credited!', description: '₦500 has been added to your wallet.' });
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Claim Failed',
-                description: error instanceof Error ? error.message : 'An unexpected error occurred.',
-            });
-        } finally {
-            setIsClaiming(false);
+        if (!userId && user?.userId) {
+          userId = user.userId;
+          localStorage.setItem('ovo-user-id', userId);
         }
+
+        if (!token || !userId) throw new Error('Authentication failed.');
+
+        // Fetch referrals data
+        const referralsRes = await fetch('/api/referrals', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (referralsRes.ok) {
+          const referralsData = await referralsRes.json();
+          setReferrals(referralsData.referrals || []);
+        }
+
+        // Fetch loyalty data
+        const loyaltyRes = await fetch('/api/loyalty', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (loyaltyRes.ok) {
+          const loyaltyData = await loyaltyRes.json();
+          setLoyalty(loyaltyData.loyalty);
+        }
+
+        // Generate referral code
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        setReferralCode(code);
+        
+        // Set stats
+        setStats({
+          invites: referrals.length,
+          signups: referrals.filter(r => r.status === 'completed').length,
+          earnings: referrals.filter(r => r.status === 'completed').reduce((sum, r) => sum + r.reward_amount, 0)
+        });
+
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not load data.'
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
+    fetchData();
+  }, [toast, user, referrals.length]);
+
+  const handleClaimReward = async () => {
+    setIsClaiming(true);
+    try {
+      const { token, userId } = await resolveAuth();
+      if (!token || !userId) throw new Error('Authentication failed.');
+
+      const response = await fetch('/api/referrals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ referee_id: 'demo_user' })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to claim reward.');
+
+      // Award loyalty points
+      await fetch('/api/loyalty', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ points: (loyalty?.points || 0) + 50 })
+      });
+
+      updateBalance((user?.balance || 0) + 50000);
+      addNotification({
+        title: 'Referral Reward Earned!',
+        description: `You've received ₦500 and 50 loyalty points.`,
+        category: 'transaction',
+      });
+      
+      toast({ title: 'Reward Credited!', description: '₦500 and 50 points added to your account.' });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Claim Failed',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
     const referralLink = 'https://ovomonie-v1-pgrm.vercel.app/register';
 
@@ -323,9 +328,10 @@ export function InvitationDashboard() {
                         )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
                 {isLoading ? (
                     <>
+                        <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
                         <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
                         <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
                         <Card><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
@@ -347,6 +353,11 @@ export function InvitationDashboard() {
                     <p className="text-2xl font-bold">{stats?.earnings ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Rewards Earned</p>
                 </div>
+                <div className="bg-gradient-to-r from-purple-100 to-indigo-100 p-4 rounded-lg border border-purple-200">
+                    <Star className="mx-auto h-8 w-8 text-purple-600 mb-2" />
+                    <p className="text-2xl font-bold text-purple-700">{loyalty?.points ?? 0}</p>
+                    <p className="text-sm text-purple-600 font-medium capitalize">{loyalty?.tier ?? 'Bronze'} Tier</p>
+                </div>
                 </>
             )}
           </div>
@@ -362,6 +373,43 @@ export function InvitationDashboard() {
                   </Button>
               </div>
           </div>
+
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Trophy className="mr-2 h-5 w-5 text-yellow-500" />
+              Recent Referrals
+            </h3>
+            <div className="space-y-3">
+              {referrals.slice(0, 3).map((referral) => (
+                <div key={referral.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  <div>
+                    <p className="font-medium">Code: {referral.code}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(referral.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      referral.status === 'completed' 
+                        ? 'text-green-700 bg-green-100' 
+                        : 'text-yellow-700 bg-yellow-100'
+                    }`}>
+                      {referral.status}
+                    </span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      ₦{referral.reward_amount.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {referrals.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Medal className="mx-auto h-12 w-12 mb-2" />
+                  <p>No referrals yet. Start inviting friends!</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex-col gap-4">
@@ -370,7 +418,7 @@ export function InvitationDashboard() {
         </p>
         <Button variant="outline" size="sm" onClick={handleClaimReward} disabled={isLoading || isClaiming}>
             {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Receive a ₦500 Reward
+            Receive ₦500 + 50 Points
         </Button>
         <p className="text-xs text-muted-foreground text-center w-full mt-2">
           Powered by Ovomonie

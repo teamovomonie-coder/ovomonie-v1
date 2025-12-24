@@ -33,9 +33,11 @@ export function verifyAuthToken(token: string): AuthTokenPayload | null {
     if (parts.length !== 3) return null;
 
     const [, payloadB64, signature] = parts;
+    if (!payloadB64 || !signature) return null;
     let secret: string;
     try {
         secret = getAuthSecret();
+        if (!secret) return null;
     } catch (error) {
         console.error('Auth token verification failed.');
         return null;

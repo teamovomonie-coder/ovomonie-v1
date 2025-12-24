@@ -1,18 +1,17 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, runTransaction, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
+// Firebase removed - using Supabase
+// Firebase removed - using Supabase
 import { headers } from 'next/headers';
 import { nigerianBanks } from '@/lib/banks';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
-
-
-
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
         if (!userId) {
@@ -23,8 +22,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         let finalUserBalance = 0;
 
         await runTransaction(db, async (transaction) => {
-            const payrollRef = doc(db, "payrollBatches", batchId);
-            const userRef = doc(db, "users", userId);
+            const payrollRef = supabaseAdmin.from("payrollBatches").select().eq("id", batchId);
+            const userRef = supabaseAdmin.from("users").select().eq("id", userId);
             
             const [payrollDoc, userDoc] = await Promise.all([
                 transaction.get(payrollRef),
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             finalUserBalance = newBalance;
             
             // 2. Log each individual transaction
-            const financialTransactionsRef = collection(db, "financialTransactions");
+            const financialTransactionsRef = supabaseAdmin.from("financialTransactions");
             payrollData.employees.forEach((employee: any) => {
                 const bankName = nigerianBanks.find(b => b.code === employee.bankCode)?.name || 'Unknown Bank';
                 const employeeSalaryKobo = Math.round(employee.salary * 100);
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                         account: employee.accountNumber,
                         bank: bankName,
                     },
-                    timestamp: serverTimestamp(),
+                    timestamp: new Date().toISOString(),
                     balanceAfter: newBalance, // Note: This balance is after the *total* debit, not per-employee.
                 });
             });
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             // 3. Update the payroll batch status
             transaction.update(payrollRef, {
                 status: 'Paid',
-                paymentDate: serverTimestamp()
+                paymentDate: new Date().toISOString()
             });
         });
         

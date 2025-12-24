@@ -1,14 +1,14 @@
 
 "use client";
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CustomLink from '@/components/layout/custom-link';
-
-
+import BiometricLogin from '@/components/auth/biometric-login';
+import { biometricService } from '@/lib/biometric';
 
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OvoLogo } from '@/components/layout/logo';
 import { useToast } from '@/hooks/use-toast';
-import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles, Eye, EyeOff, CreditCard } from 'lucide-react';
+import { Clock3, Loader2, ShieldCheck, Smartphone, Sparkles, Eye, EyeOff, Fingerprint } from 'lucide-react';
 
 const loginSchema = z.object({
   phone: z.string().regex(/^0[789][01]\d{8}$/, 'Must be a valid 11-digit Nigerian phone number.'),
@@ -34,6 +34,25 @@ function LoginFormContent() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
+  const [showBiometric, setShowBiometric] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [lastUsedPhone, setLastUsedPhone] = useState('');
+  
+  useEffect(() => {
+    const initBiometric = async () => {
+      await biometricService.initialize();
+      setBiometricAvailable(biometricService.isAvailable());
+      
+      // Check if user has biometric registered
+      const savedPhone = localStorage.getItem('lastLoginPhone');
+      if (savedPhone && biometricService.hasBiometricRegistered(savedPhone)) {
+        setLastUsedPhone(savedPhone);
+        setShowBiometric(true);
+      }
+    };
+    
+    initBiometric();
+  }, []);
   const trustSignals = useMemo(
     () => [
       {
@@ -69,10 +88,15 @@ function LoginFormContent() {
     setIsLoading(true);
     try {
       await login(data.phone, data.pin);
+      
+      // Save phone for biometric login
+      localStorage.setItem('lastLoginPhone', data.phone);
+      
       toast({
         title: 'Login Successful',
         description: 'Welcome back!',
       });
+      
       // Redirect to the originally intended page or dashboard
       const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
       router.push(callbackUrl);
@@ -88,6 +112,15 @@ function LoginFormContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleBiometricSuccess = () => {
+    const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+    router.push(callbackUrl);
+  };
+
+  const handleBiometricFallback = () => {
+    setShowBiometric(false);
   };
 
   return (
@@ -149,17 +182,30 @@ function LoginFormContent() {
         </div>
 
         <div className="flex flex-1 items-center pb-6 lg:pb-0">
-          <Card className="w-full border border-slate-100/80 shadow-xl shadow-primary/5">
-            <CardHeader className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <OvoLogo width={36} height={36} />
-                  <span>Sign in to continue</span>
+          {showBiometric ? (
+            <BiometricLogin 
+              userId={lastUsedPhone}
+              onSuccess={handleBiometricSuccess}
+              onFallback={handleBiometricFallback}
+            />
+          ) : (
+            <Card className="w-full border border-slate-100/80 shadow-xl shadow-primary/5">
+              <CardHeader className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <OvoLogo width={36} height={36} />
+                    <span>Sign in to continue</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs text-primary">Secure PIN</Badge>
                 </div>
-                <Badge variant="secondary" className="text-xs text-primary">Secure PIN</Badge>
-              </div>
-              <CardTitle className="text-3xl font-semibold">Welcome back</CardTitle>
-            </CardHeader>
+                <CardTitle className="text-3xl font-semibold">Welcome back</CardTitle>
+                {biometricAvailable && (
+                  <CardDescription className="flex items-center gap-2">
+                    <Fingerprint className="h-4 w-4" />
+                    Biometric authentication available
+                  </CardDescription>
+                )}
+              </CardHeader>
             <CardContent className="space-y-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
@@ -233,6 +279,7 @@ function LoginFormContent() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
       </div>
     </div>

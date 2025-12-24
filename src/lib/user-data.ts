@@ -1,6 +1,6 @@
-
-// Server-side user-data: migrated to Firebase Admin SDK
-import { getDb, admin } from '@/lib/firebaseAdmin';
+// Server-side user-data: migrated to Supabase
+import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase';
 
 interface UserAccount {
     id?: string;
@@ -30,13 +30,16 @@ const DAILY_RECEIVE_LIMITS_BY_KYC: Record<number, number> = {
 };
 
 export const mockGetAccountByNumber = async (accountNumber: string): Promise<UserAccount | undefined> => {
-    // On the server, query Firestore using Admin SDK.
-    if (typeof window === 'undefined') {
-        const db = await getDb();
-        const snapshot = await db.collection('users').where('accountNumber', '==', accountNumber).get();
-        if (snapshot.empty) return undefined;
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...(doc.data() as any) } as UserAccount;
+    // On the server, query Supabase
+    if (typeof window === 'undefined' && supabaseAdmin) {
+        const { data, error } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('account_number', accountNumber)
+            .single();
+        
+        if (error || !data) return undefined;
+        return { id: data.id, ...data } as UserAccount;
     } else {
         // On the client, fetch via API
         try {
@@ -57,44 +60,42 @@ export const mockGetAccountByNumber = async (accountNumber: string): Promise<Use
 
 // Helper: get today's total debited transfers for a user in kobo
 const getTodayDebitedTransfersTotal = async (userId: string): Promise<number> => {
-    const db = await getDb();
+    if (!supabaseAdmin) return 0;
+    
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const startTs = admin.firestore.Timestamp.fromDate(startOfDay);
-    const snap = await db
-        .collection('financialTransactions')
-        .where('userId', '==', userId)
-        .where('category', '==', 'transfer')
-        .where('type', '==', 'debit')
-        .where('timestamp', '>=', startTs)
-        .get();
-    let total = 0;
-    snap.forEach((d) => {
-        const data: any = d.data();
-        total += Number(data.amount || 0);
-    });
-    return total;
+    
+    const { data, error } = await supabaseAdmin
+        .from('financial_transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('category', 'transfer')
+        .eq('type', 'debit')
+        .gte('timestamp', startOfDay.toISOString());
+    
+    if (error || !data) return 0;
+    
+    return data.reduce((total, tx) => total + (Number(tx.amount) || 0), 0);
 };
 
 // Helper: get today's total credited transfers for a user in kobo
 const getTodayCreditedTransfersTotal = async (userId: string): Promise<number> => {
-    const db = await getDb();
+    if (!supabaseAdmin) return 0;
+    
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const startTs = admin.firestore.Timestamp.fromDate(startOfDay);
-    const snap = await db
-        .collection('financialTransactions')
-        .where('userId', '==', userId)
-        .where('category', '==', 'transfer')
-        .where('type', '==', 'credit')
-        .where('timestamp', '>=', startTs)
-        .get();
-    let total = 0;
-    snap.forEach((d) => {
-        const data: any = d.data();
-        total += Number(data.amount || 0);
-    });
-    return total;
+    
+    const { data, error } = await supabaseAdmin
+        .from('financial_transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('category', 'transfer')
+        .eq('type', 'credit')
+        .gte('timestamp', startOfDay.toISOString());
+    
+    if (error || !data) return 0;
+    
+    return data.reduce((total, tx) => total + (Number(tx.amount) || 0), 0);
 };
 
 export const performTransfer = async (
@@ -108,165 +109,129 @@ export const performTransfer = async (
 ): Promise<{ success: true; newSenderBalance: number; recipientName: string; reference: string } | { success: false; message: string }> => {
     
     try {
-        const db = await getDb();
-        // Idempotency pre-check
-        try {
-            const existing = await db.collection('financialTransactions').where('reference', '==', clientReference).get();
-            if (existing && !existing.empty) {
-                const senderDoc = await db.collection('users').doc(senderUserId).get();
-                const finalSenderBalance = (senderDoc.exists ? (senderDoc.data() as any).balance : 0) || 0;
-                return { success: true, newSenderBalance: finalSenderBalance, recipientName: '', reference: clientReference };
-            }
-        } catch (e) {
-            // proceed to transaction if idempotency check fails
-            console.warn('Idempotency pre-check failed, proceeding with transaction', e);
+        if (!supabaseAdmin) {
+            return { success: false, message: 'Database not available' };
         }
 
-        let finalSenderBalance = 0;
-        let recipientName = '';
+        // Idempotency pre-check
+        const { data: existing } = await supabaseAdmin
+            .from('financial_transactions')
+            .select('id')
+            .eq('reference', clientReference)
+            .limit(1);
 
-        // Find recipient doc first
-        const recipientSnapshot = await db.collection('users').where('accountNumber', '==', recipientAccountNumber).get();
-        if (recipientSnapshot.empty) return { success: false, message: 'Recipient account not found.' };
-        const recipientDocRef = db.collection('users').doc(recipientSnapshot.docs[0].id);
+        if (existing && existing.length > 0) {
+            const { data: senderData } = await supabaseAdmin
+                .from('users')
+                .select('balance')
+                .eq('id', senderUserId)
+                .single();
+            
+            const finalSenderBalance = senderData?.balance || 0;
+            return { success: true, newSenderBalance: finalSenderBalance, recipientName: '', reference: clientReference };
+        }
 
-        // Pre-check sender debit limit before transaction
-        const senderDocPreCheck = await db.collection('users').doc(senderUserId).get();
-        if (!senderDocPreCheck.exists) return { success: false, message: 'Sender account not found.' };
-        const senderKycTier = Number(senderDocPreCheck.data()?.kycTier || 1);
-        const senderDailyDebitLimit = DAILY_DEBIT_LIMITS_BY_KYC[senderKycTier] ?? DAILY_DEBIT_LIMITS_BY_KYC[1];
+        // Find recipient
+        const { data: recipientData, error: recipientError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('account_number', recipientAccountNumber)
+            .single();
+
+        if (recipientError || !recipientData) {
+            return { success: false, message: 'Recipient account not found.' };
+        }
+
+        // Get sender data
+        const { data: senderData, error: senderError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', senderUserId)
+            .single();
+
+        if (senderError || !senderData) {
+            return { success: false, message: 'Sender account not found.' };
+        }
+
+        // Check sender balance
+        if ((senderData.balance || 0) < amountInKobo) {
+            return { success: false, message: 'Insufficient funds.' };
+        }
+
+        // Check limits
+        const senderKycTier = Number(senderData.kyc_tier || 1);
+        const senderDailyDebitLimit = DAILY_DEBIT_LIMITS_BY_KYC[senderKycTier];
         const senderTodaysDebit = await getTodayDebitedTransfersTotal(senderUserId);
-        if (senderTodaysDebit + amountInKobo > senderDailyDebitLimit) {
+        
+        if (senderDailyDebitLimit && senderTodaysDebit + amountInKobo > senderDailyDebitLimit) {
             return { success: false, message: `Daily transfer limit exceeded. You can send up to ₦${(senderDailyDebitLimit / 100).toLocaleString('en-NG')} per day.` };
         }
 
-        // Pre-check recipient receive limit before transaction
-        const recipientDocPreCheck = await recipientDocRef.get();
-        if (!recipientDocPreCheck.exists) return { success: false, message: 'Recipient account not found.' };
-        const recipientKycTier = Number(recipientDocPreCheck.data()?.kycTier || 1);
-        const recipientDailyReceiveLimit = DAILY_RECEIVE_LIMITS_BY_KYC[recipientKycTier] ?? DAILY_RECEIVE_LIMITS_BY_KYC[1];
-        const recipientTodaysCredit = await getTodayCreditedTransfersTotal(recipientDocRef.id);
-        if (recipientTodaysCredit + amountInKobo > recipientDailyReceiveLimit) {
+        const recipientKycTier = Number(recipientData.kyc_tier || 1);
+        const recipientDailyReceiveLimit = DAILY_RECEIVE_LIMITS_BY_KYC[recipientKycTier];
+        const recipientTodaysCredit = await getTodayCreditedTransfersTotal(recipientData.id);
+        
+        if (recipientDailyReceiveLimit && recipientTodaysCredit + amountInKobo > recipientDailyReceiveLimit) {
             return { success: false, message: `Recipient's daily receive limit exceeded. Maximum daily limit is ₦${(recipientDailyReceiveLimit / 100).toLocaleString('en-NG')}.` };
         }
 
-        await db.runTransaction(async (transaction) => {
-            const senderRef = db.collection('users').doc(senderUserId);
-            const [senderDocSnap, recipientDocSnap] = await Promise.all([
-                transaction.get(senderRef),
-                transaction.get(recipientDocRef),
-            ]);
+        // Perform transfer
+        const newSenderBalance = (senderData.balance || 0) - amountInKobo;
+        const newRecipientBalance = (recipientData.balance || 0) + amountInKobo;
 
-            if (!senderDocSnap.exists) throw new Error('Sender account not found.');
-            if (!recipientDocSnap.exists) throw new Error('Recipient account not found.');
-
-            const senderData = senderDocSnap.data() as any;
-            const recipientData = recipientDocSnap.data() as any;
-            recipientName = recipientData.fullName || '';
-
-            if ((senderData.balance || 0) < amountInKobo) {
-                throw new Error('Insufficient funds.');
-            }
-
-            const newSenderBalance = (senderData.balance || 0) - amountInKobo;
-            const newRecipientBalance = (recipientData.balance || 0) + amountInKobo;
-
-            transaction.update(senderRef, { balance: newSenderBalance });
-            transaction.update(recipientDocRef, { balance: newRecipientBalance });
-
-            const debitLog = {
-                userId: senderUserId,
-                category: 'transfer',
-                type: 'debit',
-                amount: amountInKobo,
-                reference: clientReference,
-                narration: narration || `Transfer to ${recipientData.fullName}`,
-                party: { name: recipientData.fullName, account: recipientAccountNumber, bank: 'Ovomonie' },
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                balanceAfter: newSenderBalance,
-                memoMessage: message || null,
-                memoImageUri: photo || null,
-            };
-            const creditLog = {
-                userId: recipientDocRef.id,
-                category: 'transfer',
-                type: 'credit',
-                amount: amountInKobo,
-                reference: clientReference,
-                narration: narration || `Transfer from ${senderData.fullName}`,
-                party: { name: senderData.fullName, account: senderData.accountNumber, bank: 'Ovomonie' },
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                balanceAfter: newRecipientBalance,
-                memoMessage: message || null,
-                memoImageUri: photo || null,
-            };
-
-            transaction.set(db.collection('financialTransactions').doc(), debitLog);
-            transaction.set(db.collection('financialTransactions').doc(), creditLog);
-
-            finalSenderBalance = newSenderBalance;
-        });
-
-        if (finalSenderBalance === 0 && clientReference) {
-            const senderDoc = await db.collection('users').doc(senderUserId).get();
-            if (senderDoc.exists) finalSenderBalance = (senderDoc.data() as any).balance || 0;
-        }
-
-        // Create Supabase notifications after successful transfer
-        const { createNotifications } = await import('@/lib/notification-helper');
-        const senderData = senderDocPreCheck.data();
-        const recipientData = recipientSnapshot.docs[0].data();
-        
-        console.log('DEBUG: Sender data:', {
-            fullName: senderData?.fullName,
-            phoneNumber: senderData?.phoneNumber,
-            accountNumber: senderData?.accountNumber
-        });
-        console.log('DEBUG: Recipient data:', {
-            fullName: recipientData?.fullName,
-            phoneNumber: recipientData?.phoneNumber,
-            accountNumber: recipientAccountNumber
-        });
-        
-        await createNotifications([
-            {
-                userId: senderUserId,
-                title: 'Money Sent',
-                body: `₦${(amountInKobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} sent to ${recipientName}`,
-                category: 'transfer',
-                type: 'debit',
-                amount: amountInKobo,
-                reference: clientReference,
-                senderName: senderData?.fullName,
-                senderPhone: senderData?.phoneNumber,
-                senderAccount: senderData?.accountNumber,
-                recipientName,
-                recipientPhone: recipientData?.phoneNumber,
-                recipientAccount: recipientAccountNumber,
-            },
-            {
-                userId: recipientSnapshot.docs[0].id,
-                title: 'Money Received',
-                body: `₦${(amountInKobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} received from ${senderData?.fullName || 'Unknown'}`,
-                category: 'transfer',
-                type: 'credit',
-                amount: amountInKobo,
-                reference: clientReference,
-                senderName: senderData?.fullName,
-                senderPhone: senderData?.phoneNumber,
-                senderAccount: senderData?.accountNumber,
-                recipientName,
-                recipientPhone: recipientData?.phoneNumber,
-                recipientAccount: recipientAccountNumber,
-            },
+        // Update balances
+        await Promise.all([
+            supabaseAdmin.from('users').update({ balance: newSenderBalance }).eq('id', senderUserId),
+            supabaseAdmin.from('users').update({ balance: newRecipientBalance }).eq('id', recipientData.id)
         ]);
 
-        return { success: true, newSenderBalance: finalSenderBalance, recipientName, reference: clientReference };
+        // Create transaction records
+        const timestamp = new Date().toISOString();
+        await Promise.all([
+            supabaseAdmin.from('financial_transactions').insert({
+                user_id: senderUserId,
+                category: 'transfer',
+                type: 'debit',
+                amount: amountInKobo,
+                reference: clientReference,
+                narration: narration || `Transfer to ${recipientData.full_name}`,
+                party_name: recipientData.full_name,
+                party_account: recipientAccountNumber,
+                timestamp,
+                balance_after: newSenderBalance,
+                metadata: {
+                    memoMessage: message || null,
+                    memoImageUri: photo || null,
+                }
+            }),
+            supabaseAdmin.from('financial_transactions').insert({
+                user_id: recipientData.id,
+                category: 'transfer',
+                type: 'credit',
+                amount: amountInKobo,
+                reference: clientReference,
+                narration: narration || `Transfer from ${senderData.full_name}`,
+                party_name: senderData.full_name,
+                party_account: senderData.account_number,
+                timestamp,
+                balance_after: newRecipientBalance,
+                metadata: {
+                    memoMessage: message || null,
+                    memoImageUri: photo || null,
+                }
+            })
+        ]);
+
+        return { 
+            success: true, 
+            newSenderBalance, 
+            recipientName: recipientData.full_name || '', 
+            reference: clientReference 
+        };
 
     } catch (error) {
-        console.error('Firestore transaction failed: ', error);
+        console.error('Transfer failed: ', error);
         if (error instanceof Error) return { success: false, message: error.message };
         return { success: false, message: 'An unexpected error occurred during the transfer.' };
     }
-}
-// @ts-nocheck
+};

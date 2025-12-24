@@ -56,16 +56,16 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async (event) =
 		currency: "NGN",
 		language: "en",
 		notificationsEnabled: true,
-		createdAt: admin.firestore.FieldValue.serverTimestamp(),
-		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+		createdAt: admin.firestore.FieldValue.new Date().toISOString(),
+		updatedAt: admin.firestore.FieldValue.new Date().toISOString(),
 	});
 
 	const walletRef = userRef.collection("wallet").doc("main");
 	batch.set(walletRef, {
 		balance: 0,
 		ledgerVersion: 1,
-		createdAt: admin.firestore.FieldValue.serverTimestamp(),
-		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+		createdAt: admin.firestore.FieldValue.new Date().toISOString(),
+		updatedAt: admin.firestore.FieldValue.new Date().toISOString(),
 	});
 
 	const securityRef = userRef.collection("security").doc("status");
@@ -74,16 +74,16 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async (event) =
 		bvnVerified: false,
 		ninVerified: false,
 		twoFactorEnabled: false,
-		createdAt: admin.firestore.FieldValue.serverTimestamp(),
-		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+		createdAt: admin.firestore.FieldValue.new Date().toISOString(),
+		updatedAt: admin.firestore.FieldValue.new Date().toISOString(),
 	});
 
 	const preferencesRef = userRef.collection("preferences").doc("app");
 	batch.set(preferencesRef, {
 		theme: "system",
 		quickActions: ["add-money", "internal-transfer"],
-		createdAt: admin.firestore.FieldValue.serverTimestamp(),
-		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+		createdAt: admin.firestore.FieldValue.new Date().toISOString(),
+		updatedAt: admin.firestore.FieldValue.new Date().toISOString(),
 	});
 
 	const notificationsRef = userRef.collection("notifications").doc("_bootstrap");
@@ -92,7 +92,7 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async (event) =
 		title: "Welcome to OvoMonie",
 		message: "Your account has been set up.",
 		read: false,
-		createdAt: admin.firestore.FieldValue.serverTimestamp(),
+		createdAt: admin.firestore.FieldValue.new Date().toISOString(),
 	});
 
 	await batch.commit();
@@ -119,7 +119,7 @@ export const backfillUserDefaults = onRequest(async (req, res) => {
 		const preferencesRef = userRef.collection("preferences").doc("app");
 
 		const batch = db.batch();
-		const ts = admin.firestore.FieldValue.serverTimestamp();
+		const ts = admin.firestore.FieldValue.new Date().toISOString();
 
 		const maybeSet = async (ref: FirebaseFirestore.DocumentReference, data: Record<string, unknown>) => {
 			const s = await ref.get();

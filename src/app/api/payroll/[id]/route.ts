@@ -1,14 +1,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+// Firebase removed - using Supabase
+// Firebase removed - using Supabase
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
-
-
-
-
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {

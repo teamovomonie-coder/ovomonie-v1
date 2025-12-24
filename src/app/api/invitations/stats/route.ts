@@ -17,7 +17,7 @@ function getUserIdFromRequest(request: Request) {
     const auth = request.headers.get('authorization') || request.headers.get('Authorization');
     if (auth && auth.startsWith('Bearer ')) {
         const token = auth.split(' ')[1];
-        const payload = verifyAuthToken(token);
+        const payload = token ? verifyAuthToken(token) : null;
         if (payload && payload.sub) return payload.sub;
     }
   // Try query param (for dev/testing)

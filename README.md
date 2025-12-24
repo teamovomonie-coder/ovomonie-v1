@@ -3,7 +3,7 @@
 Next.js + Firebase demo for financial workflows (payments, lending, commerce, mobility). Authentication now standardizes on `getUserIdFromToken(headers())`, validated env variables, and structured JSON logging for APIs.
 
 ## Quickstart
-- Node 18+ and npm installed.
+- Node 20+ and npm installed.
 - Copy `.env.example` to `.env.local` (or Firebase hosting env) and fill in your Firebase keys plus a strong `AUTH_SECRET`.
 - Install deps: `npm install`
 - Dev server: `npm run dev`

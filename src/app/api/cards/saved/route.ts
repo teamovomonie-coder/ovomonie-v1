@@ -198,7 +198,7 @@ export async function DELETE(request: NextRequest) {
         .eq('user_id', payload.sub)
         .limit(1);
 
-      if (remainingCards && remainingCards.length > 0) {
+      if (remainingCards && remainingCards.length > 0 && remainingCards[0]) {
         await supabaseAdmin
           .from('saved_cards')
           .update({ is_default: true })

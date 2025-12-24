@@ -1,33 +1,17 @@
-
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import {
-    collection,
-    runTransaction,
-    doc,
-    serverTimestamp,
-    query,
-    where,
-    getDoc,
-} from 'firebase/firestore';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
-
 
 export async function POST(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const reqHeaders = request.headers as { get(name: string): string | null };
         const userId = getUserIdFromToken(reqHeaders);
 
-        // Debug: log that the loan repay request arrived and whether auth header was present
-        try {
-            const authHeader = reqHeaders.get?.('authorization') || reqHeaders.get?.('Authorization') || null;
-            logger.debug('loan repay request received', { authPresent: Boolean(authHeader), path: '/api/loans/repay' });
-        } catch (e) {
-            logger.warn('Could not read authorization header for debug logging in loan repay');
-        }
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -42,78 +26,80 @@ export async function POST(request: Request) {
         }
         
         const amountInKobo = Math.round(amount * 100);
-        let newLoanBalance = 0;
-        let newUserBalance = 0;
 
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
+        // Check for existing transaction (idempotency)
+        const { data: existingTxn } = await supabaseAdmin
+            .from('financial_transactions')
+            .select('id')
+            .eq('reference', clientReference)
+            .limit(1);
 
-            if (!(existingTxnSnapshot as any).empty) {
-                logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
-                const userRef = doc(db, "users", userId);
-                const loanRef = doc(db, "loans", loanId);
+        if (existingTxn && existingTxn.length > 0) {
+            logger.info(`Idempotent request for loan repayment: ${clientReference} already processed.`);
+            const { data: user } = await supabaseAdmin.from('users').select('balance').eq('id', userId).single();
+            const { data: loan } = await supabaseAdmin.from('loans').select('balance').eq('id', loanId).single();
+            
+            return NextResponse.json({
+                message: 'Repayment already processed',
+                newUserBalance: user?.balance || 0,
+                newLoanBalance: loan?.balance || 0,
+            });
+        }
 
-                const [userDoc, loanDoc] = await Promise.all([
-                    transaction.get(userRef),
-                    transaction.get(loanRef)
-                ]);
+        // Get loan and user data
+        const { data: loan, error: loanError } = await supabaseAdmin
+            .from('loans')
+            .select('*')
+            .eq('id', loanId)
+            .single();
 
-                if (userDoc.exists()) newUserBalance = userDoc.data().balance;
-                if (loanDoc.exists()) newLoanBalance = loanDoc.data().balance;
-                return;
-            }
+        const { data: user, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
 
-            const loanRef = doc(db, "loans", loanId);
-            const userRef = doc(db, "users", userId);
+        if (loanError || !loan) throw new Error("Loan not found.");
+        if (loan.user_id !== userId) throw new Error("Loan does not belong to this user.");
+        if (userError || !user) throw new Error("User not found.");
 
-            const [loanDoc, userDoc] = await Promise.all([
-                transaction.get(loanRef),
-                transaction.get(userRef),
-            ]);
+        if (user.balance < amountInKobo) throw new Error("Insufficient funds for repayment.");
 
-            if (!loanDoc.exists()) throw new Error("Loan not found.");
-            if (loanDoc.data().userId !== userId) throw new Error("Loan does not belong to this user.");
-            if (!userDoc.exists()) throw new Error("User not found.");
+        const newLoanBalance = loan.balance - amountInKobo;
+        const newUserBalance = user.balance - amountInKobo;
+        const newStatus = newLoanBalance <= 0 ? 'Paid' : 'Active';
 
-            const loanData = loanDoc.data();
-            const userData = userDoc.data();
+        // Update user balance
+        await supabaseAdmin
+            .from('users')
+            .update({ balance: newUserBalance })
+            .eq('id', userId);
 
-            if (userData.balance < amountInKobo) throw new Error("Insufficient funds for repayment.");
-
-            newLoanBalance = loanData.balance - amountInKobo;
-            newUserBalance = userData.balance - amountInKobo;
-
-            const newStatus = newLoanBalance <= 0 ? 'Paid' : 'Active';
-
-            // Naive repayment update logic for demo. A real app would be more complex.
-            const updatedRepayments = loanData.repayments.map((r: any) => ({
-                 ...r,
-                 // This is a simplified logic. A real app would allocate payments properly.
-            }));
-
-            transaction.update(userRef, { balance: newUserBalance });
-            transaction.update(loanRef, {
+        // Update loan
+        await supabaseAdmin
+            .from('loans')
+            .update({
                 balance: newLoanBalance,
                 status: newStatus,
-                repayments: updatedRepayments, 
-                lastRepaymentDate: serverTimestamp(),
-            });
+                last_repayment_date: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', loanId);
 
-            const debitLog = {
-                userId: userId,
+        // Create transaction record
+        await supabaseAdmin
+            .from('financial_transactions')
+            .insert({
+                user_id: userId,
                 category: 'loan',
                 type: 'debit',
                 amount: amountInKobo,
                 reference: clientReference,
                 narration: 'Loan repayment',
-                party: { name: 'Ovomonie Loans' },
-                timestamp: serverTimestamp(),
-                balanceAfter: newUserBalance,
-            };
-            transaction.set(doc(financialTransactionsRef), debitLog);
-        });
+                party_name: 'Ovomonie Loans',
+                timestamp: new Date().toISOString(),
+                balance_after: newUserBalance,
+            });
 
         return NextResponse.json({
             message: 'Repayment successful!',

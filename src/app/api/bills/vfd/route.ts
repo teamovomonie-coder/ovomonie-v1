@@ -4,7 +4,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdBillsService, type BillPaymentRequest } from '@/lib/vfd-bills-service';
 import { db, userService, transactionService, notificationService } from '@/lib/db';
@@ -188,7 +188,8 @@ export async function POST(request: NextRequest) {
       category: 'bill_payment',
       amount: amountKobo,
       narration: `${billerName || billerId} - ${category || 'Bill'} Payment`,
-      party: { billerName, customerId },
+      party_name: billerName,
+      party_account: customerId,
       balance_after: newBalance,
       metadata: {
         paymentGateway: 'VFD',

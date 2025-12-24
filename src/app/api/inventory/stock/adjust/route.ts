@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, runTransaction, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function POST(request: Request) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const body = await request.json();
         const { productId, locationId, newStock, reason, notes } = body;
 
@@ -13,42 +15,54 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
         }
 
-        const productRef = doc(db, "products", productId);
-        let previousStock = 0;
-        let quantityChanged = 0;
+        // Get current product stock
+        const { data: product, error: productError } = await supabaseAdmin
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .single();
 
-        await runTransaction(db, async (transaction) => {
-            const productDoc = await transaction.get(productRef);
-            if (!productDoc.exists()) {
-                throw new Error("Product not found");
-            }
+        if (productError || !product) {
+            return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+        }
 
-            const product = productDoc.data();
-            const stockIndex = product.stockByLocation.findIndex((s: any) => s.locationId === locationId);
-            if (stockIndex === -1) {
-                throw new Error("Location not found for this product");
-            }
-            
-            previousStock = product.stockByLocation[stockIndex].quantity;
-            quantityChanged = newStock - previousStock;
-            
-            const newStockByLocation = [...product.stockByLocation];
-            newStockByLocation[stockIndex] = { ...newStockByLocation[stockIndex], quantity: newStock };
+        // Find stock for location
+        const stockByLocation = product.stock_by_location || [];
+        const stockIndex = stockByLocation.findIndex((s: any) => s.locationId === locationId);
+        
+        if (stockIndex === -1) {
+            return NextResponse.json({ message: 'Location not found for this product' }, { status: 404 });
+        }
 
-            transaction.update(productRef, { stockByLocation: newStockByLocation });
-        });
+        const previousStock = stockByLocation[stockIndex].quantity;
+        const quantityChanged = newStock - previousStock;
 
-        // Create transaction log after the atomic update
-        await addDoc(collection(db, "inventoryTransactions"), {
-            productId,
-            locationId,
-            type: 'adjustment',
-            quantity: quantityChanged,
-            previousStock,
-            newStock,
-            notes: `${reason}${notes ? `: ${notes}` : ''}`,
-            date: serverTimestamp(),
-        });
+        // Update stock
+        const newStockByLocation = [...stockByLocation];
+        newStockByLocation[stockIndex] = { ...newStockByLocation[stockIndex], quantity: newStock };
+
+        const { error: updateError } = await supabaseAdmin
+            .from('products')
+            .update({ stock_by_location: newStockByLocation })
+            .eq('id', productId);
+
+        if (updateError) throw updateError;
+
+        // Create transaction log
+        const { error: logError } = await supabaseAdmin
+            .from('stock_transactions')
+            .insert({
+                product_id: productId,
+                location_id: locationId,
+                type: 'adjustment',
+                quantity: quantityChanged,
+                previous_stock: previousStock,
+                new_stock: newStock,
+                notes: `${reason}${notes ? `: ${notes}` : ''}`,
+                created_at: new Date().toISOString(),
+            });
+
+        if (logError) throw logError;
 
         return NextResponse.json({ message: 'Stock adjusted and logged successfully' }, { status: 200 });
     } catch (error) {

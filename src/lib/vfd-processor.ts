@@ -4,8 +4,7 @@
  */
 
 import vfdAPI from './vfd';
-import { getDb } from '@/lib/firebaseAdmin';
-import admin from 'firebase-admin';
+import { supabaseAdmin } from './supabase';
 
 export type PaymentCategory = 
   | 'card_funding'
@@ -224,7 +223,7 @@ export async function checkVFDPaymentStatus(reference: string): Promise<VFDPayme
 }
 
 /**
- * Log payment transaction to Firestore
+ * Log payment transaction to Supabase
  */
 export async function logVFDTransaction(
   userId: string,
@@ -233,31 +232,37 @@ export async function logVFDTransaction(
   transactionType: 'debit' | 'credit' = 'debit'
 ) {
   try {
-    const db = await getDb();
-    const txnDoc = db.collection('financialTransactions').doc();
+    if (!supabaseAdmin) {
+      throw new Error('Database not available');
+    }
 
     const txnData = {
-      userId,
+      user_id: userId,
       reference: paymentRequest.reference,
-      vfdReference: paymentResponse.vfdReference,
+      vfd_reference: paymentResponse.vfdReference,
       type: transactionType,
       category: paymentRequest.category,
       amount: paymentRequest.amount,
-      description: paymentRequest.description,
-      status: paymentResponse.status,
-      paymentGateway: 'VFD',
+      narration: paymentRequest.description,
+      timestamp: new Date().toISOString(),
       metadata: {
         ...paymentRequest.metadata,
         vfdData: paymentResponse.data,
+        paymentGateway: 'VFD',
+        status: paymentResponse.status,
       },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await txnDoc.set(txnData);
-    console.log(`[VFD] Transaction logged for reference ${paymentRequest.reference}`);
+    const { data, error } = await supabaseAdmin
+      .from('financial_transactions')
+      .insert(txnData)
+      .select('id')
+      .single();
 
-    return txnDoc.id;
+    if (error) throw error;
+
+    console.log(`[VFD] Transaction logged for reference ${paymentRequest.reference}`);
+    return data?.id;
   } catch (error) {
     console.error(`[VFD] Error logging transaction:`, error);
     throw error;

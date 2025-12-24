@@ -17,10 +17,10 @@ import { Badge } from '../ui/badge';
 type GameId = 'tic-tac-toe' | '2048' | 'ludo' | 'whot' | null;
 
 const games = [
-    { id: 'ludo', title: 'Ludo Classic', component: LudoGame, category: 'Board & Card', image: 'https://firebasestudio.ai/storage/v1/object/public/users/current/ludo-game-preview.png', hint: 'ludo board' },
-    { id: 'whot', title: 'Whot!', component: WhotGame, category: 'Board & Card', image: 'https://firebasestudio.ai/storage/v1/object/public/users/current/whot-game-preview.png', hint: 'whot cards' },
-    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: 'https://firebasestudio.ai/storage/v1/object/public/users/current/2048-game-preview.png', hint: 'number puzzle', hasChallenge: true },
-    { id: 'tic-tac-toe', title: 'Tic-Tac-Toe', component: TicTacToeGame, category: 'Puzzle & Strategy', image: 'https://firebasestudio.ai/storage/v1/object/public/users/current/tictactoe-game-preview.png', hint: 'tic tac toe' },
+    { id: 'ludo', title: 'Ludo Classic', component: LudoGame, category: 'Board & Card', image: '/images/ludo-game-preview.png', hint: 'ludo board' },
+    { id: 'whot', title: 'Whot!', component: WhotGame, category: 'Board & Card', image: '/images/whot-game-preview.png', hint: 'whot cards' },
+    { id: '2048', title: '2048', component: Game2048, category: 'Puzzle & Strategy', image: '/images/2048-game-preview.png', hint: 'number puzzle', hasChallenge: true },
+    { id: 'tic-tac-toe', title: 'Tic-Tac-Toe', component: TicTacToeGame, category: 'Puzzle & Strategy', image: '/images/tictactoe-game-preview.png', hint: 'tic tac toe' },
 ];
 
 function GameSelectionScreen({ onSelectGame }: { onSelectGame: (id: GameId) => void }) {

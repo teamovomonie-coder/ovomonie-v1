@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+// Firebase removed - using Supabase
+// Firebase removed - using Supabase
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { headers } from 'next/headers';
 import { logger } from '@/lib/logger';
 
@@ -13,6 +13,9 @@ export async function POST(request: Request) {
     }
 
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
         const body = await request.json();
         const { subject, category, description } = body;
 
@@ -26,11 +29,11 @@ export async function POST(request: Request) {
             category,
             description,
             status: 'Open',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
-        const docRef = await addDoc(collection(db, "supportTickets"), newTicket);
+        const docRef = await supabaseAdmin.insert(newTicket);
 
         // TODO: In a real app, you would also trigger a notification to the support team.
         return NextResponse.json({ message: 'Support ticket created successfully!', ticketId: docRef.id }, { status: 201 });
@@ -50,12 +53,12 @@ export async function GET(request: Request) {
 
     try {
         const q = query(
-            collection(db, "supportTickets"), 
+            supabaseAdmin.from("supportTickets"), 
             where("userId", "==", userId),
             orderBy("createdAt", "desc")
         );
         
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await supabaseAdmin.select("*").then(({data}) => data || []).then(items => q);
         const tickets = querySnapshot.docs.map(doc => {
             const data = doc.data();
             return {

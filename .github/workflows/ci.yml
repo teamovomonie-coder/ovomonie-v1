@@ -84,20 +84,8 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  setup:
-    name: Setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
   lint_and_test:
     name: Lint & Test
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +94,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - name: Install deps
-        run: npm ci --prefer-offline --no-audit
+      - name: Install deps (CI-friendly)
+        run: |
+          npm ci --prefer-offline --no-audit --omit=optional || npm ci --legacy-peer-deps --omit=optional
       - name: Lint
         run: npm run lint || (echo "Lint failed" && exit 1)
       - name: Type Check
@@ -133,19 +122,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - name: Install deps
-        run: npm ci --prefer-offline --no-audit
+      - name: Install deps (build)
+        run: npm ci --prefer-offline --no-audit --omit=optional || npm ci --legacy-peer-deps --omit=optional
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       - name: Archive build
         uses: actions/upload-artifact@v4
         with:
@@ -153,7 +137,34 @@ jobs:
           path: .next
           retention-days: 7
 
-  # Optional: Security scanning
+  auto-fix:
+    name: Auto-fix lint/format and open PR
+    needs: lint_and_test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - name: Install dependencies for autofix
+        run: npm ci --legacy-peer-deps --omit=optional
+      - name: Run auto-fix (eslint/prettier)
+        run: npm run ci:fix
+      - name: Create pull request with fixes (if any)
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: automated fixes (eslint/prettier)"
+          branch: "auto-fixes/${{ github.sha }}"
+          title: "Automated fixes: lint & format"
+          body: "This PR applies auto-fixes from CI: eslint --fix and prettier. Please review and merge."
+          labels: automated, ci
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -162,11 +173,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

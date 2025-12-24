@@ -1,20 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
 
 export async function PUT(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const body = await _request.json();
         const { id } = await params;
-        const docRef = doc(db, "suppliers", id);
-        
+
         const { id: _bodyId, ...updateData } = body;
-        await updateDoc(docRef, {
-            ...updateData,
-            updatedAt: serverTimestamp()
-        });
+        const { error } = await supabaseAdmin
+            .from('suppliers')
+            .update({
+                ...updateData,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) throw error;
         
         return NextResponse.json({ id, ...body });
     } catch (error) {
@@ -25,10 +31,19 @@ export async function PUT(_request: NextRequest, { params }: { params: Promise<{
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+        }
+
         const { id } = await params;
-        const docRef = doc(db, "suppliers", id);
-        await deleteDoc(docRef);
-        return NextResponse.json({ message: 'Supplier deleted' }, { status: 200 });
+        const { error } = await supabaseAdmin
+            .from('suppliers')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        return NextResponse.json({ message: 'Location deleted' }, { status: 200 });
     } catch (error) {
         logger.error("Error deleting supplier: ", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });

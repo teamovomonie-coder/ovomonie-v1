@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateOtp, paymentDetails } from '@/lib/vfd';
-import { db } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
-import { collection, query, where, getDocs, doc, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -19,28 +18,48 @@ export async function POST(request: Request) {
     const serviceCode = details?.data?.data?.serviceResponseCodes || details?.data?.serviceResponseCodes || null;
 
     let newBalanceInKobo: number | null = null;
-    if (serviceCode === 'COMPLETED') {
+    if (serviceCode === 'COMPLETED' && supabaseAdmin) {
       // find pending transaction and finalize
-      const financialTransactionsRef = collection(db, 'financialTransactions');
-      const q = query(financialTransactionsRef, where('reference', '==', reference));
-      const snaps = await getDocs(q as any);
-      if (!snaps.empty) {
-        const txDoc = snaps.docs[0];
-        const txData = txDoc.data() as any;
-        const userId = txData.userId;
-        const amount = txData.amount;
-        const txRef = doc(db, 'financialTransactions', txDoc.id);
+      const { data: transactions } = await supabaseAdmin
+        .from('financial_transactions')
+        .select('id, user_id, amount')
+        .eq('reference', reference)
+        .limit(1);
 
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', userId);
-          const userSnap = await transaction.get(userRef as any);
-          if (!userSnap.exists()) throw new Error('User not found');
-          const userData = userSnap.data() as any;
-          const newBal = (userData.balance || 0) + amount;
+      if (transactions && transactions.length > 0 && transactions[0]) {
+        const tx = transactions[0];
+        const userId = tx.user_id;
+        const amount = tx.amount;
+
+        if (!userId || !amount) return NextResponse.json({ success: res.ok, data: res.data, details, newBalanceInKobo }, { status: res.status || 200 });
+
+        // Get user balance
+        const { data: user } = await supabaseAdmin
+          .from('users')
+          .select('balance')
+          .eq('id', userId)
+          .single();
+
+        if (user) {
+          const newBal = (user.balance || 0) + amount;
           newBalanceInKobo = newBal;
-          transaction.update(userRef, { balance: newBal });
-          transaction.update(txRef, { status: 'completed', completedAt: serverTimestamp(), balanceAfter: newBal });
-        });
+
+          // Update user balance
+          await supabaseAdmin
+            .from('users')
+            .update({ balance: newBal })
+            .eq('id', userId);
+
+          // Update transaction status
+          await supabaseAdmin
+            .from('financial_transactions')
+            .update({ 
+              status: 'completed', 
+              completed_at: new Date().toISOString(), 
+              balance_after: newBal 
+            })
+            .eq('id', tx.id);
+        }
       }
     }
 

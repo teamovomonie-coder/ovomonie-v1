@@ -1,20 +1,8 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { 
-    collection, 
-    addDoc, 
-    serverTimestamp, 
-    query, 
-    where, 
-    getDocs,
-    runTransaction,
-    doc,
-    Timestamp,
-    getDoc
-} from 'firebase/firestore';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
+import { userService, transactionService } from '@/lib/db';
 
 export async function GET(request: Request) {
     try {
@@ -24,20 +12,19 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Removed orderBy to prevent index error in development environments.
-        // For production, a composite index on (userId, startDate) would be ideal.
-        const q = query(collection(db, "investments"), where("userId", "==", userId));
-        const querySnapshot = await getDocs(q);
-        
-        const investments = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                startDate: (data.startDate as Timestamp)?.toDate().toISOString(),
-                maturityDate: (data.maturityDate as Timestamp)?.toDate().toISOString(),
-            };
-        });
+        // Mock investments data for now
+        const investments = [
+            {
+                id: '1',
+                userId,
+                plan: 'Fixed Deposit',
+                principal: 100000,
+                returns: 15000,
+                status: 'Active',
+                startDate: new Date().toISOString(),
+                maturityDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            }
+        ];
 
         return NextResponse.json(investments);
     } catch (error) {
@@ -45,7 +32,6 @@ export async function GET(request: Request) {
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
-
 
 export async function POST(request: Request) {
     try {
@@ -65,73 +51,34 @@ export async function POST(request: Request) {
         }
 
         const amountInKobo = Math.round(amount * 100);
-        let newBalance = 0;
-
-        const investmentRef = doc(collection(db, "investments"));
-        const userDocRef = doc(db, "users", userId);
-
-        await runTransaction(db, async (transaction) => {
-            const financialTransactionsRef = collection(db, 'financialTransactions');
-            const idempotencyQuery = query(financialTransactionsRef, where("reference", "==", clientReference));
-            const existingTxnSnapshot = await (transaction.get as any)(idempotencyQuery as any);
-
-            if (!(existingTxnSnapshot as any).empty) {
-                logger.info(`Idempotent request for investment: ${clientReference} already processed.`);
-                const userDoc = await transaction.get(userDocRef);
-                if (userDoc.exists()) newBalance = userDoc.data().balance;
-                return;
-            }
-
-            const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) {
-                throw new Error("User document does not exist.");
-            }
-
-            const userData = userDoc.data();
-            if (userData.balance < amountInKobo) {
-                throw new Error("Insufficient funds for this investment.");
-            }
-            
-            newBalance = userData.balance - amountInKobo;
-            transaction.update(userDocRef, { balance: newBalance });
-
-            const maturityDate = new Date();
-            maturityDate.setDate(maturityDate.getDate() + parseInt(duration));
-
-            const newInvestment = {
-                userId,
-                plan: productId,
-                principal: amountInKobo,
-                returns: Math.round(estimatedReturn * 100), // Store in kobo
-                status: 'Active',
-                startDate: Timestamp.fromDate(new Date()),
-                maturityDate: Timestamp.fromDate(maturityDate),
-            };
-            transaction.set(investmentRef, newInvestment);
-
-            const debitLog = {
-                userId,
-                category: 'investment',
-                type: 'debit',
-                amount: amountInKobo,
-                reference: clientReference,
-                narration: `Investment in ${productId}`,
-                party: { name: 'Ovo-Wealth' },
-                timestamp: serverTimestamp(),
-                balanceAfter: newBalance,
-            };
-            transaction.set(doc(financialTransactionsRef), debitLog);
-        });
         
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-            newBalance = userDoc.data().balance;
+        const user = await userService.getById(userId);
+        if (!user) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
         }
+        
+        if (user.balance < amountInKobo) {
+            return NextResponse.json({ message: 'Insufficient funds for this investment.' }, { status: 400 });
+        }
+        
+        const newBalance = user.balance - amountInKobo;
+        await userService.updateBalance(userId, newBalance);
+        
+        await transactionService.create({
+            user_id: userId,
+            category: 'investment',
+            type: 'debit',
+            amount: amountInKobo,
+            reference: clientReference,
+            narration: `Investment in ${productId}`,
+            party_name: 'Ovo-Wealth',
+            balance_after: newBalance,
+        });
 
         return NextResponse.json({
             message: "Investment successful!",
             newBalanceInKobo: newBalance,
-            investmentId: investmentRef.id,
+            investmentId: clientReference,
         }, { status: 201 });
 
     } catch (error) {

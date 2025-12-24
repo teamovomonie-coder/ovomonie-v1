@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 export default function ShareModal({ open, onOpenChange, targetRef, title = 'Receipt' }: {
   open: boolean;
@@ -81,6 +80,8 @@ export default function ShareModal({ open, onOpenChange, targetRef, title = 'Rec
     try {
       const canvas = await captureCanvas();
       const imgData = canvas.toDataURL('image/png');
+      // Load jspdf only on the client at runtime to avoid SSR/module resolution issues
+      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
       pdf.save(`${title.replace(/\s+/g, '-')}.pdf`);

@@ -19,6 +19,7 @@ import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2,
 import { LogoutDialog } from '@/components/auth/logout-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/context/auth-context';
+import BiometricSettings from '@/components/security/biometric-settings';
 
 // Mock data
 const mockDevices = [
@@ -216,12 +217,10 @@ export function SecurityDashboard() {
                     <CardContent className="space-y-4">
                         <ChangePasswordDialog />
                         <ChangePinDialog />
-                        <div className="flex items-center justify-between p-3 border rounded-lg">
-                            <Label htmlFor="biometric-switch" className="flex items-center gap-3"><Fingerprint /><span>Biometric Login</span></Label>
-                            <Switch id="biometric-switch" defaultChecked />
-                        </div>
                     </CardContent>
                 </Card>
+                
+                <BiometricSettings />
                 
                  <Card>
                     <CardHeader><CardTitle>Transaction Limits</CardTitle></CardHeader>

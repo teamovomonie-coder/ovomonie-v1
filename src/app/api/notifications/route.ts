@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserIdFromToken, createNotification } from '@/lib/firestore-helpers';
+import { getUserIdFromToken, createNotification } from '@/lib/auth-helpers';
 
 export async function POST(request: Request) {
   try {
@@ -16,8 +16,7 @@ export async function POST(request: Request) {
     const ok = await createNotification(userId, {
       title,
       body: message,
-      category: category || 'general',
-    });
+      });
     if (!ok) {
       return NextResponse.json({ message: 'Failed to create notification' }, { status: 500 });
     }
