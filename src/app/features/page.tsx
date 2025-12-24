@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SavingsGoals from '@/components/features/savings-goals';
 import BudgetingTools from '@/components/features/budgeting-tools';
 import CryptoTrading from '@/components/features/crypto-trading';
@@ -21,16 +21,6 @@ const features = [
 
 export default function FeaturesPage() {
   const [activeFeature, setActiveFeature] = useState('savings');
-  
-  // Get tab from URL params
-  const searchParams = new URLSearchParams(window.location.search);
-  const tabFromUrl = searchParams.get('tab');
-  
-  React.useEffect(() => {
-    if (tabFromUrl && features.find(f => f.id === tabFromUrl)) {
-      setActiveFeature(tabFromUrl);
-    }
-  }, [tabFromUrl]);
 
   const ActiveComponent = features.find(f => f.id === activeFeature)?.component || SavingsGoals;
 

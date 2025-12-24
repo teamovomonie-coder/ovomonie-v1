@@ -1,0 +1,87 @@
+﻿node.exe : npm info using npm@11.6.4
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\user\AppData\Roaming\n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm info using npm@11.6.4:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm info using node@v24.11.1
+
+> ovomonie@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.5.9
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     Γ£ô optimizeCss
+     ┬╖ optimizePackageImports
+
+   Creating an optimized production build ...
+ ΓÜá Compiled with warnings in 35.2s
+
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/index.js
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/index.js
+./node_modules/@opentelemetry/instrumentation/build/esm/index.js
+./node_modules/@opentelemetry/sdk-node/build/src/sdk.js
+./node_modules/@opentelemetry/sdk-node/build/src/index.js
+./node_modules/@genkit-ai/core/lib/tracing/node-telemetry-provider.js
+./node_modules/@genkit-ai/core/lib/node.js
+./node_modules/genkit/lib/common.js
+./node_modules/genkit/lib/index.mjs
+./src/ai/genkit.ts
+./src/ai/flows/generate-card-design-flow.ts
+./src/app/api/generate-card-design/route.ts
+
+./src/app/api/notifications/route.ts
+Attempted import error: 'createNotification' is not exported from '@/lib/auth-helpers' (imported as 
+'createNotification').
+
+Import trace for requested module:
+./src/app/api/notifications/route.ts
+
+./node_modules/@genkit-ai/core/node_modules/express/lib/view.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/@genkit-ai/core/node_modules/express/lib/view.js
+./node_modules/@genkit-ai/core/node_modules/express/lib/application.js
+./node_modules/@genkit-ai/core/node_modules/express/lib/express.js
+./node_modules/@genkit-ai/core/node_modules/express/index.js
+./node_modules/@genkit-ai/core/lib/reflection.js
+./node_modules/@genkit-ai/core/lib/index.js
+./node_modules/genkit/lib/common.js
+./node_modules/genkit/lib/index.mjs
+./src/ai/genkit.ts
+./src/ai/flows/generate-card-design-flow.ts
+./src/app/api/generate-card-design/route.ts
+
+   Linting and checking validity of types ...
+
+./src/components/invitation/invitation-dashboard.tsx
+119:6  Warning: React Hook useEffect has a missing dependency: 'referrals'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setStats' needs the current value of 'referrals'.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+Failed to compile.
+
+./src/app/api/auth/change-password/route.ts:21:43
+Type error: Argument of type '{ get(name: string): string | null; }' is not assignable to parameter of type 
+'Headers'.
+  Type '{ get(name: string): string | null; }' is missing the following properties from type 'Headers': append, 
+delete, getSetCookie, has, and 6 more.
+
+[0m [90m 19 |[39m     [36mtry[39m {
+ [90m 20 |[39m         [36mconst[39m reqHeaders [33m=[39m request[33m.[39mheaders [36mas[39m { 
+[36mget[39m(name[33m:[39m string)[33m:[39m string [33m|[39m [36mnull[39m }[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m         [36mconst[39m userId [33m=[39m 
+getUserIdFromToken(reqHeaders)[33m;[39m
+ [90m    |[39m                                           [31m[1m^[22m[39m
+ [90m 22 |[39m         [36mif[39m ([33m![39muserId) {
+ [90m 23 |[39m             [36mreturn[39m [33mNextResponse[39m[33m.[39mjson({ message[33m:[39m 
+[32m'Unauthorized'[39m }[33m,[39m { status[33m:[39m [35m401[39m })[33m;[39m
+ [90m 24 |[39m         }[0m
+Next.js build worker exited with code: 1 and signal: null

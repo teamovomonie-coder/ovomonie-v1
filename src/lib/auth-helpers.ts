@@ -1,6 +1,6 @@
 import { verifyAuthToken } from '@/lib/auth';
 
-export function getUserIdFromToken(headers: Headers): string | null {
+export function getUserIdFromToken(headers: Headers | any): string | null {
   const authHeader = headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;

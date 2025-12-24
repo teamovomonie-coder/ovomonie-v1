@@ -3,6 +3,7 @@ import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdCardService } from '@/lib/vfd-card-service';
 import { transactionService, notificationService } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {

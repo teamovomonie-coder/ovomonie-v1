@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { clientEnv } from './env.client';
-import { serverEnv } from './env.server';
 
 /**
  * Supabase Client for browser/client-side operations
@@ -22,10 +21,20 @@ export const supabaseAdmin = (() => {
     return null;
   }
   
-  return createClient(
-    serverEnv.NEXT_PUBLIC_SUPABASE_URL,
-    serverEnv.SUPABASE_SERVICE_ROLE_KEY
-  );
+  try {
+    const { serverEnv } = require('./env.server');
+    if (!serverEnv.NEXT_PUBLIC_SUPABASE_URL || !serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn('Supabase admin client not configured - missing environment variables');
+      return null;
+    }
+    return createClient(
+      serverEnv.NEXT_PUBLIC_SUPABASE_URL,
+      serverEnv.SUPABASE_SERVICE_ROLE_KEY
+    );
+  } catch (error) {
+    console.error('Failed to create Supabase admin client:', error);
+    return null;
+  }
 })();
 
 export type SupabaseClient = typeof supabase;

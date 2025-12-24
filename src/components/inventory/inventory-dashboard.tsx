@@ -543,6 +543,8 @@ export function InventoryDashboard() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [salesData, setSalesData] = useState<any[]>([]);
+  const [todaysSales, setTodaysSales] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -561,24 +563,28 @@ export function InventoryDashboard() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [productsRes, suppliersRes, locationsRes, categoriesRes] = await Promise.all([
+        const [productsRes, suppliersRes, locationsRes, categoriesRes, salesRes] = await Promise.all([
             fetch('/api/inventory/products'),
             fetch('/api/inventory/suppliers'),
             fetch('/api/inventory/locations'),
             fetch('/api/inventory/categories'),
+            fetch('/api/inventory/sales'),
         ]);
-        if (!productsRes.ok || !suppliersRes.ok || !locationsRes.ok || !categoriesRes.ok) {
+        if (!productsRes.ok || !suppliersRes.ok || !locationsRes.ok || !categoriesRes.ok || !salesRes.ok) {
             throw new Error('Failed to fetch initial data');
         }
         const productsData = await productsRes.json();
         const suppliersData = await suppliersRes.json();
         const locationsData = await locationsRes.json();
         const categoriesData = await categoriesRes.json();
+        const salesDataRes = await salesRes.json();
         
-        setProducts(productsData);
-        setSuppliers(suppliersData);
-        setLocations(locationsData);
-        setCategories(categoriesData);
+        setProducts(productsData.data || productsData);
+        setSuppliers(suppliersData.data || suppliersData);
+        setLocations(locationsData.data || locationsData);
+        setCategories(categoriesData.data || categoriesData);
+        setSalesData(salesDataRes.data?.dailySales || []);
+        setTodaysSales(salesDataRes.data?.todayTotal || 0);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error fetching data', description: 'Could not load inventory data. Please try again later.' });
         console.error("Failed to fetch data:", error);
@@ -591,9 +597,7 @@ export function InventoryDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const salesData = [
-    { date: 'Mon', sales: 40000 }, { date: 'Tue', sales: 30000 }, { date: 'Wed', sales: 20000 }, { date: 'Thu', sales: 27800 }, { date: 'Fri', sales: 18900 }, { date: 'Sat', sales: 23900 }, { date: 'Sun', sales: 34900 },
-  ];
+
   
   const bestSellingProducts = [
     { name: 'Coca-Cola 50cl', sold: 120, revenue: 24000 }, { name: 'Indomie Noodles Chicken', sold: 98, revenue: 24500 }, { name: 'Peak Milk Evaporated', sold: 75, revenue: 30000 }, { name: 'Golden Penny Semovita 1kg', sold: 40, revenue: 48000 },
@@ -940,7 +944,7 @@ export function InventoryDashboard() {
                 <>
                 <TabsContent value="overview" className="space-y-4 mt-4">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{salesData.reduce((acc, s) => acc + s.sales, 0).toLocaleString()}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Sales</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{todaysSales.toLocaleString()}</div></CardContent></Card>
                         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Low Stock Items</CardTitle><PackageSearch className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{lowStockCount}</div></CardContent></Card>
                         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventory Value</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₦{inventoryValue.toLocaleString()}</div></CardContent></Card>
                         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Expiring Soon</CardTitle><AlertTriangle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{expiringSoonCount}</div></CardContent></Card>

@@ -221,40 +221,26 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
       if (result.success) {
         setIsPinModalOpen(false);
         
+        // Clear any old receipt state
+        setReceiptData(null);
+        setShowReceipt(false);
+        setPaymentToken('');
+        
         // Show token if provided (for electricity)
         if (result.data.token) {
           setPaymentToken(result.data.token);
         }
 
-        // Generate receipt with template
-        if (result.data.receipt) {
-          const category = result.data.receipt.category || selectedBiller.category || 'generic';
-          const template = await fetch(`/api/receipt-template?category=${encodeURIComponent(category)}`)
-            .then(r => r.json())
-            .catch(() => ({
-              id: `${category}-default`,
-              category,
-              template_name: 'Bill Payment Receipt',
-              fields: [],
-              color_scheme: { primary: '#6366f1', secondary: '#818cf8', accent: '#e0e7ff' },
-              icon: 'receipt',
-            }));
-          
-          setReceiptData({ template, data: result.data.receipt });
-          setShowReceipt(true);
+        // Navigate to receipt page with transaction ID
+        if (result.transaction_id) {
+          window.location.href = `/receipt/${result.transaction_id}`;
+          return;
         }
 
-        // Show special message for AEDC
-        let description = `Your ${selectedBiller.name} bill payment of ₦${billData.amount.toLocaleString()} has been processed successfully.`;
-        if (result.data.KCT1 && result.data.KCT2) {
-          description += `\n\nKey Change Tokens:\nKCT1: ${result.data.KCT1}\nKCT2: ${result.data.KCT2}\n\nEnter KCT1, then KCT2, then your energy token on your meter.`;
-        } else if (result.data.token) {
-          description += `\n\nToken: ${result.data.token}`;
-        }
-
+        // Fallback success handling
         addNotification({
           title: 'Bill Paid Successfully',
-          description,
+          description: `Your ${selectedBiller.name} bill payment of ₦${billData.amount.toLocaleString()} has been processed successfully.`,
           category: 'transaction',
         });
 
@@ -262,22 +248,6 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
           title: 'Success',
           description: result.message || 'Bill payment completed successfully',
         });
-
-        // Save pending receipt
-        if (result.data.receipt) {
-          try {
-            await pendingTransactionService.savePendingReceipt({
-              type: 'bill-payment',
-              reference,
-              amount: billData.amount,
-              recipientName: selectedBiller.name,
-              bankName: selectedBiller.name,
-              data: result.data.receipt.data,
-            } as any);
-          } catch (e) {
-            console.error('[VFD Bill] Failed to save pending receipt', e);
-          }
-        }
 
         onSuccess?.(billData.amount, selectedBiller.name);
         form.reset();
