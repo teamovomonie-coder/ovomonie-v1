@@ -320,66 +320,66 @@ export function WealthDashboard() {
     fetchInvestments();
   }, [fetchInvestments]);
   
-  const handleInvestmentRequest = (data: InvestmentFormData) => {
-    if (balance === null || (data.amount * 100) > balance) {
-        toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this investment.' });
-          return (
-            <>
-                <div className="flex-1 space-y-4 p-3 sm:p-4 md:p-8 pt-4 sm:pt-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 gap-3">
-                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                            <WithdrawDialog>
-        setIsProcessing(false);
-        return;
+    const handleInvestmentRequest = (data: InvestmentFormData) => {
+        if (balance === null || (data.amount * 100) > balance) {
+            toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this investment.' });
+            return;
+        }
+
+        setPendingInvestment(data);
+        setIsPinModalOpen(true);
     };
 
-    const rateMatch = product.rate.match(/(\d+(\.\d+)?)/);
-    const annualRate = rateMatch ? parseFloat(rateMatch[0]) / 100 : 0.1;
-    const estimatedReturn = (pendingInvestment.amount * annualRate / 365) * parseInt(pendingInvestment.duration);
-    
-    try {
-        const token = localStorage.getItem('ovo-auth-token');
-        if (!token) throw new Error("Authentication required.");
+    const handleConfirmInvestment = async (pin?: string) => {
+        if (!pendingInvestment) return;
+        setIsProcessing(true);
+        try {
+            const product = investmentProducts.find(p => p.title === pendingInvestment.productId) || investmentProducts[0];
+            const rateMatch = product.rate.match(/(\d+(\.\d+)?)/);
+            const annualRate = rateMatch ? parseFloat(rateMatch[0]) / 100 : 0.1;
+            const estimatedReturn = (pendingInvestment.amount * annualRate / 365) * parseInt(pendingInvestment.duration || '0');
 
-        const clientReference = `investment-${crypto.randomUUID()}`;
-        const response = await fetch('/api/wealth/investments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ ...pendingInvestment, estimatedReturn, clientReference }),
-        });
-        
-        const result = await response.json();
-        if (!response.ok) {
-            const error: any = new Error(result.message || 'An error occurred.');
-            error.response = response;
-            throw error;
+            const token = typeof localStorage !== 'undefined' ? localStorage.getItem('ovo-auth-token') : null;
+            if (!token) throw new Error('Authentication required.');
+
+            const clientReference = `investment-${crypto.randomUUID()}`;
+            const response = await fetch('/api/wealth/investments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ ...pendingInvestment, estimatedReturn, clientReference, pin }),
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                const error: any = new Error(result.message || 'An error occurred.');
+                error.response = response;
+                throw error;
+            }
+
+            updateBalance(result.newBalanceInKobo);
+            addNotification({
+                title: 'Investment Successful!',
+                description: `You invested ₦${pendingInvestment.amount.toLocaleString()} in ${pendingInvestment.productId}.`,
+                category: 'transaction',
+            });
+
+            await fetchInvestments();
+            setReceiptData({ amount: pendingInvestment.amount, plan: pendingInvestment.productId });
+            setIsPinModalOpen(false);
+        } catch (error: any) {
+            let description = 'An unknown error occurred.';
+            if (error.response?.status === 401) {
+                description = 'Your session has expired. Please log in again.';
+                logout();
+            } else if (error.message) {
+                description = error.message;
+            }
+            setApiError(description);
+        } finally {
+            setIsProcessing(false);
+            setPendingInvestment(null);
         }
-
-        updateBalance(result.newBalanceInKobo);
-        addNotification({
-            title: 'Investment Successful!',
-            description: `You invested ₦${pendingInvestment.amount.toLocaleString()} in ${pendingInvestment.productId}.`,
-            category: 'transaction',
-        });
-        await fetchInvestments();
-        setReceiptData({ amount: pendingInvestment.amount, plan: pendingInvestment.productId });
-        setIsPinModalOpen(false);
-
-    } catch (error: any) {
-         let description = 'An unknown error occurred.';
-         if (error.response?.status === 401) {
-            description = 'Your session has expired. Please log in again.';
-            logout();
-        } else if (error.message) {
-            description = error.message;
-        }
-         setApiError(description);
-    } finally {
-        setIsProcessing(false);
-        setPendingInvestment(null);
-    }
-  };
+    };
   
   const { totalInvestment, totalReturns } = useMemo(() => {
     return userInvestments.reduce((acc, inv) => {
