@@ -177,6 +177,42 @@ export default function SuccessPage() {
     );
   }
 
+  if (currentReceipt.type === 'external-transfer' && currentReceipt.recipientName) {
+    return (
+      <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
+        <GeneralReceipt
+          title="External Transfer"
+          amount={currentReceipt.data?.amount || 0}
+          recipient={currentReceipt.recipientName}
+          accountInfo={`${currentReceipt.data?.accountNumber} • ${currentReceipt.bankName}`}
+          transactionId={currentReceipt.transactionId || currentReceipt.reference || `OVO-${Date.now()}`}
+          paymentMethod={currentReceipt.bankName || 'Bank Transfer'}
+          date={currentReceipt.completedAt || new Date().toLocaleString()}
+          onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
+          returnPath="/external-transfer"
+        />
+      </div>
+    );
+  }
+
+  if (currentReceipt.type === 'internal-transfer' && currentReceipt.recipientName) {
+    return (
+      <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
+        <GeneralReceipt
+          title="Internal Transfer"
+          amount={currentReceipt.data?.amount || 0}
+          recipient={currentReceipt.recipientName}
+          accountInfo={`${currentReceipt.data?.accountNumber} • Ovomonie`}
+          transactionId={currentReceipt.transactionId || currentReceipt.reference || `OVO-${Date.now()}`}
+          paymentMethod="Ovomonie"
+          date={currentReceipt.completedAt || new Date().toLocaleString()}
+          onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
+          returnPath="/internal-transfer"
+        />
+      </div>
+    );
+  }
+
   if (currentReceipt.type === 'betting') {
     const receipt = {
       template: {

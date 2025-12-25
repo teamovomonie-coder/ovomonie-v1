@@ -1,0 +1,45 @@
+{
+  "language": "Nigerian Pidgin",
+  "code": "pcm",
+  "common_greetings": [
+    {"pidgin": "How far?", "english": "How are you?"},
+    {"pidgin": "I dey kampe", "english": "I'm fine"},
+    {"pidgin": "Wetin dey happen?", "english": "What's happening?"},
+    {"pidgin": "How body?", "english": "How are you?"}
+  ],
+  "financial_phrases": [
+    {"pidgin": "How my money dey?", "english": "What is my balance?", "intent": "check_balance"},
+    {"pidgin": "Wetin be my balance?", "english": "What is my balance?", "intent": "check_balance"},
+    {"pidgin": "I wan send money", "english": "I want to transfer money", "intent": "transfer"},
+    {"pidgin": "Make I send money", "english": "Let me send money", "intent": "transfer"},
+    {"pidgin": "Abeg show me my account", "english": "Please show me my account", "intent": "view_account"},
+    {"pidgin": "I wan pay bill", "english": "I want to pay a bill", "intent": "pay_bill"},
+    {"pidgin": "Make I buy airtime", "english": "Let me buy airtime", "intent": "buy_airtime"},
+    {"pidgin": "I wan buy data", "english": "I want to buy data", "intent": "buy_data"},
+    {"pidgin": "I wan withdraw money", "english": "I want to withdraw money", "intent": "withdraw"},
+    {"pidgin": "Show me my transaction", "english": "Show me my transactions", "intent": "view_transactions"},
+    {"pidgin": "Wetin I don spend?", "english": "What have I spent?", "intent": "view_expenses"},
+    {"pidgin": "I wan borrow money", "english": "I want to borrow money", "intent": "request_loan"}
+  ],
+  "common_words": {
+    "abeg": "please",
+    "wetin": "what",
+    "dey": "is/are",
+    "wan": "want",
+    "make": "let",
+    "don": "have/has",
+    "go": "will",
+    "fit": "can",
+    "no": "not/don't",
+    "sef": "even/too",
+    "sha": "just/anyway",
+    "o": "emphasis particle"
+  },
+  "response_style": {
+    "friendly": "I dey here to help you o!",
+    "confirmation": "E don do! (It's done!)",
+    "error": "Abeg, something no correct. Make you try again.",
+    "success": "E work! Your transaction don complete.",
+    "waiting": "Small time, I dey check am for you..."
+  }
+}

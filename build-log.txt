@@ -1,0 +1,99 @@
+﻿node.exe : npm verbose cli C:\Program Files\nodejs\node.exe 
+C:\Users\user\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\user\AppData\Roaming\n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm verbose cli...\bin\npm-cli.js:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm info using npm@11.6.4
+npm info using node@v24.11.1
+npm verbose title npm run build
+npm verbose argv "run" "build" "--loglevel" "verbose"
+npm verbose logfile logs-max:10 dir:C:\Users\user\AppData\Local\npm-cache\_logs\2025-12-24T00_34_34_748Z-
+npm verbose logfile C:\Users\user\AppData\Local\npm-cache\_logs\2025-12-24T00_34_34_748Z-debug-0.log
+
+> ovomonie@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.5.9
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     Γ£ô optimizeCss
+     ┬╖ optimizePackageImports
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./src/ai/genkit.ts
+Module not found: Can't resolve 'genkit'
+Did you mean './genkit'?
+Requests that should resolve in the current directory need to start with './'.
+Requests that start with a name are treated as module requests and resolve within module directories 
+(node_modules).
+If changing the source code is not an option there is also a resolve options called 'preferRelative' which tries 
+to resolve these kind of requests in the current directory too.
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/ai/flows/generate-receipt-image-flow.ts
+./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers
+%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5Cgenerate-receipt-image-flow.ts%22%2C%5B%
+7B%22id%22%3A%2240a0247c0e5a2a7fb562987d282c1b22e48a0d95a8%22%2C%22exportedName%22%3A%22generateReceiptImage%22%2C
+%22filename%22%3A%22..%2FC%3A%5C%5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5C
+generate-receipt-image-flow.ts%22%7D%5D%5D%2C%5B%22C%3A%5C%5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csr
+c%5C%5Cai%5C%5Cflows%5C%5Cpersonalized-recommendations-flow.ts%22%2C%5B%7B%22id%22%3A%22408fcc8fc4c6e7d75d09f24140
+305b303bfe110a08%22%2C%22exportedName%22%3A%22getPersonalizedRecommendation%22%2C%22filename%22%3A%22..%2FC%3A%5C%
+5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5Cpersonalized-recommendations-flow
+.ts%22%7D%5D%5D%5D&__client_imported__=true!
+
+./src/ai/genkit.ts
+Module not found: Can't resolve '@genkit-ai/googleai'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/ai/flows/generate-receipt-image-flow.ts
+./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers
+%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5Cgenerate-receipt-image-flow.ts%22%2C%5B%
+7B%22id%22%3A%2240a0247c0e5a2a7fb562987d282c1b22e48a0d95a8%22%2C%22exportedName%22%3A%22generateReceiptImage%22%2C
+%22filename%22%3A%22..%2FC%3A%5C%5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5C
+generate-receipt-image-flow.ts%22%7D%5D%5D%2C%5B%22C%3A%5C%5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csr
+c%5C%5Cai%5C%5Cflows%5C%5Cpersonalized-recommendations-flow.ts%22%2C%5B%7B%22id%22%3A%22408fcc8fc4c6e7d75d09f24140
+305b303bfe110a08%22%2C%22exportedName%22%3A%22getPersonalizedRecommendation%22%2C%22filename%22%3A%22..%2FC%3A%5C%
+5CUsers%5C%5Cuser%5C%5CDesktop%5C%5Covomonie-v1%5C%5Csrc%5C%5Cai%5C%5Cflows%5C%5Cpersonalized-recommendations-flow
+.ts%22%7D%5D%5D%5D&__client_imported__=true!
+
+./src/ai/genkit.ts
+Module not found: Can't resolve 'genkit'
+Did you mean './genkit'?
+Requests that should resolve in the current directory need to start with './'.
+Requests that start with a name are treated as module requests and resolve within module directories 
+(node_modules).
+If changing the source code is not an option there is also a resolve options called 'preferRelative' which tries 
+to resolve these kind of requests in the current directory too.
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/ai/flows/generate-card-design-flow.ts
+./src/app/api/generate-card-design/route.ts
+
+./src/ai/genkit.ts
+Module not found: Can't resolve '@genkit-ai/googleai'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/ai/flows/generate-card-design-flow.ts
+./src/app/api/generate-card-design/route.ts
+
+
+> Build failed because of webpack errors
+npm verbose cwd C:\Users\user\Desktop\ovomonie-v1
+npm verbose os Windows_NT 10.0.26100
+npm verbose node v24.11.1
+npm verbose npm  v11.6.4
+npm verbose exit 1
+npm verbose code 1

@@ -44,8 +44,17 @@ export default function ShareModal({ open, onOpenChange, targetRef, title = 'Rec
 
     const scale = 2;
     try {
-      // html2canvas will capture the node into a canvas
-      const canvas = await html2canvas(container, { scale, useCORS: true });
+      // html2canvas will capture the node into a canvas with consistent dimensions
+      const canvas = await html2canvas(container, { 
+        scale, 
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: container.offsetWidth,
+        height: container.offsetHeight,
+        scrollX: 0,
+        scrollY: 0
+      });
       return canvas;
     } finally {
       // Restore the original styles

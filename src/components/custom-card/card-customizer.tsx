@@ -16,7 +16,7 @@ import { Upload, ArrowLeft, CheckCircle, Truck, Info, Loader2, Wallet, Sparkles,
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { generateCardDesign } from '@/ai/flows/generate-card-design-flow';
+import { generateCardDesign } from '@/ai/client-safe';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
