@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getWalletBalance } from '@/lib/virtual-accounts';
-import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +9,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+<<<<<<< HEAD
+    const balance = await getWalletBalance(userId);
+
+    if (!balance) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          userId,
+          balance: 0,
+          ledgerBalance: 0,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+=======
     let balance = await getWalletBalance(userId);
     
     // Fallback: fetch directly from Supabase if helper fails
@@ -31,6 +44,7 @@ export async function GET(request: NextRequest) {
           };
         }
       }
+>>>>>>> origin/main
     }
 
     return NextResponse.json({
@@ -39,9 +53,8 @@ export async function GET(request: NextRequest) {
       balanceInKobo: balance?.balance || 0,
       data: balance || { userId, balance: 0, ledgerBalance: 0, lastUpdated: new Date().toISOString() }
     });
-
   } catch (error) {
-    logger.error('Wallet balance fetch error', { error });
+    console.error('Wallet balance error:', error);
     return NextResponse.json(
       { 
         ok: true,

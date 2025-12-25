@@ -372,6 +372,11 @@ export function InternalTransferForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+<<<<<<< HEAD
+     
+          
+=======
+>>>>>>> origin/main
         <div className="flex items-center space-x-2 justify-end">
           <Label htmlFor="memo-switch">Use MemoTransfer</Label>
           <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />

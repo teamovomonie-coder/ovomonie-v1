@@ -14,5 +14,8 @@ ALTER TABLE IF EXISTS notifications
 
 ALTER TABLE IF EXISTS financial_transactions
   ADD COLUMN IF NOT EXISTS party_name TEXT;
+ 
+ALTER TABLE IF EXISTS financial_transactions
+  ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 -- End migration

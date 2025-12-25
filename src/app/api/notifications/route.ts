@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
+<<<<<<< HEAD
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+=======
 import { getUserIdFromToken } from '@/lib/supabase-helpers';
+>>>>>>> origin/main
 import { createNotification } from '@/lib/db';
 
 export async function POST(request: Request) {

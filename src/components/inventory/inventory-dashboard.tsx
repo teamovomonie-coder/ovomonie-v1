@@ -613,7 +613,11 @@ export function InventoryDashboard() {
     const lowStockItems: (Product & { lowStockLocations: Location[] })[] = [];
     products.forEach(p => {
         const lowLocations: Location[] = [];
+<<<<<<< HEAD
+        (p.stockByLocation || []).forEach(s => {
+=======
         p.stockByLocation?.forEach(s => {
+>>>>>>> origin/main
             const location = locations.find(l => l.id === s.locationId);
             if (location && s.quantity <= p.minStockLevel) {
                 lowLocations.push(location);
@@ -630,8 +634,14 @@ export function InventoryDashboard() {
 
   const inventoryValue = useMemo(() => {
       return products.reduce((total, p) => {
+<<<<<<< HEAD
+          const productStock = (p.stockByLocation || []).reduce((sum, s) => sum + (s.quantity || 0), 0);
+          const costPrice = parseFloat(p.cost_price) || parseFloat(p.costPrice) || 0;
+          return total + (costPrice * productStock);
+=======
           const productStock = p.stockByLocation?.reduce((sum, s) => sum + s.quantity, 0) || 0;
           return total + (p.costPrice * productStock);
+>>>>>>> origin/main
       }, 0);
   }, [products]);
 
@@ -1001,15 +1011,24 @@ export function InventoryDashboard() {
                                                 <TableCell>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
+<<<<<<< HEAD
+                                                            <Button variant="link" className={cn("p-0 h-auto font-bold", (product.stockByLocation || []).reduce((sum, s) => sum + s.quantity, 0) <= product.minStockLevel && "text-destructive")}>
+                                                                {(product.stockByLocation || []).reduce((sum, s) => sum + s.quantity, 0)} {product.unit}
+=======
                                                             <Button variant="link" className={cn("p-0 h-auto font-bold", (product.stockByLocation?.reduce((sum, s) => sum + s.quantity, 0) || 0) <= product.minStockLevel && "text-destructive")}>
                                                                 {product.stockByLocation?.reduce((sum, s) => sum + s.quantity, 0) || 0} {product.unit}
+>>>>>>> origin/main
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-64">
                                                             <div className="space-y-2">
                                                                 <h4 className="font-medium leading-none">Stock by Location</h4>
                                                                 {locations.map(loc => {
+<<<<<<< HEAD
+                                                                    const stock = (product.stockByLocation || []).find(s => s.locationId === loc.id)?.quantity || 0;
+=======
                                                                     const stock = product.stockByLocation?.find(s => s.locationId === loc.id)?.quantity || 0;
+>>>>>>> origin/main
                                                                     return (
                                                                         <div key={loc.id} className="text-sm flex justify-between">
                                                                             <span>{loc.name}:</span>
@@ -1117,7 +1136,11 @@ export function InventoryDashboard() {
                                         <TableRow key={location.id}>
                                             <TableCell className="font-medium">{location.name}</TableCell>
                                             <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
+<<<<<<< HEAD
+                                            <TableCell>{products.filter(p => (p.stockByLocation || []).some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+=======
                                             <TableCell>{products.filter(p => p.stockByLocation?.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+>>>>>>> origin/main
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
