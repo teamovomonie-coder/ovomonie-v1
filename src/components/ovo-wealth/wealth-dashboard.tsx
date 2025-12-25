@@ -323,20 +323,13 @@ export function WealthDashboard() {
   const handleInvestmentRequest = (data: InvestmentFormData) => {
     if (balance === null || (data.amount * 100) > balance) {
         toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'Your wallet balance is not enough for this investment.' });
-        return;
-    }
-    setPendingInvestment(data);
-    setIsPinModalOpen(true);
-  };
-  
-  const handleConfirmInvestment = async () => {
-    if (!pendingInvestment) return;
-    setIsProcessing(true);
-    setApiError(null);
-    
-    const product = investmentProducts.find(p => p.title === pendingInvestment.productId);
-    if (!product) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Selected product not found.' });
+          return (
+            <>
+                <div className="flex-1 space-y-4 p-3 sm:p-4 md:p-8 pt-4 sm:pt-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 gap-3">
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                            <WithdrawDialog>
         setIsProcessing(false);
         return;
     };
@@ -396,217 +389,175 @@ export function WealthDashboard() {
     }, { totalInvestment: 0, totalReturns: 0 });
   }, [userInvestments]);
   
-  if (receiptData) {
-      return <InvestmentSuccessReceipt amount={receiptData.amount} plan={receiptData.plan} onDone={() => setReceiptData(null)} />
-  }
+    if (receiptData) {
+        return <InvestmentSuccessReceipt amount={receiptData.amount} plan={receiptData.plan} onDone={() => setReceiptData(null)} />;
+    }
 
-  return (
-    <>
-<<<<<<< HEAD
-        <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                <h2 className="text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
-                <div className="flex items-center space-x-2 mt-2 sm:mt-0">
-=======
-        <div className="flex-1 space-y-4 p-3 sm:p-4 md:p-8 pt-4 sm:pt-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 gap-3">
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
-                    <WithdrawDialog>
-                        <Button className="w-full sm:w-auto text-sm">Withdraw</Button>
-                    </WithdrawDialog>
-                    <InvestNowDialog onRequestInvestment={handleInvestmentRequest}>
-                        <Button variant="secondary" className="w-full sm:w-auto text-sm"><PlusCircle className="mr-2 h-4 w-4" /> Invest Now</Button>
-                    </InvestNowDialog>
+    return (
+        <>
+            <div className="flex-1 space-y-4 p-3 sm:p-4 md:p-8 pt-4 sm:pt-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 gap-3">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ovo-Wealth</h2>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                        <WithdrawDialog>
+                            <Button className="w-full sm:w-auto text-sm">Withdraw</Button>
+                        </WithdrawDialog>
+                        <InvestNowDialog onRequestInvestment={handleInvestmentRequest}>
+                            <Button variant="secondary" className="w-full sm:w-auto text-sm"><PlusCircle className="mr-2 h-4 w-4" /> Invest Now</Button>
+                        </InvestNowDialog>
+                    </div>
                 </div>
-            </div>
-            <Tabs defaultValue="portfolio" className="space-y-4">
-<<<<<<< HEAD
-                <TabsList className="overflow-x-auto scrollbar-none">
-                    <TabsTrigger value="portfolio">My Portfolio</TabsTrigger>
-                    <TabsTrigger value="explore">Explore Products</TabsTrigger>
-=======
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="portfolio" className="text-xs sm:text-sm">My Portfolio</TabsTrigger>
-                    <TabsTrigger value="explore" className="text-xs sm:text-sm">Explore Products</TabsTrigger>
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
-                </TabsList>
-                <TabsContent value="portfolio" className="space-y-4">
-                    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-xs sm:text-sm font-medium">Total Investment</CardTitle>
-                                <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold">₦{(totalInvestment / 100).toLocaleString()}</div>}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-xs sm:text-sm font-medium">Total Returns</CardTitle>
-                                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold text-primary">+₦{(totalReturns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-xs sm:text-sm font-medium">Next Payout</CardTitle>
-                                <PiggyBank className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold">₦105,000</div> }
-                                <p className="text-xs text-muted-foreground">On Dec 31, 2024</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-xs sm:text-sm font-medium">Risk Profile</CardTitle>
-                                <ShieldCheck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-lg sm:text-2xl font-bold">Moderate</div>
-                                <p className="text-xs text-muted-foreground">Balanced portfolio</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-<<<<<<< HEAD
-                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-                        <Card className="col-span-1 md:col-span-1 lg:col-span-4">
-=======
-                    <div className="grid gap-4 lg:grid-cols-7">
-                        <Card className="lg:col-span-4">
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
-                            <CardHeader>
-                                <CardTitle className="text-base sm:text-lg">Portfolio Performance</CardTitle>
-                            </CardHeader>
-                            <CardContent className="pl-2">
-                                <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
-                                    <ResponsiveContainer>
-                                        <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                                            <CartesianGrid vertical={false} />
-                                            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
-                                            <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `₦${value/1000}k`} fontSize={12} />
-                                            <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                            <Bar dataKey="returns" fill="var(--color-returns)" radius={8} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
-                            </CardContent>
-                        </Card>
-<<<<<<< HEAD
-                        <Card className="col-span-1 md:col-span-1 lg:col-span-3">
-=======
-                        <Card className="lg:col-span-3">
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
-                            <CardHeader>
-                                <CardTitle className="text-base sm:text-lg">My Investments</CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">Your active investment plans.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? (
-                                    <div className="space-y-4">
-                                        <Skeleton className="h-10 w-full" />
-                                        <Skeleton className="h-10 w-full" />
-                                        <Skeleton className="h-10 w-full" />
-                                    </div>
-                                ) : userInvestments.length > 0 ? (
-<<<<<<< HEAD
-                                    <div className="overflow-auto">
-                                        <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Plan</TableHead>
-                                                <TableHead className="text-right">Returns</TableHead>
-                                                <TableHead className="text-center">Status</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {userInvestments.map((investment) => (
-                                                <TableRow key={investment.id}>
-                                                    <TableCell>
-                                                        <div className="font-medium">{investment.plan}</div>
-                                                        <div className="text-xs text-muted-foreground">Matures: {format(new Date(investment.maturityDate), 'dd MMM yyyy')}</div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-semibold text-primary">
-                                                        +₦{(investment.returns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge>{investment.status}</Badge>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                        </Table>
-=======
-                                    <div className="space-y-3">
-                                        {userInvestments.map((investment) => (
-                                            <div key={investment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-muted rounded-lg gap-2">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-sm">{investment.plan}</div>
-                                                    <div className="text-xs text-muted-foreground">Matures: {format(new Date(investment.maturityDate), 'dd MMM yyyy')}</div>
-                                                </div>
-                                                <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
-                                                    <div className="font-semibold text-primary text-sm">
-                                                        +₦{(investment.returns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                                                    </div>
-                                                    <Badge className="text-xs">{investment.status}</Badge>
-                                                </div>
-                                            </div>
-                                        ))}
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-10 text-muted-foreground">
-                                        <p className="text-sm">You have no active investments.</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-                <TabsContent value="explore" className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {investmentProducts.map((product) => (
-                            <Card key={product.title} className="flex flex-col">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 sm:p-3 bg-muted rounded-lg">
-                                            <product.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <CardTitle className="text-sm sm:text-base">{product.title}</CardTitle>
-                                            <p className="font-bold text-primary text-xs sm:text-sm">{product.rate}</p>
-                                        </div>
-                                    </div>
+
+                <Tabs defaultValue="portfolio" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="portfolio" className="text-xs sm:text-sm">My Portfolio</TabsTrigger>
+                        <TabsTrigger value="explore" className="text-xs sm:text-sm">Explore Products</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="portfolio" className="space-y-4">
+                        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs sm:text-sm font-medium">Total Investment</CardTitle>
+                                    <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                                 </CardHeader>
-                                <CardContent className="flex-1 pt-0">
-                                    <CardDescription className="text-xs sm:text-sm">{product.description}</CardDescription>
+                                <CardContent>
+                                    {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold">₦{(totalInvestment / 100).toLocaleString()}</div>}
                                 </CardContent>
-                                <CardFooter className="pt-3">
-                                    <InvestNowDialog onRequestInvestment={handleInvestmentRequest} defaultProductTitle={product.title}>
-                                        <Button className="w-full text-sm">Invest Now</Button>
-                                    </InvestNowDialog>
-                                </CardFooter>
                             </Card>
-                        ))}
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </div>
-        <PinModal
-            open={isPinModalOpen}
-            onOpenChange={setIsPinModalOpen}
-            onConfirm={handleConfirmInvestment}
-            isProcessing={isProcessing}
-            title="Authorize Investment"
-            description="Enter your 4-digit PIN to confirm this investment."
-            error={apiError}
-            onClearError={() => setApiError(null)}
-        />
-    </>
-  )
+
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs sm:text-sm font-medium">Total Returns</CardTitle>
+                                    <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold text-primary">+₦{(totalReturns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs sm:text-sm font-medium">Next Payout</CardTitle>
+                                    <PiggyBank className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? <Skeleton className="h-6 sm:h-8 w-3/4" /> : <div className="text-lg sm:text-2xl font-bold">₦105,000</div> }
+                                    <p className="text-xs text-muted-foreground">On Dec 31, 2024</p>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs sm:text-sm font-medium">Risk Profile</CardTitle>
+                                    <ShieldCheck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-lg sm:text-2xl font-bold">Moderate</div>
+                                    <p className="text-xs text-muted-foreground">Balanced portfolio</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="grid gap-4 lg:grid-cols-7">
+                            <Card className="lg:col-span-4">
+                                <CardHeader>
+                                    <CardTitle className="text-base sm:text-lg">Portfolio Performance</CardTitle>
+                                </CardHeader>
+                                <CardContent className="pl-2">
+                                    <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
+                                        <ResponsiveContainer>
+                                            <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                                                <CartesianGrid vertical={false} />
+                                                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
+                                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `₦${value/1000}k`} fontSize={12} />
+                                                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                                <Bar dataKey="returns" fill="var(--color-returns)" radius={8} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="lg:col-span-3">
+                                <CardHeader>
+                                    <CardTitle className="text-base sm:text-lg">My Investments</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">Your active investment plans.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? (
+                                        <div className="space-y-4">
+                                            <Skeleton className="h-10 w-full" />
+                                            <Skeleton className="h-10 w-full" />
+                                            <Skeleton className="h-10 w-full" />
+                                        </div>
+                                    ) : userInvestments.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {userInvestments.map((investment) => (
+                                                <div key={investment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-muted rounded-lg gap-2">
+                                                    <div className="flex-1">
+                                                        <div className="font-medium text-sm">{investment.plan}</div>
+                                                        <div className="text-xs text-muted-foreground">Matures: {format(new Date(investment.maturityDate), 'dd MMM yyyy')}</div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
+                                                        <div className="font-semibold text-primary text-sm">
+                                                            +₦{(investment.returns / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                        </div>
+                                                        <Badge className="text-xs">{investment.status}</Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-10 text-muted-foreground">
+                                            <p className="text-sm">You have no active investments.</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="explore" className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {investmentProducts.map((product) => (
+                                <Card key={product.title} className="flex flex-col">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 sm:p-3 bg-muted rounded-lg">
+                                                <product.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <CardTitle className="text-sm sm:text-base">{product.title}</CardTitle>
+                                                <p className="font-bold text-primary text-xs sm:text-sm">{product.rate}</p>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 pt-0">
+                                        <CardDescription className="text-xs sm:text-sm">{product.description}</CardDescription>
+                                    </CardContent>
+                                    <CardFooter className="pt-3">
+                                        <InvestNowDialog onRequestInvestment={handleInvestmentRequest} defaultProductTitle={product.title}>
+                                            <Button className="w-full text-sm">Invest Now</Button>
+                                        </InvestNowDialog>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            <PinModal
+                open={isPinModalOpen}
+                onOpenChange={setIsPinModalOpen}
+                onConfirm={handleConfirmInvestment}
+                isProcessing={isProcessing}
+                title="Authorize Investment"
+                description="Enter your 4-digit PIN to confirm this investment."
+                error={apiError}
+                onClearError={() => setApiError(null)}
+            />
+        </>
+    );
 }
