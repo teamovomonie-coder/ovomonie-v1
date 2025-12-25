@@ -1,60 +1,49 @@
-# Scripts Documentation
+# Voice Assistant Language Training
 
-## Transaction Management Scripts
+## Setup
 
-### View Transaction
-View complete details of any transaction by ID or reference.
-
-**Usage:**
+### 1. Install Python Dependencies
 ```bash
-npm run tx:view <transaction-id-or-reference>
+cd scripts
+pip install -r requirements.txt
 ```
 
-**Example:**
+### 2. Download Nigerian Pidgin Dataset
 ```bash
-npm run tx:view int-1766073463230
-npm run tx:view 0718b755-92d6-4f9a-b0f4-d6ec9439a392
+python download-pidgin-dataset.py
 ```
 
-**Output:**
-- Transaction ID, User ID, Type, Status
-- Reference, Amount, Recipient, Bank
-- Timestamps (created, updated, completed)
-- Full transaction data (JSON)
+This will:
+- Download the Nigerian Pidgin dataset from Kaggle
+- Process and extract common phrases
+- Generate training data in `src/data/pidgin-training.json`
 
-### Update Transaction Status
-Manually update the status of a transaction.
+### 3. Dataset Integration
 
-**Usage:**
-```bash
-npm run tx:update <transaction-id-or-reference> <status>
-```
+The Pidgin context is automatically loaded into the AI assistant at:
+- `src/data/pidgin-context.json` - Core Pidgin phrases and vocabulary
+- `src/app/api/ai/assistant/route.ts` - AI system prompt with Pidgin support
 
-**Status Options:**
-- `pending` - Transaction is waiting to be processed
-- `processing` - Transaction is being processed
-- `completed` - Transaction completed successfully
-- `failed` - Transaction failed
+## Supported Languages
 
-**Example:**
-```bash
-npm run tx:update int-1766073463230 completed
-npm run tx:update int-1766073463230 failed
-```
+1. **English** - Default
+2. **Nigerian Pidgin** - Full support with dataset
+3. **Yoruba** - Coming soon
+4. **Igbo** - Coming soon
+5. **Hausa** - Coming soon
 
-## Authentication Scripts
+## Adding More Languages
 
-### Fix Auth
-Migrate legacy token parsing to standardized authentication.
+1. Create `src/data/{language}-context.json`
+2. Add common phrases and financial terms
+3. Import in `assistant/route.ts`
+4. Update system prompt with language context
 
-**Usage:**
-```bash
-npm run fix:auth
-```
+## Testing Pidgin Voice Assistant
 
-## Requirements
-
-All scripts require:
-- `.env.local` file with Supabase credentials
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+Try these phrases:
+- "How my money dey?" (Check balance)
+- "I wan send money" (Transfer)
+- "Wetin be my balance?" (Check balance)
+- "Make I buy airtime" (Buy airtime)
+- "Abeg show me my account" (View account)

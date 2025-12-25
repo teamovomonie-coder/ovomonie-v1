@@ -59,11 +59,8 @@ export default function PaymentSettingsPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-          </button>
-          <h1 className="text-2xl font-semibold text-slate-900">Payment Settings</h1>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-slate-900">Payment Settings</h1>
         </div>
 
         <div className="space-y-4 max-w-2xl">
@@ -84,12 +81,12 @@ export default function PaymentSettingsPage() {
             </AlertDescription>
           </Alert>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Transaction Limits</CardTitle>
-                  <CardDescription>Set your daily and per-transaction spending limits</CardDescription>
+                  <CardTitle className="text-base font-semibold">Transaction Limits</CardTitle>
+                  <CardDescription className="text-sm">Set your daily and per-transaction spending limits</CardDescription>
                 </div>
                 <Badge variant="secondary">{tierLimit.name}</Badge>
               </div>
@@ -130,17 +127,17 @@ export default function PaymentSettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Payment Restrictions</CardTitle>
-              <CardDescription>Control where and how your money can be spent</CardDescription>
+              <CardTitle className="text-base font-semibold">Payment Restrictions</CardTitle>
+              <CardDescription className="text-sm">Control where and how your money can be spent</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <Label htmlFor="international-switch" className="flex items-center gap-3">
                   <Icons.Globe className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Block International Transactions</p>
+                    <p className="text-sm font-medium">Block International Transactions</p>
                     <p className="text-sm text-muted-foreground">Prevent payments outside Nigeria</p>
                   </div>
                 </Label>
@@ -150,7 +147,7 @@ export default function PaymentSettingsPage() {
                 <Label htmlFor="gambling-switch" className="flex items-center gap-3">
                   <Icons.Ban className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Restrict Betting Payments</p>
+                    <p className="text-sm font-medium">Restrict Betting Payments</p>
                     <p className="text-sm text-muted-foreground">Block gambling and betting sites</p>
                   </div>
                 </Label>
@@ -160,7 +157,7 @@ export default function PaymentSettingsPage() {
                 <Label htmlFor="online-switch" className="flex items-center gap-3">
                   <Icons.ShoppingCart className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Enable Online Payments</p>
+                    <p className="text-sm font-medium">Enable Online Payments</p>
                     <p className="text-sm text-muted-foreground">Allow e-commerce transactions</p>
                   </div>
                 </Label>
@@ -170,7 +167,7 @@ export default function PaymentSettingsPage() {
                 <Label htmlFor="contactless-switch" className="flex items-center gap-3">
                   <Icons.Nfc className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Contactless Payments</p>
+                    <p className="text-sm font-medium">Contactless Payments</p>
                     <p className="text-sm text-muted-foreground">Enable NFC and tap-to-pay</p>
                   </div>
                 </Label>
@@ -179,17 +176,17 @@ export default function PaymentSettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Auto-Pay & Subscriptions</CardTitle>
-              <CardDescription>Manage recurring payments and subscriptions</CardDescription>
+              <CardTitle className="text-base font-semibold">Auto-Pay & Subscriptions</CardTitle>
+              <CardDescription className="text-sm">Manage recurring payments and subscriptions</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <Label htmlFor="autopay-switch" className="flex items-center gap-3">
                   <Icons.RefreshCw className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Enable Auto-Pay</p>
+                    <p className="text-sm font-medium">Enable Auto-Pay</p>
                     <p className="text-sm text-muted-foreground">Allow recurring payments</p>
                   </div>
                 </Label>

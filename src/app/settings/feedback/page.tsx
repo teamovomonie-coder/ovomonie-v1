@@ -36,18 +36,15 @@ export default function FeedbackPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-          </button>
-          <h1 className="text-2xl font-semibold text-slate-900">Feedback & Suggestions</h1>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-slate-900">Feedback & Suggestions</h1>
         </div>
 
         <div className="space-y-4 max-w-2xl">
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Share Your Thoughts</CardTitle>
-              <CardDescription>Help us improve Ovomonie with your feedback</CardDescription>
+              <CardTitle className="text-base font-semibold">Share Your Thoughts</CardTitle>
+              <CardDescription className="text-sm">Help us improve Ovomonie with your feedback</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -111,29 +108,29 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Other Ways to Reach Us</CardTitle>
+              <CardTitle className="text-base font-semibold">Other Ways to Reach Us</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <button className="w-full flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors">
                 <Icons.Mail className="h-5 w-5 text-primary" />
                 <div className="text-left">
-                  <p className="font-medium">Email Support</p>
+                  <p className="text-sm font-medium">Email Support</p>
                   <p className="text-sm text-muted-foreground">support@ovomonie.com</p>
                 </div>
               </button>
               <button className="w-full flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors">
                 <Icons.Phone className="h-5 w-5 text-primary" />
                 <div className="text-left">
-                  <p className="font-medium">Call Us</p>
+                  <p className="text-sm font-medium">Call Us</p>
                   <p className="text-sm text-muted-foreground">+234 800 000 0000</p>
                 </div>
               </button>
               <button className="w-full flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors">
                 <Icons.MessageCircle className="h-5 w-5 text-primary" />
                 <div className="text-left">
-                  <p className="font-medium">Live Chat</p>
+                  <p className="text-sm font-medium">Live Chat</p>
                   <p className="text-sm text-muted-foreground">Available 24/7</p>
                 </div>
               </button>

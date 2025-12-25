@@ -153,18 +153,15 @@ export default function SecurityCenterPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-          </button>
-          <h1 className="text-2xl font-semibold text-slate-900">Security Center</h1>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-slate-900">Security Center</h1>
         </div>
 
         <div className="space-y-4 max-w-4xl">
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Managed Devices</CardTitle>
-              <CardDescription>These devices have recently accessed your account.</CardDescription>
+              <CardTitle className="text-base font-semibold">Managed Devices</CardTitle>
+              <CardDescription className="text-sm">These devices have recently accessed your account.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -179,7 +176,7 @@ export default function SecurityCenterPage() {
                     <div className="flex items-center gap-3">
                       {getDeviceIcon(device.device_type)}
                       <div>
-                        <p className="font-semibold">{device.device_name}</p>
+                        <p className="text-sm font-semibold">{device.device_name}</p>
                         <p className="text-sm text-muted-foreground">
                           {device.browser} • {device.os}
                         </p>
@@ -209,10 +206,10 @@ export default function SecurityCenterPage() {
             </CardFooter>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Recent Security Activity</CardTitle>
-              <CardDescription>Monitor important security events on your account</CardDescription>
+              <CardTitle className="text-base font-semibold">Recent Security Activity</CardTitle>
+              <CardDescription className="text-sm">Monitor important security events on your account</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -236,7 +233,7 @@ export default function SecurityCenterPage() {
                       <TableRow key={activity.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{activity.event_type}</p>
+                            <p className="text-sm font-medium">{activity.event_type}</p>
                             <p className="text-xs text-muted-foreground">{activity.description}</p>
                           </div>
                         </TableCell>

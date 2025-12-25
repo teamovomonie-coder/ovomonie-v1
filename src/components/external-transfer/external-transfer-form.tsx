@@ -306,25 +306,26 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       updateBalance(result.data.newBalanceInKobo);
       setIsPinModalOpen(false);
 
-      // Save pending receipt to database and localStorage, then navigate to success page
+      // Save receipt data for success page
       try {
         const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
-        const pendingReceipt: any = {
+        const receiptData = {
           type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
           data: submittedData,
           recipientName,
           bankName,
-          reference: `ext-${Date.now()}`,
+          reference: clientReference,
           amount: submittedData.amount,
-          transactionId: result.data.transactionId || `OVO-EXT-${Date.now()}`,
+          transactionId: result.data.transactionId || clientReference,
           completedAt: new Date().toLocaleString(),
         };
-        await pendingTransactionService.savePendingReceipt(pendingReceipt);
+        await pendingTransactionService.savePendingReceipt(receiptData);
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(receiptData));
       } catch (e) {
         console.warn('[ExternalTransfer] could not save pending receipt', e);
       }
 
-      // Navigate to success page
+      // Navigate to success page to show receipt
       router.push('/success');
       
     } catch (error: any) {

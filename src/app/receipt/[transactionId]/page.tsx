@@ -73,7 +73,11 @@ export default function ReceiptPage() {
     if (!transaction) return;
     
     const category = transaction.category;
-    router.push(`/bill-payment?category=${category}`);
+    if (category === 'transfer') {
+      router.push('/external-transfer');
+    } else {
+      router.push(`/bill-payment?category=${category}`);
+    }
   };
 
   if (loading) {
@@ -128,7 +132,9 @@ export default function ReceiptPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Payment Successful!</h1>
-          <p className="text-gray-600">Your {transaction.category} purchase was completed</p>
+          <p className="text-gray-600">
+            Your {transaction.category === 'transfer' ? 'transfer' : transaction.category} was completed
+          </p>
         </div>
 
         {/* Receipt */}
@@ -190,12 +196,13 @@ export default function ReceiptPage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Button 
+            <Button 
             className="w-full bg-blue-600 hover:bg-blue-700" 
             onClick={handleTransferAgain}
           >
             <RotateCcw className="mr-2 h-4 w-4" /> 
-            {transaction.category === 'airtime' ? 'Buy Airtime Again' : 
+            {transaction.category === 'transfer' ? 'Transfer Again' :
+             transaction.category === 'airtime' ? 'Buy Airtime Again' : 
              transaction.category === 'data' ? 'Buy Data Again' : 
              'Pay Again'}
           </Button>

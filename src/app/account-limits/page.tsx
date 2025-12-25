@@ -72,10 +72,7 @@ export default function AccountLimitsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        <div className="mb-6">
           <h1 className="text-2xl font-bold">Account Limits</h1>
         </div>
 

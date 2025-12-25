@@ -202,17 +202,14 @@ export default function LoginSettingsPage() {
   return (
     <AppShell>
       <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-          </button>
-          <h1 className="text-2xl font-semibold text-slate-900">Login Settings</h1>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-slate-900">Login Settings</h1>
         </div>
 
         <div className="space-y-4 max-w-2xl">
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle>Authentication</CardTitle>
+              <CardTitle className="text-base font-semibold">Authentication</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <ChangePasswordDialog />

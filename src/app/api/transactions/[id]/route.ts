@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
-import { db } from '@/lib/db';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = await getUserIdFromToken(request.headers);
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     // First try pending_transactions (pending receipts)
-    const { data, error } = await db
+    const { data, error } = await supabaseAdmin
       .from('pending_transactions')
       .select('*')
       .eq('reference', id)
@@ -28,12 +28,12 @@ export async function GET(
       .single();
 
     if (data) {
-      return NextResponse.json({ ok: true, data });
+      return NextResponse.json({ ok: true, transaction: data });
     }
 
     // Fallback: try financial_transactions by id or reference
     try {
-      const { data: finData, error: finError } = await db
+      const { data: finData, error: finError } = await supabaseAdmin
         .from('financial_transactions')
         .select('*')
         .or(`id.eq.${id},reference.eq.${id}`)
@@ -52,15 +52,21 @@ export async function GET(
         type: finData.type,
         amount: finData.amount,
         narration: finData.narration,
-        party_name: finData.party?.name || finData.party_name || null,
+        party_name: finData.party?.name || finData.party_name || 'External Transfer',
         balance_after: finData.balance_after,
-        status: finData.status || null,
+        status: 'completed',
         category: finData.category,
-        metadata: finData.metadata || null,
-        created_at: finData.timestamp || finData.created_at || null
+        metadata: {
+          service_type: finData.category,
+          recipient: finData.party?.name || finData.party_name || 'External Transfer',
+          network: finData.party?.bank || 'Bank Transfer',
+          vfd_reference: finData.reference,
+          ...finData.metadata
+        },
+        created_at: finData.timestamp || finData.created_at
       };
 
-      return NextResponse.json({ ok: true, data: mapped });
+      return NextResponse.json({ ok: true, transaction: mapped });
     } catch (err) {
       logger.error('Error fetching from financial_transactions:', err);
       return NextResponse.json({ ok: false, message: 'Transaction not found' }, { status: 404 });

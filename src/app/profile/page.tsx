@@ -63,17 +63,17 @@ export default function ProfilePage() {
               <button onClick={() => router.push("/edit-profile")}>
                 <Avatar className="h-16 w-16 border-2 border-primary/20 cursor-pointer hover:opacity-80 transition-opacity">
                   <AvatarImage src={user?.photoUrl || user?.avatarUrl} alt={user?.fullName} />
-                  <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white text-xl font-semibold">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xl font-semibold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
               </button>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">{user?.fullName.toUpperCase()}</h1>
+                <h1 className="text-lg font-semibold text-slate-900">{user?.fullName.toUpperCase()}</h1>
                 <p className="text-sm text-slate-500">@{user?.fullName.toLowerCase().replace(/\s+/g, '_')}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <Icons.Award className="h-4 w-4 text-[#0b1b3a]" />
-                  <span className="text-xs font-semibold text-[#0b1b3a]">TIER 1</span>
+                  <Icons.Award className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold text-primary">TIER 1</span>
                 </div>
               </div>
             </div>
@@ -82,41 +82,42 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm relative overflow-hidden">
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10">
-              <Icons.ShieldCheck className="h-32 w-32 text-primary" />
+          <Card className="rounded-3xl border-none bg-gradient-to-br from-primary to-primary/80 text-white shadow-2xl relative overflow-hidden">
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute -left-10 top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute right-4 bottom-6 h-32 w-32 rounded-full bg-white/15 blur-3xl" />
             </div>
             <CardContent className="p-6 relative z-10">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-slate-500">Total Balance</span>
+                <span className="text-sm font-medium text-white/80">Total Balance</span>
                 <button onClick={() => setShowBalance(!showBalance)}>
-                  {showBalance ? <Icons.Eye className="h-4 w-4 text-slate-400" /> : <Icons.EyeOff className="h-4 w-4 text-slate-400" />}
+                  {showBalance ? <Icons.Eye className="h-4 w-4 text-white/80" /> : <Icons.EyeOff className="h-4 w-4 text-white/80" />}
                 </button>
               </div>
-              <div className="text-4xl font-bold text-slate-900">
+              <div className="text-3xl font-bold text-white">
                 {showBalance ? `₦ ${balance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "₦ ••••••"}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
-              <button onClick={() => router.push("/transactions")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/statements")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#0b1b3a]/5 rounded-lg">
-                    <Icons.FileText className="h-5 w-5 text-[#0b1b3a]" />
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.FileText className="h-5 w-5 text-primary" />
                   </div>
-                  <span className="text-slate-900 font-medium">Transaction History</span>
+                  <span className="text-sm font-medium text-slate-900">Transaction History</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
               <button onClick={() => router.push("/account-limits")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#0b1b3a]/5 rounded-lg">
-                    <Icons.TrendingUp className="h-5 w-5 text-[#0b1b3a]" />
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.TrendingUp className="h-5 w-5 text-primary" />
                   </div>
                   <div className="text-left">
-                    <div className="text-slate-900 font-medium">Account Limits</div>
+                    <div className="text-sm font-medium text-slate-900">Account Limits</div>
                     <div className="text-xs text-slate-500">View your transaction limits</div>
                   </div>
                 </div>
@@ -124,30 +125,15 @@ export default function ProfilePage() {
               </button>
               <button onClick={() => router.push("/bank-accounts")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#0b1b3a]/5 rounded-lg">
-                    <Icons.CreditCard className="h-5 w-5 text-[#0b1b3a]" />
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.CreditCard className="h-5 w-5 text-primary" />
                   </div>
                   <div className="text-left">
-                    <div className="text-slate-900 font-medium">Bank Card/Account</div>
+                    <div className="text-sm font-medium text-slate-900">Bank Card/Account</div>
                     <div className="text-xs text-slate-500">{linkedCount} linked cards/accounts</div>
                   </div>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
-              </button>
-              <button onClick={() => router.push("/invoice")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#0b1b3a]/5 rounded-lg">
-                    <Icons.Receipt className="h-5 w-5 text-[#0b1b3a]" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-slate-900 font-medium">Invoice</div>
-                    <div className="text-xs text-slate-500">Generate invoice to receive payments</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded-full">New</span>
-                  <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
-                </div>
               </button>
             </CardContent>
           </Card>
@@ -156,14 +142,14 @@ export default function ProfilePage() {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Account Security</h3>
           </div>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
               <button onClick={() => router.push("/two-factor")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#0b1b3a]/5 rounded-lg">
-                    <Icons.ShieldCheck className="h-5 w-5 text-[#0b1b3a]" />
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.ShieldCheck className="h-5 w-5 text-primary" />
                   </div>
-                  <span className="text-slate-900 font-medium">Two-Factor Authentication</span>
+                  <span className="text-sm font-medium text-slate-900">Two-Factor Authentication</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>

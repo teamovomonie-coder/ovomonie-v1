@@ -202,10 +202,7 @@ export default function BankAccountsPage() {
     <AppShell>
       <div className="flex-1 p-4 sm:p-8 pt-6 bg-slate-50">
         <div className="max-w-2xl mx-auto space-y-6">
-          <div className="flex items-center gap-3 mb-6">
-            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-            </button>
+          <div className="mb-6">
             <h1 className="text-2xl font-semibold text-slate-900">Bank Cards & Accounts</h1>
           </div>
 

@@ -53,20 +53,17 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <Icons.ChevronLeft className="h-6 w-6 text-slate-700" />
-          </button>
-          <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+      <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6 bg-slate-50">
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-slate-900">Settings</h1>
         </div>
 
         <div className="space-y-4 max-w-2xl">
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Icons.Sun className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-slate-900">App Theme</h2>
+                <h2 className="text-base font-semibold text-slate-900">App Theme</h2>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <button
@@ -114,81 +111,95 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
-              <button onClick={() => router.push("/settings/payment-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/payment-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.Lock className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Payment Settings</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Payment Settings</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
-              <button onClick={() => router.push("/settings/login-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/login-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.Key className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Login Settings</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.Key className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Login Settings</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
-              <button onClick={() => router.push("/settings/security-questions")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/security-questions")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.Shield className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Security Questions</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.Shield className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Security Questions</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-green-500 text-sm font-semibold">Reset</span>
+                  <span className="text-green-500 text-sm font-semibold">Reset New</span>
                   <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
                 </div>
               </button>
-              <button onClick={() => router.push("/settings/notification-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/notification-settings")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.Bell className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Notification Settings</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.Bell className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Notification Settings</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
-              <button onClick={() => router.push("/settings/security-center")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/security-center")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.ShieldCheck className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Security Center</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.ShieldCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Security Center</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
-              <button onClick={() => router.push("/settings/feedback")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={() => router.push("/settings/feedback")} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.MessageSquare className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Feedback and Suggestions</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Feedback and Suggestions</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardContent className="p-0 divide-y divide-slate-100">
-              <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                 <div className="flex items-center gap-3">
-                  <Icons.LogOut className="h-5 w-5 text-primary" />
-                  <span className="text-slate-900 font-medium">Log out</span>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icons.LogOut className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Log out</span>
                 </div>
                 <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                  <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors rounded-xl first:rounded-t-3xl last:rounded-b-3xl">
                     <div className="flex items-center gap-3">
                       <Icons.Trash2 className="h-5 w-5 text-red-500" />
-                      <span className="text-red-500 font-medium">Close Account</span>
+                      <span className="text-sm font-medium text-red-500">Close Account</span>
                     </div>
                     <Icons.ChevronRight className="h-5 w-5 text-slate-400" />
                   </button>
