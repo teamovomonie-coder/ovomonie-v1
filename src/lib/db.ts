@@ -59,25 +59,12 @@ function mapUser(row: any): DbUser | null {
     id: row.id,
     phone: row.phone,
     email: row.email,
-<<<<<<< HEAD
-    full_name: row.full_name || row.fullName || row.full_name,
-    fullName: row.full_name || row.fullName,
-    account_number: row.account_number || row.accountNumber,
-    accountNumber: row.account_number || row.accountNumber,
-    balance: typeof balanceValue === 'number' ? balanceValue : Number(balanceValue) || 0,
-    kyc_tier: row.kyc_tier ?? row.kycTier,
-    kycTier: row.kyc_tier ?? row.kycTier,
-    is_agent: row.is_agent ?? row.isAgent,
-    isAgent: row.is_agent ?? row.isAgent,
-    avatar_url: row.avatar_url || row.avatarUrl,
-=======
     full_name: row.full_name,
     account_number: row.account_number,
-    balance: typeof row.balance === 'number' ? row.balance : Number(row.balance) || 0,
+    balance: typeof balanceValue === 'number' ? balanceValue : Number(balanceValue) || 0,
     kyc_tier: row.kyc_tier,
     is_agent: row.is_agent,
     avatar_url: row.avatar_url,
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
     status: row.status,
     login_pin_hash: row.login_pin_hash || null,
     transaction_pin_hash: row.transaction_pin_hash || null,
@@ -89,14 +76,6 @@ function mapUser(row: any): DbUser | null {
 // User service
 export const userService = {
   async getById(userId: string): Promise<DbUser | null> {
-<<<<<<< HEAD
-    if (!supabaseAdmin) throw new Error('Database not initialized');
-    const { data, error } = await supabaseAdmin.from('users').select('*').eq('id', userId).limit(1).single();
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-      throw new Error(`Database error: ${error.message}`);
-    }
-    return mapUser((data as any) ?? null);
-=======
     if (!supabaseAdmin) {
       logger.error('Supabase admin client not available');
       return null;
@@ -117,7 +96,6 @@ export const userService = {
       logger.error('Exception in getById', { userId, error });
       return null;
     }
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
   },
   async getByPhone(phone: string): Promise<DbUser | null> {
     if (!supabaseAdmin) {
@@ -172,14 +150,6 @@ export const userService = {
   },
   
   async updateBalance(userId: string, newBalance: number): Promise<boolean> {
-<<<<<<< HEAD
-    if (!supabaseAdmin) throw new Error('Database not initialized');
-    const { error } = await supabaseAdmin.from('users').update({ balance: newBalance }).eq('id', userId);
-    if (error) {
-      throw new Error(`Failed to update balance: ${error.message}`);
-    }
-    return true;
-=======
     if (!supabaseAdmin) {
       logger.error('Supabase admin client not available');
       return false;
@@ -199,21 +169,12 @@ export const userService = {
       logger.error('Exception in updateBalance', { userId, newBalance, error });
       return false;
     }
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
   }
 };
 
 // Transaction service
 export const transactionService = {
   async create(tx: DbTransaction): Promise<string | null> {
-<<<<<<< HEAD
-    if (!supabaseAdmin) throw new Error('Database not initialized');
-    const { data, error } = await supabaseAdmin.from('financial_transactions').insert([tx]).select('id').limit(1).single();
-    if (error) {
-      throw new Error(`Failed to create transaction: ${error.message}`);
-    }
-    return (data as any)?.id ?? null;
-=======
     if (!supabaseAdmin) {
       logger.error('Supabase admin client not available');
       return null;
@@ -234,18 +195,9 @@ export const transactionService = {
       logger.error('Exception in transaction create', { tx, error });
       return null;
     }
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
   },
   
   async getByReference(reference: string): Promise<DbTransaction | null> {
-<<<<<<< HEAD
-    if (!supabaseAdmin) throw new Error('Database not initialized');
-    const { data, error } = await supabaseAdmin.from('financial_transactions').select('*').eq('reference', reference).limit(1).single();
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-      throw new Error(`Database error: ${error.message}`);
-    }
-    return (data as any) ?? null;
-=======
     if (!supabaseAdmin) {
       logger.error('Supabase admin client not available');
       return null;
@@ -266,7 +218,6 @@ export const transactionService = {
       logger.error('Exception in getByReference', { reference, error });
       return null;
     }
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
   },
   
   async getByUserId(userId: string, limit = 50, category?: string): Promise<DbTransaction[]> {
@@ -303,12 +254,6 @@ export const transactionService = {
 // Notification service
 export const notificationService = {
   async create(n: DbNotification): Promise<string | null> {
-<<<<<<< HEAD
-    if (!supabaseAdmin) throw new Error('Database not initialized');
-    const { data, error } = await supabaseAdmin.from('notifications').insert([n]).select('id').limit(1).single();
-    if (error) {
-      throw new Error(`Failed to create notification: ${error.message}`);
-=======
     if (!supabaseAdmin) {
       logger.error('Supabase admin client not available');
       return null;
@@ -328,7 +273,6 @@ export const notificationService = {
     } catch (error) {
       logger.error('Exception in notification create', { notification: n, error });
       return null;
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
     }
   },
   

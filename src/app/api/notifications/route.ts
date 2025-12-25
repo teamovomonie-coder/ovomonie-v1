@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
 import { createNotification } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = await getUserIdFromToken(request.headers as Headers);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

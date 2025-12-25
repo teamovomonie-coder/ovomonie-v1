@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
 import { logger } from '@/lib/logger';
 
 // Initialize Supabase client (primary)
@@ -15,7 +15,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(request: Request) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = await getUserIdFromToken(request.headers as Headers);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

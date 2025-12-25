@@ -28,21 +28,16 @@
     "perf:lighthouse": "lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json",
     "monitor:health": "node -e \"require('./src/lib/monitoring').monitoring.getPerformanceSummary()\"",
     "fix:auth": "node scripts/fix-auth.js",
-<<<<<<< HEAD
     "test:vfd": "node scripts/test-vfd-connectivity.js",
     "debug:vfd": "node scripts/debug-vfd-api.js",
     "debug:vfd-withdrawal": "node scripts/debug-vfd-withdrawal.js",
-=======
-    "ci:fix": "eslint --fix . && prettier --write .",
     "db:seed": "node scripts/seed-database.js",
     "migrate:import-supabase": "node scripts/migrate-import-supabase.js",
     "migrate:verify": "node scripts/migrate-verify.js",
     "audit:security": "npm audit && npm run test:security",
     "test:security": "jest --testPathPattern=security",
-    "test:integration": "jest --testPathPattern=integration",
     "cache:clear": "node -e \"require('./src/lib/cache').cache.clear(); console.log('Cache cleared');\"",
     "health:check": "curl http://localhost:3000/api/health",
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
     "tx:view": "node scripts/view-transaction.js",
     "tx:update": "node scripts/update-transaction-status.js"
   },

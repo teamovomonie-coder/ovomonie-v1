@@ -1,94 +1,75 @@
-
-import { NextResponse, type NextRequest } from 'next/server';
-// Firebase removed - using Supabase
-// Firebase removed - using Supabase
+import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { nigerianBanks } from '@/lib/banks';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
-        const reqHeaders = request.headers as { get(name: string): string | null };
-        const userId = getUserIdFromToken(reqHeaders);
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-        const { id: batchId } = await params;
-        let finalUserBalance = 0;
-
-        await runTransaction(db, async (transaction) => {
-            const payrollRef = supabaseAdmin.from("payrollBatches").select().eq("id", batchId);
-            const userRef = supabaseAdmin.from("users").select().eq("id", userId);
-            
-            const [payrollDoc, userDoc] = await Promise.all([
-                transaction.get(payrollRef),
-                transaction.get(userRef)
-            ]);
-
-            if (!payrollDoc.exists() || payrollDoc.data().userId !== userId) {
-                throw new Error("Payroll batch not found or access denied.");
-            }
-            if (!userDoc.exists()) {
-                throw new Error("User account not found.");
-            }
-
-            const payrollData = payrollDoc.data();
-            const userData = userDoc.data();
-
-            if (payrollData.status === 'Paid') {
-                throw new Error("This payroll batch has already been paid.");
-            }
-            
-            const totalSalaryKobo = payrollData.employees.reduce((sum: number, emp: { salary: number; }) => sum + Math.round(emp.salary * 100), 0);
-            
-            if (userData.balance < totalSalaryKobo) {
-                throw new Error("Insufficient funds in your wallet to complete this payroll.");
-            }
-
-            // 1. Debit the total amount from the user's wallet
-            const newBalance = userData.balance - totalSalaryKobo;
-            transaction.update(userRef, { balance: newBalance });
-            finalUserBalance = newBalance;
-            
-            // 2. Log each individual transaction
-            const financialTransactionsRef = supabaseAdmin.from("financialTransactions");
-            payrollData.employees.forEach((employee: any) => {
-                const bankName = nigerianBanks.find(b => b.code === employee.bankCode)?.name || 'Unknown Bank';
-                const employeeSalaryKobo = Math.round(employee.salary * 100);
-                const newTxRef = doc(financialTransactionsRef);
-                transaction.set(newTxRef, {
-                    userId: userId,
-                    category: 'payroll',
-                    type: 'debit',
-                    amount: employeeSalaryKobo,
-                    reference: `PAYROLL-${batchId}-${employee.accountNumber}`,
-                    narration: `Salary for ${payrollData.period} to ${employee.fullName}`,
-                    party: {
-                        name: employee.fullName,
-                        account: employee.accountNumber,
-                        bank: bankName,
-                    },
-                    timestamp: new Date().toISOString(),
-                    balanceAfter: newBalance, // Note: This balance is after the *total* debit, not per-employee.
-                });
-            });
-
-            // 3. Update the payroll batch status
-            transaction.update(payrollRef, {
-                status: 'Paid',
-                paymentDate: new Date().toISOString()
-            });
-        });
-        
-        return NextResponse.json({ message: "Payroll processed successfully!", newBalanceInKobo: finalUserBalance }, { status: 200 });
-
-    } catch (error) {
-        logger.error("Payroll Execution Error:", error);
-        return NextResponse.json({ message: (error as Error).message }, { status: 400 });
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const userId = await getUserIdFromToken(headers());
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+
+    const { data: batch, error: fetchError } = await supabase
+      .from('payroll_batches')
+      .select(`*, employees:payroll_employees(*)`)
+      .eq('id', params.id)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !batch) {
+      return NextResponse.json({ message: 'Batch not found' }, { status: 404 });
+    }
+
+    const totalAmount = batch.employees.reduce((sum: number, emp: any) => sum + parseFloat(emp.salary), 0);
+    const totalInKobo = Math.round(totalAmount * 100);
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('balance')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
+
+    if (user.balance < totalInKobo) {
+      return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+    }
+
+    const { error: deductError } = await supabase
+      .from('users')
+      .update({ balance: user.balance - totalInKobo })
+      .eq('id', userId);
+
+    if (deductError) {
+      logger.error('Error deducting balance:', deductError);
+      return NextResponse.json({ message: 'Payment failed' }, { status: 500 });
+    }
+
+    const { error: updateError } = await supabase
+      .from('payroll_batches')
+      .update({ 
+        status: 'Paid',
+        payment_date: new Date().toISOString()
+      })
+      .eq('id', params.id);
+
+    if (updateError) {
+      logger.error('Error updating batch status:', updateError);
+      return NextResponse.json({ message: 'Failed to update status' }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: 'Payment executed successfully' });
+  } catch (error) {
+    logger.error('Error executing payroll:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }

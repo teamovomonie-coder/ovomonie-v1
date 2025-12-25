@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const token = localStorage.getItem("ovo-auth-token");
     const userId = localStorage.getItem("ovo-user-id");
     if (!token || !userId) {
-      performLogout();
+      setIsAuthenticated(false);
       return;
     }
 
@@ -56,7 +56,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch user data");
+        // Only logout on 401 (unauthorized), not on network errors
+        if (res.status === 401) {
+          performLogout();
+        } else {
+          // Keep user logged in for other errors (network issues, etc.)
+          setIsAuthenticated(true);
+        }
+        return;
       }
 
       const userData = await res.json();
@@ -81,7 +88,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsAuthenticated(true);
     } catch (err) {
       console.error("Auth fetch failed:", err);
-      performLogout();
+      // Don't logout on network errors - keep user authenticated
+      setIsAuthenticated(true);
     }
   }, [performLogout]);
 
@@ -100,6 +108,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     window.addEventListener('balance-updated', handleBalanceUpdate);
     
+    // Refresh token every 7 days to keep session alive
+    const tokenRefreshInterval = setInterval(async () => {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (token) {
+        try {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (res.ok) {
+            const { token: newToken } = await res.json();
+            localStorage.setItem('ovo-auth-token', newToken);
+            console.log('[AuthContext] Token refreshed successfully');
+          }
+        } catch (err) {
+          console.debug('[AuthContext] Token refresh skipped:', err);
+        }
+      }
+    }, 7 * 24 * 60 * 60 * 1000); // 7 days
+    
     const intervalId = setInterval(async () => {
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -108,21 +137,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             headers: { Authorization: `Bearer ${token}` },
             cache: 'no-store'
           });
-          const data = await res.json();
-          const newBal = data.balanceInKobo || data.data?.balance || 0;
-          if (newBal !== balance) {
-            console.log('[AuthContext] Balance changed:', balance, '->', newBal);
-            setBalance(newBal);
-            setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+          
+          // Only update balance if request succeeds
+          if (res.ok) {
+            const data = await res.json();
+            const newBal = data.balanceInKobo || data.data?.balance || 0;
+            if (newBal !== balance) {
+              console.log('[AuthContext] Balance changed:', balance, '->', newBal);
+              setBalance(newBal);
+              setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+            }
           }
         } catch (err) {
-          console.error('[AuthContext] Balance refresh failed:', err);
+          // Silently fail - don't logout user on network errors
+          console.debug('[AuthContext] Balance refresh skipped:', err);
         }
       }
     }, 30000);
     
     return () => {
       window.removeEventListener('balance-updated', handleBalanceUpdate);
+      clearInterval(tokenRefreshInterval);
       clearInterval(intervalId);
     };
   }, [fetchUserData, balance]);

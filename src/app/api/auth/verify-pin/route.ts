@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { validateTransactionPin } from '@/lib/pin-validator';
 import { logger } from '@/lib/logger';
+import { pinRateLimiter } from '@/lib/middleware/pin-rate-limiter';
 
 // Initialize Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
         if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
+
+        // Check if account is locked
+        const lockoutCheck = pinRateLimiter.checkLockout(userId, 'transaction');
+        if (lockoutCheck) return lockoutCheck;
 
         const { pin } = await request.json();
 
@@ -65,9 +70,30 @@ export async function POST(request: Request) {
         const isValid = validateTransactionPin(String(pin), userData.transaction_pin_hash || '');
 
         if (isValid) {
+            pinRateLimiter.recordSuccess(userId, 'transaction');
             return NextResponse.json({ success: true, message: 'PIN verified.' });
         } else {
-            return NextResponse.json({ success: false, message: 'The PIN you entered is incorrect.' }, { status: 401 });
+            const result = pinRateLimiter.recordFailure(userId, 'transaction');
+            
+            logger.warn('Transaction PIN verification failed', {
+                userId,
+                remainingAttempts: result.remainingAttempts
+            });
+            
+            if (result.locked) {
+                return NextResponse.json(
+                    { success: false, message: 'Too many failed attempts. Account locked for 30 minutes.' },
+                    { status: 429 }
+                );
+            }
+            
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    message: `The PIN you entered is incorrect. ${result.remainingAttempts} attempt(s) remaining.` 
+                },
+                { status: 401 }
+            );
         }
 
     } catch (error) {

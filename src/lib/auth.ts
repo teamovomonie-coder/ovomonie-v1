@@ -1,7 +1,7 @@
 import {createHmac, randomBytes, scryptSync, timingSafeEqual} from 'crypto';
 
 const TOKEN_PREFIX = 'ovotoken';
-const TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const KEY_LENGTH = 64; // bytes for scrypt output
 
 const getAuthSecret = () => {

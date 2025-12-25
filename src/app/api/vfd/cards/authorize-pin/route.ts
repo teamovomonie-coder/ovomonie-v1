@@ -3,6 +3,7 @@ import { getUserIdFromToken } from '@/lib/firestore-helpers';
 import { authorizeCardPin } from '@/lib/vfd';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { pinRateLimiter } from '@/lib/middleware/pin-rate-limiter';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,6 +16,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
     
+    // Check if account is locked
+    const lockoutCheck = pinRateLimiter.checkLockout(userId, 'authorization');
+    if (lockoutCheck) {
+      return NextResponse.json({ ok: false, message: 'Too many failed attempts. Please try again later.' }, { status: 429 });
+    }
+    
     const body = await req.json();
     const { reference, cardPin } = body;
     if (!reference || !cardPin) {
@@ -22,6 +29,35 @@ export async function POST(req: NextRequest) {
     }
 
     const res = await authorizeCardPin({ reference, pin: cardPin });
+    
+    // Handle PIN failure
+    if (!res.ok) {
+      const result = pinRateLimiter.recordFailure(userId, 'authorization');
+      
+      logger.warn('Card PIN authorization failed', {
+        userId,
+        reference,
+        remainingAttempts: result.remainingAttempts
+      });
+      
+      if (result.locked) {
+        return NextResponse.json(
+          { ok: false, message: 'Too many failed attempts. Account locked for 30 minutes.' },
+          { status: 429 }
+        );
+      }
+      
+      return NextResponse.json(
+        { 
+          ok: false, 
+          message: `Invalid card PIN. ${result.remainingAttempts} attempt(s) remaining.` 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Success - reset failure counter
+    pinRateLimiter.recordSuccess(userId, 'authorization');
     
     // Update balance if successful
     let newBalance = null;
@@ -87,7 +123,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    return NextResponse.json({ ...res, newBalanceInKobo: newBalance }, { status: res.ok ? 200 : 400 });
+    return NextResponse.json({ ...res, newBalanceInKobo: newBalance }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('VFD Authorize PIN: Error', { error: message });
