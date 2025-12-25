@@ -207,6 +207,19 @@ class PendingTransactionService {
     this.clearLocalStorage();
   }
 
+  /**
+   * Clear previous receipts to prevent showing old data during new transactions
+   */
+  async clearPendingReceipts(): Promise<void> {
+    this.clearLocalStorage();
+    // Dispatch event to notify listeners that receipts were cleared
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new Event('ovo-pending-receipt-cleared'));
+      } catch (e) {}
+    }
+  }
+
   // LocalStorage fallback methods for compatibility and offline support
   
   private setLocalStorage(data: ReceiptData): void {

@@ -25,7 +25,11 @@ const customJestConfig = {
       statements: 70,
     },
   },
-  moduleNameMapping: {
+  // Ignore end-to-end tests (Playwright) so Jest doesn't try to run Playwright specs
+  testPathIgnorePatterns: ['/e2e/'],
+
+  // Correct Jest option name for path mapping
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
 }

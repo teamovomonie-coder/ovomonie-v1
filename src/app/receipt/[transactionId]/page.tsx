@@ -1,4 +1,5 @@
 'use client';
+<<<<<<< HEAD
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -33,18 +34,57 @@ export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+=======
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Share2, ArrowLeft, RotateCcw, CheckCircle } from 'lucide-react';
+import ShareModal from '@/components/transaction/share-modal';
+import { useRef } from 'react';
+
+interface Transaction {
+  id: string;
+  reference: string;
+  type: string;
+  amount: number;
+  narration: string;
+  party_name: string;
+  balance_after: number;
+  status: string;
+  category: string;
+  metadata: {
+    service_type: string;
+    recipient: string;
+    network: string;
+    plan_name?: string;
+    vfd_reference: string;
+  };
+  created_at: string;
+}
+
+export default function ReceiptPage() {
+  const params = useParams();
+  const router = useRouter();
+>>>>>>> origin/main
   const receiptRef = useRef<HTMLDivElement>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   const transactionId = params.transactionId as string;
+<<<<<<< HEAD
   const timestamp = searchParams.get('t'); // Get timestamp to force refresh
+=======
+>>>>>>> origin/main
 
   useEffect(() => {
     if (!transactionId) return;
 
     const fetchTransaction = async () => {
+<<<<<<< HEAD
       setLoading(true); // Reset loading state
       try {
         const token = localStorage.getItem('ovo-auth-token');
@@ -54,6 +94,15 @@ export default function ReceiptPage() {
             'Content-Type': 'application/json'
           },
           cache: 'no-store' // Disable caching
+=======
+      try {
+        const token = localStorage.getItem('ovo-auth-token');
+        const response = await fetch(`/api/transactions/${transactionId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+>>>>>>> origin/main
         });
 
         if (!response.ok) {
@@ -71,13 +120,25 @@ export default function ReceiptPage() {
     };
 
     fetchTransaction();
+<<<<<<< HEAD
   }, [transactionId, timestamp, router]); // Add timestamp to dependencies
+=======
+  }, [transactionId, router]);
+>>>>>>> origin/main
 
   const handleTransferAgain = () => {
     if (!transaction) return;
     
     const category = transaction.category;
+<<<<<<< HEAD
     router.push(`/bill-payment?category=${category}`);
+=======
+    if (category === 'transfer') {
+      router.push('/external-transfer');
+    } else {
+      router.push(`/bill-payment?category=${category}`);
+    }
+>>>>>>> origin/main
   };
 
   if (loading) {
@@ -132,7 +193,13 @@ export default function ReceiptPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Payment Successful!</h1>
+<<<<<<< HEAD
           <p className="text-gray-600">Your {transaction.category} purchase was completed</p>
+=======
+          <p className="text-gray-600">
+            Your {transaction.category === 'transfer' ? 'transfer' : transaction.category} was completed
+          </p>
+>>>>>>> origin/main
         </div>
 
         {/* Receipt */}
@@ -194,12 +261,21 @@ export default function ReceiptPage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
+<<<<<<< HEAD
           <Button 
+=======
+            <Button 
+>>>>>>> origin/main
             className="w-full bg-blue-600 hover:bg-blue-700" 
             onClick={handleTransferAgain}
           >
             <RotateCcw className="mr-2 h-4 w-4" /> 
+<<<<<<< HEAD
             {transaction.category === 'airtime' ? 'Buy Airtime Again' : 
+=======
+            {transaction.category === 'transfer' ? 'Transfer Again' :
+             transaction.category === 'airtime' ? 'Buy Airtime Again' : 
+>>>>>>> origin/main
              transaction.category === 'data' ? 'Buy Data Again' : 
              'Pay Again'}
           </Button>

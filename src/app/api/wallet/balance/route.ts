@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+<<<<<<< HEAD
     const balance = await getWalletBalance(userId);
 
     if (!balance) {
@@ -21,17 +22,48 @@ export async function GET(request: NextRequest) {
           lastUpdated: new Date().toISOString()
         }
       });
+=======
+    let balance = await getWalletBalance(userId);
+    
+    // Fallback: fetch directly from Supabase if helper fails
+    if (!balance || balance.balance === 0) {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+      if (supabaseAdmin) {
+        const { data } = await supabaseAdmin
+          .from('users')
+          .select('balance')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (data) {
+          balance = {
+            userId,
+            balance: data.balance || 0,
+            ledgerBalance: data.balance || 0,
+            lastUpdated: new Date().toISOString()
+          };
+        }
+      }
+>>>>>>> origin/main
     }
 
     return NextResponse.json({
+      ok: true,
       success: true,
-      data: balance
+      balanceInKobo: balance?.balance || 0,
+      data: balance || { userId, balance: 0, ledgerBalance: 0, lastUpdated: new Date().toISOString() }
     });
   } catch (error) {
     console.error('Wallet balance error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        ok: true,
+        success: true,
+        balanceInKobo: 0,
+        error: 'Failed to fetch balance',
+        data: { balance: 0, ledgerBalance: 0 }
+      },
+      { status: 200 }
     );
   }
 }

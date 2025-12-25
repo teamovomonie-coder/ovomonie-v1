@@ -79,13 +79,8 @@ export function ChatInterface() {
                     setMessages([{ sender: 'bot', text: greetingText }]);
                 }
             } catch (error) {
-                console.error("TTS initialization failed", error);
+                // Silently fallback to text-only (TTS is optional)
                 setMessages([{ sender: 'bot', text: greetingText }]);
-                toast({
-                    variant: 'destructive',
-                    title: 'Audio Error',
-                    description: 'Could not generate initial audio greeting.'
-                });
             } finally {
                 setIsLoading(false);
                 setIsInitialized(true);
@@ -144,7 +139,9 @@ export function ChatInterface() {
       });
 
       if (!aiResponse.ok) {
-        throw new Error('Failed to get AI response');
+        const errorData = await aiResponse.json();
+        console.error('AI API Error:', errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to get AI response');
       }
 
       const result = await aiResponse.json();
@@ -163,20 +160,10 @@ export function ChatInterface() {
         if (ttsResponse.ok) {
             const ttsResult = await ttsResponse.json();
             audioUrl = ttsResult?.media;
-        } else {
-             toast({
-                variant: 'destructive',
-                title: 'Audio Generation Failed',
-                description: 'Could not generate audio. This may be due to API quota limits.',
-            });
         }
+        // Silently fallback to text-only if TTS fails (it's optional)
       } catch (ttsError) {
-        console.error("TTS generation failed:", ttsError);
-        toast({
-            variant: 'destructive',
-            title: 'Audio Generation Failed',
-            description: 'Could not generate audio. This may be due to API quota limits.',
-        });
+        // Silently fallback to text-only (TTS is optional)
       }
 
       const botMessage: Message = { sender: 'bot', text: result.response, audioUrl: audioUrl };

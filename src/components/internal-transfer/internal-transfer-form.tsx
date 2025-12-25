@@ -30,6 +30,8 @@ import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
+import { displayToAccountNumber } from '@/lib/account-utils';
+
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
   amount: z.coerce.number().positive('Amount must be positive.'),
@@ -83,7 +85,8 @@ export function InternalTransferForm() {
         setIsVerifying(true);
         debounceRef.current = setTimeout(async () => {
             try {
-              const res = await fetch(`/api/user/${watchedAccountNumber}`);
+              const normalAccountNumber = displayToAccountNumber(watchedAccountNumber);
+              const res = await fetch(`/api/user/${normalAccountNumber}`);
               if (res.status === 404) {
                  setError('accountNumber', { type: 'manual', message: 'Ovomonie account not found.' });
                  setRecipientName(null);
@@ -207,7 +210,7 @@ export function InternalTransferForm() {
         },
         body: JSON.stringify({
           clientReference,
-          recipientAccountNumber: submittedData.accountNumber,
+          recipientAccountNumber: displayToAccountNumber(submittedData.accountNumber),
           amount: amountToSend,
           narration: submittedData.narration,
           senderPin: pin,
@@ -369,8 +372,11 @@ export function InternalTransferForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+<<<<<<< HEAD
      
           
+=======
+>>>>>>> origin/main
         <div className="flex items-center space-x-2 justify-end">
           <Label htmlFor="memo-switch">Use MemoTransfer</Label>
           <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />

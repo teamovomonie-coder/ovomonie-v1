@@ -130,28 +130,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {showHeader && (
                 <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white flex items-center justify-between px-4 z-50 border-b border-[#13284d] shadow-[0_4px_12px_rgba(0,0,0,0.25)] backdrop-blur">
                      <div className="flex items-center gap-3">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button aria-label="User menu">
-                                    <Avatar className="h-9 w-9 border-2 border-gray-400">
-                                        <AvatarImage src={user?.photoUrl || user?.avatarUrl} alt="User" data-ai-hint="person avatar" />
-                                        <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
-                                    </Avatar>
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                                <DropdownMenuLabel>{user?.fullName}</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild><CustomLink href="/profile" className="w-full justify-start"><User className="mr-2"/>Profile</CustomLink></DropdownMenuItem>
-                                <DropdownMenuItem asChild><CustomLink href="/security" className="w-full justify-start"><Shield className="mr-2"/>Settings</CustomLink></DropdownMenuItem>
-                                <DropdownMenuItem asChild><CustomLink href="/notifications" className="w-full justify-start"><Bell className="mr-2"/>Notifications</CustomLink></DropdownMenuItem>
-                                <DropdownMenuItem asChild><CustomLink href="/support" className="w-full justify-start"><MessageCircle className="mr-2"/>Support</CustomLink></DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <LogoutDialog>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}><LogOut className="mr-2"/>Logout</DropdownMenuItem>
-                                </LogoutDialog>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <button aria-label="User menu" onClick={() => router.push('/edit-profile')}>
+                            <Avatar className="h-9 w-9 border-2 border-gray-400 cursor-pointer hover:opacity-80 transition-opacity">
+                                <AvatarImage src={user?.photoUrl || user?.avatarUrl} alt="User" data-ai-hint="person avatar" />
+                                <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
+                            </Avatar>
+                        </button>
                         <span className="font-semibold text-base">Hi, {firstName}</span>
                     </div>
 
@@ -165,11 +149,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <CustomLink href="/notifications" className="relative">
                             <Bell className="h-6 w-6" />
                             {unreadCount > 0 && (
+<<<<<<< HEAD
                                 <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white">
                                         {unreadCount > 9 ? '9+' : unreadCount}
                                     </span>
+=======
+                                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg shadow-red-500/50 animate-pulse">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+>>>>>>> origin/main
                                 </span>
                             )}
                         </CustomLink>

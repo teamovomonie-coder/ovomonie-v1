@@ -54,13 +54,14 @@ export interface DbNotification {
 
 function mapUser(row: any): DbUser | null {
   if (!row) return null;
+  const balanceValue = row.balance ?? row.wallet_balance_kobo ?? 0;
   return {
     id: row.id,
     phone: row.phone,
     email: row.email,
     full_name: row.full_name,
     account_number: row.account_number,
-    balance: typeof row.balance === 'number' ? row.balance : Number(row.balance) || 0,
+    balance: typeof balanceValue === 'number' ? balanceValue : Number(balanceValue) || 0,
     kyc_tier: row.kyc_tier,
     is_agent: row.is_agent,
     avatar_url: row.avatar_url,

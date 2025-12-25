@@ -26,6 +26,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<ClientUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
+  const updateBalance = useCallback((newBalanceInKobo: number) => {
+    if (typeof newBalanceInKobo === 'number' && !isNaN(newBalanceInKobo)) {
+      setBalance(newBalanceInKobo);
+      setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
+    }
+  }, []);
+
   const performLogout = useCallback(() => {
     localStorage.removeItem("ovo-auth-token");
     localStorage.removeItem("ovo-user-id");
@@ -38,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const token = localStorage.getItem("ovo-auth-token");
     const userId = localStorage.getItem("ovo-user-id");
     if (!token || !userId) {
-      performLogout();
+      setIsAuthenticated(false);
       return;
     }
 
@@ -49,7 +56,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch user data");
+        // Only logout on 401 (unauthorized), not on network errors
+        if (res.status === 401) {
+          performLogout();
+        } else {
+          // Keep user logged in for other errors (network issues, etc.)
+          setIsAuthenticated(true);
+        }
+        return;
       }
 
       const userData = await res.json();
@@ -74,13 +88,79 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsAuthenticated(true);
     } catch (err) {
       console.error("Auth fetch failed:", err);
-      performLogout();
+      // Don't logout on network errors - keep user authenticated
+      setIsAuthenticated(true);
     }
   }, [performLogout]);
 
   useEffect(() => {
     fetchUserData();
-  }, [fetchUserData]);
+    
+    const handleBalanceUpdate = (event: any) => {
+      console.log('[AuthContext] Balance update event:', event.detail);
+      if (event.detail?.balance !== undefined) {
+        const newBal = Number(event.detail.balance);
+        console.log('[AuthContext] Setting balance to:', newBal);
+        setBalance(newBal);
+        setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+      }
+    };
+    
+    window.addEventListener('balance-updated', handleBalanceUpdate);
+    
+    // Refresh token every 7 days to keep session alive
+    const tokenRefreshInterval = setInterval(async () => {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (token) {
+        try {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (res.ok) {
+            const { token: newToken } = await res.json();
+            localStorage.setItem('ovo-auth-token', newToken);
+            console.log('[AuthContext] Token refreshed successfully');
+          }
+        } catch (err) {
+          console.debug('[AuthContext] Token refresh skipped:', err);
+        }
+      }
+    }, 7 * 24 * 60 * 60 * 1000); // 7 days
+    
+    const intervalId = setInterval(async () => {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (token) {
+        try {
+          const res = await fetch('/api/wallet/balance', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store'
+          });
+          
+          // Only update balance if request succeeds
+          if (res.ok) {
+            const data = await res.json();
+            const newBal = data.balanceInKobo || data.data?.balance || 0;
+            if (newBal !== balance) {
+              console.log('[AuthContext] Balance changed:', balance, '->', newBal);
+              setBalance(newBal);
+              setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
+            }
+          }
+        } catch (err) {
+          // Silently fail - don't logout user on network errors
+          console.debug('[AuthContext] Balance refresh skipped:', err);
+        }
+      }
+    }, 30000);
+    
+    return () => {
+      window.removeEventListener('balance-updated', handleBalanceUpdate);
+      clearInterval(tokenRefreshInterval);
+      clearInterval(intervalId);
+    };
+  }, [fetchUserData, balance]);
 
   const login = useCallback(async (phone: string, pin: string, method: 'pin' | 'biometric' = 'pin') => {
     if (method === 'biometric') {
@@ -133,11 +213,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     performLogout();
   }, [performLogout]);
-
-  const updateBalance = useCallback((newBalanceInKobo: number) => {
-    setBalance(newBalanceInKobo);
-    setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
-  }, []);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance }}>

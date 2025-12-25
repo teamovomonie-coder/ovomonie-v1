@@ -1,20 +1,16 @@
-
-import { NextResponse, type NextRequest } from 'next/server';
-// Firebase removed - using Supabase
-// Firebase removed - using Supabase
+import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const reqHeaders = request.headers as { get(name: string): string | null };
-        const userId = getUserIdFromToken(reqHeaders);
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
+<<<<<<< HEAD
         const { id } = await params;
         const { data: rows, error } = await supabaseAdmin?.from('payrollBatches').select('*').eq('id', id).limit(1) || { data: null, error: new Error('Supabase not available') };
         const row = rows && rows.length > 0 ? rows[0] : null;
@@ -31,17 +27,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     } catch (error) {
         logger.error("Error fetching payroll batch:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+=======
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const userId = await getUserIdFromToken(headers());
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+>>>>>>> origin/main
     }
-}
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const reqHeaders = request.headers as { get(name: string): string | null };
-        const userId = getUserIdFromToken(reqHeaders);
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+    const body = await request.json();
+    const { employees, ...batchData } = body;
 
+<<<<<<< HEAD
         const body = await request.json();
         const { id } = await params;
         const { data: rows, error } = await supabaseAdmin?.from('payrollBatches').select('*').eq('id', id).limit(1) || { data: null, error: new Error('Supabase not available') };
@@ -64,17 +62,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     } catch (error) {
         logger.error("Error updating payroll batch:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+=======
+    const { error: updateError } = await supabase
+      .from('payroll_batches')
+      .update({
+        group_name: batchData.groupName,
+        period: batchData.period,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', params.id)
+      .eq('user_id', userId);
+
+    if (updateError) {
+      logger.error('Error updating batch:', updateError);
+      return NextResponse.json({ message: 'Failed to update batch' }, { status: 500 });
+>>>>>>> origin/main
     }
-}
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const reqHeaders = request.headers as { get(name: string): string | null };
-        const userId = getUserIdFromToken(reqHeaders);
-        if (!userId) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+    await supabase.from('payroll_employees').delete().eq('batch_id', params.id);
 
+<<<<<<< HEAD
         const { id } = await params;
         const { data: rows, error } = await supabaseAdmin?.from('payrollBatches').select('*').eq('id', id).limit(1) || { data: null, error: new Error('Supabase not available') };
         const row = rows && rows.length > 0 ? rows[0] : null;
@@ -94,5 +101,43 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     } catch (error) {
         logger.error("Error deleting payroll batch:", error);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+=======
+    if (employees && employees.length > 0) {
+      const employeeRecords = employees.map((emp: any) => ({
+        batch_id: params.id,
+        full_name: emp.fullName,
+        bank_code: emp.bankCode,
+        account_number: emp.accountNumber,
+        salary: emp.salary,
+        is_verified: emp.isVerified || false
+      }));
+
+      await supabase.from('payroll_employees').insert(employeeRecords);
+>>>>>>> origin/main
     }
+
+    const { data: fullBatch } = await supabase
+      .from('payroll_batches')
+      .select(`*, employees:payroll_employees(*)`)
+      .eq('id', params.id)
+      .single();
+
+    return NextResponse.json({
+      id: fullBatch.id,
+      groupName: fullBatch.group_name,
+      period: fullBatch.period,
+      status: fullBatch.status,
+      employees: (fullBatch.employees || []).map((emp: any) => ({
+        id: emp.id,
+        fullName: emp.full_name,
+        bankCode: emp.bank_code,
+        accountNumber: emp.account_number,
+        salary: parseFloat(emp.salary),
+        isVerified: emp.is_verified
+      }))
+    });
+  } catch (error) {
+    logger.error('Error in payroll PUT:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }

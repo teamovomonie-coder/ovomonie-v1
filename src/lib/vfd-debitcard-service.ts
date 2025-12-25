@@ -6,7 +6,8 @@
 import { getVFDHeaders } from './vfd-auth';
 import { logger } from './logger';
 
-const BASE_URL = process.env.VFD_DEBIT_CARD_API_BASE || process.env.VFD_CARDS_API_BASE || 'https://api-devapps.vfdbank.systems/vtech-cards/api/v2/baas-cards';
+const BASE_URL = process.env.VFD_DEBIT_CARD_API_BASE || process.env.VFD_CARDS_API_BASE || 'https://api-devapps.vfdbank.systems/vfd-wallet/api/v2';
+const WALLET_ID = process.env.VFD_WALLET_ID || process.env.VFD_CONSUMER_KEY;
 
 interface VFDResponse<T> {
   status: string;
@@ -54,26 +55,54 @@ class VFDDebitCardService {
 
     logger.info('VFD Card: Creating card', { accountNumber: request.accountNumber, cardType: request.cardType });
 
-    const response = await fetch(`${BASE_URL}/card/create`, {
+    const payload = {
+      walletId: WALLET_ID,
+      accountNumber: request.accountNumber,
+      cardType: request.cardType,
+      ...(request.deliveryAddress && { deliveryAddress: request.deliveryAddress }),
+    };
+
+    logger.info('VFD Card: Request payload', { payload });
+
+    const response = await fetch(`${BASE_URL}/cards/request`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     });
 
+    const text = await response.text();
+    logger.info('VFD Card: Response', { status: response.status, body: text });
+    
     if (!response.ok) {
-      const error = await response.text();
-      logger.error('VFD Card: Creation failed', { status: response.status, error });
-      throw new Error(`Card creation failed: ${response.status}`);
+      logger.error('VFD Card: Creation failed', { status: response.status, error: text });
+      let errorMsg = `Card creation failed (${response.status})`;
+      try {
+        const errorData = JSON.parse(text);
+        errorMsg = errorData.message || errorData.responseMessage || errorData.error || text || errorMsg;
+      } catch {
+        errorMsg = text || errorMsg;
+      }
+      throw new Error(errorMsg);
     }
 
-    const result: VFDResponse<DebitCard> = await response.json();
-
-    if (result.status !== '00') {
-      throw new Error(result.message || 'Card creation failed');
+    let result: any;
+    try {
+      result = text ? JSON.parse(text) : {};
+    } catch (e) {
+      logger.error('VFD Card: Failed to parse response', { text });
+      throw new Error('Invalid response from VFD API');
     }
 
-    logger.info('VFD Card: Created successfully', { cardId: result.data.cardId });
-    return result.data;
+    // VFD API may return status as '00' or responseCode as '00'
+    const isSuccess = result.status === '00' || result.responseCode === '00' || result.success === true;
+
+    if (!isSuccess) {
+      logger.error('VFD Card: API returned error', { result });
+      throw new Error(result.message || result.responseMessage || 'Card creation failed');
+    }
+
+    logger.info('VFD Card: Created successfully', { result });
+    return result.data || result;
   }
 
   /**
