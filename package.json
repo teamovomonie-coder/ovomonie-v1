@@ -126,4 +126,8 @@
   "overrides": {
     "next": "15.5.9"
   }
+  ,
+  "engines": {
+    "node": ">=20"
+  }
 }
