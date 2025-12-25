@@ -149,16 +149,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <CustomLink href="/notifications" className="relative">
                             <Bell className="h-6 w-6" />
                             {unreadCount > 0 && (
-<<<<<<< HEAD
                                 <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white">
-                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                        {unreadCount > 99 ? '99+' : (unreadCount > 9 ? '9+' : unreadCount)}
                                     </span>
-=======
-                                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg shadow-red-500/50 animate-pulse">
-                                    {unreadCount > 99 ? '99+' : unreadCount}
->>>>>>> origin/main
                                 </span>
                             )}
                         </CustomLink>

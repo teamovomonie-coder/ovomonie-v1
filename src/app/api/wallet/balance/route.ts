@@ -8,24 +8,9 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-<<<<<<< HEAD
-    const balance = await getWalletBalance(userId);
-
-    if (!balance) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          userId,
-          balance: 0,
-          ledgerBalance: 0,
-          lastUpdated: new Date().toISOString()
-        }
-      });
-=======
     let balance = await getWalletBalance(userId);
-    
-    // Fallback: fetch directly from Supabase if helper fails
+
+    // Fallback: fetch directly from Supabase if helper fails or returns zero
     if (!balance || balance.balance === 0) {
       const { supabaseAdmin } = await import('@/lib/supabase');
       if (supabaseAdmin) {
@@ -34,7 +19,7 @@ export async function GET(request: NextRequest) {
           .select('balance')
           .eq('id', userId)
           .maybeSingle();
-        
+
         if (data) {
           balance = {
             userId,
@@ -44,7 +29,6 @@ export async function GET(request: NextRequest) {
           };
         }
       }
->>>>>>> origin/main
     }
 
     return NextResponse.json({

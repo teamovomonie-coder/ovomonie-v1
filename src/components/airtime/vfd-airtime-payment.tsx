@@ -16,10 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useNotifications } from '@/context/notification-context';
-<<<<<<< HEAD
 import { useRouter } from 'next/navigation';
-=======
->>>>>>> origin/main
 import { Loader2, AlertCircle, CheckCircle, Phone } from 'lucide-react';
 import networks from './network-logos';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -50,10 +47,7 @@ interface VFDAirtimePaymentProps {
 export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps) {
   const { toast } = useToast();
   const { addNotification } = useNotifications();
-<<<<<<< HEAD
   const router = useRouter();
-=======
->>>>>>> origin/main
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [airtimeData, setAirtimeData] = useState<AirtimeFormData | null>(null);
@@ -105,7 +99,6 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
 
       if (result.success && result.transaction_id) {
         setIsPinModalOpen(false);
-<<<<<<< HEAD
         
         // Clear any old pending receipts
         try {
@@ -118,12 +111,6 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
         
         // Navigate to receipt with fresh transaction ID
         router.push(`/receipt/${result.transaction_id}?t=${Date.now()}`);
-=======
-        // Clear old state and navigate to receipt
-        form.reset();
-        setAirtimeData(null);
-        window.location.href = `/receipt/${result.transaction_id}`;
->>>>>>> origin/main
       } else {
         throw new Error(result.message || 'Payment failed');
       }
