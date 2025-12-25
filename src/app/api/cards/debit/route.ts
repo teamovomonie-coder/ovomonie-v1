@@ -33,18 +33,17 @@ export async function POST(req: NextRequest) {
         if (!cardType || !['PHYSICAL', 'VIRTUAL'].includes(cardType)) {
           return NextResponse.json({ ok: false, message: 'Valid cardType required (PHYSICAL or VIRTUAL)' }, { status: 400 });
         }
-<<<<<<< HEAD
-        
+
         try {
           const card = await vfdDebitCardService.createCard({
-            accountNumber: user.accountNumber,
+            accountNumber: user.account_number,
             cardType,
             deliveryAddress,
           });
           return NextResponse.json({ ok: true, data: card });
         } catch (vfdError: any) {
-          logger.warn('VFD card creation failed, using mock card', { error: vfdError.message });
-          
+          logger.warn('VFD card creation failed, using mock card', { error: vfdError?.message });
+
           const mockCard = {
             cardId: `MOCK-${Date.now()}`,
             cardNumber: '5061' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0'),
@@ -54,17 +53,9 @@ export async function POST(req: NextRequest) {
             cvv: Math.floor(Math.random() * 900 + 100).toString(),
             balance: '0.00',
           };
-          
+
           return NextResponse.json({ ok: true, data: mockCard, mock: true });
         }
-=======
-        const card = await vfdDebitCardService.createCard({
-          accountNumber: user.account_number,
-          cardType,
-          deliveryAddress,
-        });
-        return NextResponse.json({ ok: true, data: card });
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
 
       case 'list':
         const cards = await vfdDebitCardService.getAccountCards(user.account_number);
