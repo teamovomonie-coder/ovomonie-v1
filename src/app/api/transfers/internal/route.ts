@@ -1,201 +1,108 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
-import { validateTransactionPin } from '@/lib/pin-validator';
-import { logger } from '@/lib/logger';
-import { db, userService, transactionService, notificationService } from '@/lib/db';
-import { toKobo } from '@/lib/amount';
+import { getUserById, getUserByAccountNumber, updateUserBalance, createTransaction, createNotification } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Authentication
         const userId = getUserIdFromToken(request.headers);
-        
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        // 2. Parse and validate input
         const body = await request.json();
         const { recipientAccountNumber, amount, narration, clientReference, senderPin } = body;
 
-        if (!recipientAccountNumber || !amount || typeof amount !== 'number' || amount <= 0) {
-            return NextResponse.json({ ok: false, message: 'Invalid request. Recipient and amount are required.' }, { status: 400 });
-        }
-        if (!clientReference) {
-            return NextResponse.json({ ok: false, message: 'Reference ID is required.' }, { status: 400 });
-        }
-        if (!senderPin) {
-            return NextResponse.json({ ok: false, message: 'Transaction PIN is required.' }, { status: 400 });
+        if (!recipientAccountNumber || !amount || amount <= 0) {
+            return NextResponse.json({ ok: false, message: 'Invalid request data' }, { status: 400 });
         }
 
-        // 3. Get sender details
-        const sender = await userService.getById(userId);
+        // Get sender
+        const sender = await getUserById(userId);
         if (!sender) {
-            return NextResponse.json({ ok: false, message: 'Sender account not found.' }, { status: 404 });
+            return NextResponse.json({ ok: false, message: 'Sender not found' }, { status: 404 });
         }
 
-        // 4. Validate transaction PIN
-        const isValidPin = validateTransactionPin(senderPin, sender.transaction_pin_hash || '');
-        if (!isValidPin) {
-            logger.warn('Invalid transaction PIN attempt', { userId });
-            return NextResponse.json({ ok: false, message: 'Invalid transaction PIN.' }, { status: 401 });
-        }
-
-        // 5. Check self-transfer
-        if (recipientAccountNumber === sender.account_number) {
-            return NextResponse.json({ ok: false, message: 'Cannot transfer to yourself.' }, { status: 400 });
-        }
-
-                // 6. Get recipient details
-        const recipient = await userService.getByAccountNumber(recipientAccountNumber);
+        // Get recipient
+        const recipient = await getUserByAccountNumber(recipientAccountNumber);
         if (!recipient) {
-            return NextResponse.json({ ok: false, message: 'Recipient account not found.' }, { status: 404 });
+            return NextResponse.json({ ok: false, message: 'Recipient not found' }, { status: 404 });
         }
 
-                // Debugging: log incoming amount and the kobo conversion to detect rounding issues
-                try {
-                    logger.debug('Incoming transfer amount', { amountReceived: amount, type: typeof amount });
-                } catch (e) {}
+        // Check self-transfer
+        if (recipientAccountNumber === sender.account_number) {
+            return NextResponse.json({ ok: false, message: 'Cannot transfer to yourself' }, { status: 400 });
+        }
 
-                const amountKobo = toKobo(amount);
-                try {
-                    logger.debug('Converted amount to kobo', { amountKobo });
-                } catch (e) {}
+        // Convert to kobo
+        const amountKobo = Math.round(amount * 100);
 
-        // 7. Check sufficient balance
+        // Check balance
         if (sender.balance < amountKobo) {
-            return NextResponse.json({ ok: false, message: 'Insufficient balance.' }, { status: 400 });
+            return NextResponse.json({ ok: false, message: 'Insufficient balance' }, { status: 400 });
         }
 
-        // 8. Update balances
+        // Update balances
         const newSenderBalance = sender.balance - amountKobo;
         const newRecipientBalance = recipient.balance + amountKobo;
 
-        await userService.updateBalance(userId, newSenderBalance);
-        await userService.updateBalance(recipient.id, newRecipientBalance);
+        await updateUserBalance(userId, newSenderBalance);
+        await updateUserBalance(recipient.id, newRecipientBalance);
 
-        // 9. Log transactions
-        await transactionService.create({
+        // Create transactions
+        await createTransaction({
             user_id: userId,
+            category: 'transfer',
             type: 'debit',
             amount: amountKobo,
             reference: `${clientReference}-debit`,
-            narration: `Transfer to Ovomonie user ${recipient.full_name}`,
-            party_name: "Transaction",
+            narration: narration || `Transfer to ${recipient.full_name}`,
+            party_name: recipient.full_name,
             balance_after: newSenderBalance,
         });
 
-        await transactionService.create({
+        await createTransaction({
             user_id: recipient.id,
+            category: 'transfer',
             type: 'credit',
             amount: amountKobo,
             reference: `${clientReference}-credit`,
-            narration: `Transfer from Ovomonie user ${sender.full_name}`,
-            party_name: "Transaction",
+            narration: narration || `Transfer from ${sender.full_name}`,
+            party_name: sender.full_name,
             balance_after: newRecipientBalance,
         });
 
-        // Create notifications with complete details
-        await notificationService.create({
+        // Create notifications
+        await createNotification({
             user_id: userId,
             title: 'Money Sent',
-            body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} sent to ${recipient.full_name}`,
-            type: 'debit',
-            amount: amountKobo,
-            reference: clientReference,
-            sender_name: sender.full_name,
-            sender_account: sender.account_number,
-            recipient_name: recipient.full_name,
-            recipient_phone: recipient.phone,
-            recipient_account: recipient.account_number,
+            body: `₦${amount.toLocaleString()} sent to ${recipient.full_name}`,
+            category: 'transaction',
         });
 
-        await notificationService.create({
+        await createNotification({
             user_id: recipient.id,
             title: 'Money Received',
-            body: `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} received from ${sender.full_name}`,
-            type: 'credit',
-            amount: amountKobo,
-            reference: clientReference,
-            sender_name: sender.full_name,
-            sender_account: sender.account_number,
-            recipient_name: recipient.full_name,
-            recipient_phone: recipient.phone,
-            recipient_account: recipient.account_number,
+            body: `₦${amount.toLocaleString()} received from ${sender.full_name}`,
+            category: 'transaction',
         });
-
-        // Save to pending_transactions table with completed status
-        const completedAt = new Date().toISOString();
-        const pendingTxData = {
-            photo: null,
-            amount,
-            message: '',
-            narration: narration || '',
-            accountNumber: recipientAccountNumber,
-        };
-
-        await db.from('pending_transactions').insert({
-            user_id: userId,
-            type: 'internal-transfer',
-            status: "completed",
-            reference: clientReference,
-            amount: amountKobo,
-            data: {
-                data: pendingTxData,
-                type: 'internal-transfer',
-                amount,
-                reference: clientReference,
-                completedAt: new Date().toLocaleString(),
-                recipientName: recipient.full_name,
-                transactionId: clientReference,
-            },
-            recipient_name: recipient.full_name,
-            completed_at: completedAt,
-        });
-
-        logger.info('Internal transfer completed', { userId, reference: clientReference, amount: amountKobo });
 
         return NextResponse.json({
             ok: true,
             message: 'Transfer successful!',
             data: {
-                id: crypto.randomUUID(),
-                user_id: userId,
-                type: 'internal-transfer',
-                status: "completed",
-                reference: clientReference,
-                amount,
-                data: {
-                    data: pendingTxData,
-                    type: 'internal-transfer',
-                    amount,
-                    reference: clientReference,
-                    completedAt: new Date().toLocaleString(),
-                    recipientName: recipient.full_name,
-                    transactionId: clientReference,
-                },
-                recipient_name: recipient.full_name,
-                bank_name: null,
-                error_message: null,
-                completed_at: completedAt,
-                expires_at: null,
-                created_at: completedAt,
-                updated_at: completedAt,
                 newBalanceInKobo: newSenderBalance,
                 transactionId: clientReference,
+                recipientName: recipient.full_name,
+                amount: amount,
+                reference: clientReference
             }
         });
 
-    } catch (error: any) {
-        logger.error('Internal transfer error:', { error: error?.message, stack: error?.stack });
-        const message = error?.message || 'An unexpected error occurred.';
+    } catch (error) {
+        console.error('Internal transfer error:', error);
         return NextResponse.json({ 
             ok: false, 
-            message,
-            error: process.env.NODE_ENV === 'development' ? error?.toString() : undefined 
+            message: 'Internal server error'
         }, { status: 500 });
     }
 }

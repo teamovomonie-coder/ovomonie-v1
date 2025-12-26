@@ -15,9 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { PinModal } from '@/components/auth/pin-modal';
-import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
-import { useAirtimePayment } from '@/hooks/use-vfd-payment';
+import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, CheckCircle, Phone } from 'lucide-react';
 import networks from './network-logos';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -47,12 +46,12 @@ interface VFDAirtimePaymentProps {
 
 export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps) {
   const { toast } = useToast();
-  const { updateBalance } = useAuth();
   const { addNotification } = useNotifications();
-  const airtimePayment = useAirtimePayment();
+  const router = useRouter();
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [airtimeData, setAirtimeData] = useState<AirtimeFormData | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const form = useForm<AirtimeFormData>({
     resolver: zodResolver(airtimeSchema),
@@ -75,53 +74,69 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
   const handlePinConfirm = async () => {
     if (!airtimeData) return;
 
-    const success = await airtimePayment.pay(
-      airtimeData.amount,
-      airtimeData.phoneNumber,
-      airtimeData.provider
-    );
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: airtimeData.amount,
+          category: 'airtime',
+          party: {
+            name: MOBILE_PROVIDERS.find(p => p.id === airtimeData.provider)?.name || airtimeData.provider,
+            billerId: airtimeData.phoneNumber,
+          },
+          narration: `Airtime purchase for ${airtimeData.phoneNumber}`,
+          clientReference: `airtime-${Date.now()}`,
+        }),
+      });
 
-    if (success) {
-      setIsPinModalOpen(false);
-      handlePaymentSuccess(
-        airtimeData.amount,
-        airtimeData.provider,
-        airtimeData.phoneNumber
-      );
+      const result = await response.json();
+
+      if (result.success && result.transaction_id) {
+        setIsPinModalOpen(false);
+        
+        // Clear any old pending receipts
+        try {
+          localStorage.removeItem('ovo-pending-receipt');
+        } catch (e) {}
+        
+        // Clear old state
+        form.reset();
+        setAirtimeData(null);
+        
+        // Navigate to receipt with fresh transaction ID
+        router.push(`/receipt/${result.transaction_id}?t=${Date.now()}`);
+      } else {
+        throw new Error(result.message || 'Payment failed');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Payment Failed',
+        description: error.message || 'An error occurred while processing your payment',
+        variant: 'destructive',
+      });
+      onError?.(error.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handlePaymentSuccess = (amount: number, provider: string, phone: string) => {
-    const providerName = MOBILE_PROVIDERS.find((p) => p.id === provider)?.name || provider;
-
-    addNotification({
-      title: 'Airtime Purchased',
-      description: `₦${amount.toLocaleString()} airtime added to ${phone}`,
-      category: 'transaction',
-    });
-
-    toast({
-      title: 'Success',
-      description: `₦${amount.toLocaleString()} added to your ${providerName} account`,
-    });
-
-    onSuccess?.(amount, provider, phone);
-    airtimePayment.resetState();
-    form.reset();
-    setAirtimeData(null);
-  };
+  // Remove unused success handler since we navigate to receipt page
+  // const handlePaymentSuccess = (amount: number, provider: string, phone: string) => {
+  //   // This is now handled by the receipt page
+  // };
 
   const selectedProvider = MOBILE_PROVIDERS.find((p) => p.id === form.watch('provider'));
 
   return (
     <>
       <div className="space-y-6">
-        {airtimePayment.error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{airtimePayment.error}</AlertDescription>
-          </Alert>
-        )}
+        {/* Remove error display since we handle errors in the payment flow */}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -183,7 +198,7 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
                         placeholder="0801234567"
                         {...field}
                         className="pl-10"
-                        disabled={airtimePayment.isLoading}
+                        disabled={isProcessing}
                       />
                     </div>
                   </FormControl>
@@ -206,7 +221,7 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
                       {...field}
                       value={field.value === 0 ? '' : field.value}
                       onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-                      disabled={airtimePayment.isLoading}
+                      disabled={isProcessing}
                     />
                   </FormControl>
                   <FormMessage />
@@ -225,7 +240,7 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
                     variant={form.watch('amount') === amount ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleQuickAmount(amount)}
-                    disabled={airtimePayment.isLoading}
+                    disabled={isProcessing}
                   >
                     ₦{amount.toLocaleString()}
                   </Button>
@@ -236,9 +251,9 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
             <Button
               type="submit"
               className="w-full"
-              disabled={airtimePayment.isLoading}
+              disabled={isProcessing}
             >
-              {airtimePayment.isLoading ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
@@ -256,7 +271,7 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
         open={isPinModalOpen}
         onOpenChange={setIsPinModalOpen}
         onConfirm={handlePinConfirm}
-        isProcessing={airtimePayment.isLoading}
+        isProcessing={isProcessing}
         title="Authorize Airtime Purchase"
         description="Enter your 4-digit PIN to authorize this airtime purchase"
       />

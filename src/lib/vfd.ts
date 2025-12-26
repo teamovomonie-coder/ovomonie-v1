@@ -232,25 +232,36 @@ export async function initiateCardPayment(payload: {
     expiryDate: body.expiryDate,
     shouldTokenize: body.shouldTokenize,
   });
+  
+  console.log('[VFD] IMPORTANT: cardPin is the 4-digit card PIN, NOT the authorization PIN');
+  console.log('[VFD] If VFD requires authorization, use authorize-pin or authorize-otp endpoint with a separate authorization PIN');
 
   const makeRequest = async (accessToken: string | null, useBasicAuth: boolean = false) => {
     const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
-    // VFD Cards API requires only AccessToken header per documentation
-    // https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/card-api/
+    // VFD Cards API - try multiple auth methods
     const headersObj: any = { 
       'Content-Type': 'application/json',
     };
     
     if (accessToken && !useBasicAuth) {
+      // Use both AccessToken and Authorization Bearer
       headersObj.AccessToken = accessToken;
-      console.log('[VFD] Using AccessToken header');
+      headersObj.Authorization = `Bearer ${accessToken}`;
+      console.log('[VFD] Using AccessToken + Bearer headers');
     } else if (basic) {
-      // Fallback to Basic auth
+      // Use Basic auth with consumer credentials
       headersObj.Authorization = `Basic ${basic}`;
-      console.log('[VFD] Using Basic auth');
+      headersObj.ConsumerKey = key;
+      headersObj.ConsumerSecret = secret;
+      console.log('[VFD] Using Basic auth + consumer credentials');
     }
     
-    console.log('[VFD] Request headers:', { ...headersObj, Authorization: headersObj.Authorization ? '***' : undefined });
+    console.log('[VFD] Request headers:', { 
+      'Content-Type': headersObj['Content-Type'],
+      AccessToken: headersObj.AccessToken ? `${headersObj.AccessToken.substring(0, 20)}...` : undefined,
+      Authorization: headersObj.Authorization ? '***' : undefined,
+      ConsumerKey: headersObj.ConsumerKey ? '***' : undefined,
+    });
 
     return await fetch(url, {
       method: 'POST',
@@ -308,18 +319,25 @@ export async function initiateCardPayment(payload: {
   // Provide user-friendly error message if still failing
   if (!res.ok) {
     let userMessage: string;
-    const vfdMessage = data?.message || '';
+    const vfdMessage = data?.message || data?.error || '';
+    const vfdCode = data?.code || data?.responseCode || '';
     
-    if (vfdMessage.toLowerCase().includes('wallet access token')) {
-      userMessage = 'VFD API access token not configured. Please contact support to complete VFD integration setup.';
-      console.error('[VFD] Missing wallet access token - VFD credentials may need to be activated or token needs to be obtained from VFD');
+    console.error('[VFD] Payment failed:', { status: res.status, message: vfdMessage, code: vfdCode, fullResponse: data });
+    
+    if (vfdMessage.toLowerCase().includes('wallet access token') || vfdMessage.toLowerCase().includes('authentication')) {
+      userMessage = 'Failed to authenticate with payment gateway. Please contact support.';
+      console.error('[VFD] Authentication error - credentials may need to be refreshed or activated');
     } else if (res.status === 403 || res.status === 401) {
-      userMessage = 'Card payment service temporarily unavailable. Please try again later or use an alternative payment method.';
+      userMessage = 'Failed to authenticate with payment gateway';
+    } else if (vfdMessage.toLowerCase().includes('insufficient')) {
+      userMessage = 'Insufficient funds on card';
+    } else if (vfdMessage.toLowerCase().includes('invalid card')) {
+      userMessage = 'Invalid card details. Please check and try again.';
     } else {
       userMessage = vfdMessage || 'Payment initiation failed. Please try again.';
     }
     
-    return { status: res.status, ok: false, data: { ...data, message: userMessage, vfdError: vfdMessage } };
+    return { status: res.status, ok: false, data: { ...data, message: userMessage, vfdError: vfdMessage, vfdCode } };
   }
 
   return { status: res.status, ok: res.ok, data };

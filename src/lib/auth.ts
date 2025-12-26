@@ -1,11 +1,18 @@
 import {createHmac, randomBytes, scryptSync, timingSafeEqual} from 'crypto';
-import { serverEnv } from './env.server';
 
 const TOKEN_PREFIX = 'ovotoken';
 const TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 const KEY_LENGTH = 64; // bytes for scrypt output
 
-const getAuthSecret = () => serverEnv.AUTH_SECRET;
+const getAuthSecret = () => {
+  try {
+    const { serverEnv } = require('./env.server');
+    return serverEnv.AUTH_SECRET;
+  } catch (error) {
+    console.error('Failed to get AUTH_SECRET:', error);
+    throw new Error('AUTH_SECRET not available');
+  }
+};
 
 export type AuthTokenPayload = {
   sub: string; // userId

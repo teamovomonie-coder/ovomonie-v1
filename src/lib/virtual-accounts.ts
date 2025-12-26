@@ -3,8 +3,12 @@
  * Handles VFD virtual account creation, mapping, and reconciliation
  */
 
+<<<<<<< HEAD
 import { supabaseAdmin } from './supabase';
 import { VirtualAccountRequest } from './vfd-wallet';
+=======
+import { supabase } from './supabase';
+>>>>>>> origin/supabase/remove-firebase
 import { logger } from './logger';
 
 // Types
@@ -121,8 +125,9 @@ export async function processInboundTransfer(webhookData: {
     if (!supabaseAdmin) return { success: false, error: 'Database not configured' };
 
     const { accountNumber, amount, senderName, reference, sessionId } = webhookData;
-    const { toKobo } = await import('./amount');
-    const amountInKobo = toKobo(amount as any);
+    
+    // Convert amount to kobo
+    const amountInKobo = Math.round(parseFloat(amount) * 100);
 
     const { data: virtualAccount, error: vaError } = await supabaseAdmin
       .from('virtual_accounts')
@@ -276,6 +281,7 @@ export async function initiateOutboundTransfer(
       return { success: false, error: 'Failed to process transfer' };
     }
 
+<<<<<<< HEAD
     const { executeVFDTransfer } = await import('./vfd-transfer');
     const vfdResult = await executeVFDTransfer(
       amount,
@@ -302,13 +308,49 @@ export async function initiateOutboundTransfer(
         p_amount: amount,
         p_reference: reference
       });
+=======
+    // Execute VFD transfer - dynamic import to avoid circular dependency
+    try {
+      const { executeVFDTransfer } = await import('./vfd-transfer');
+      const vfdResult = await executeVFDTransfer(
+        amount,
+        recipientAccount,
+        recipientBank,
+        narration,
+        reference
+      );
 
-      logger.error('VFD transfer failed, refunded user', { 
-        userId, 
-        reference, 
-        error: vfdResult.error 
-      });
-      return { success: false, error: vfdResult.error || 'Transfer failed' };
+      if (vfdResult.success) {
+        // Mark as completed
+        await supabase
+          .from('wallet_transactions')
+          .update({ 
+            status: 'completed',
+            vfd_transaction_id: vfdResult.sessionId
+          })
+          .eq('reference', reference);
+
+        logger.info('Outbound transfer completed', { userId, amount, reference });
+        return { success: true, reference };
+      } else {
+        // Mark as failed and refund
+        await supabase.rpc('refund_failed_transfer', {
+          p_user_id: userId,
+          p_amount: amount,
+          p_reference: reference
+        });
+>>>>>>> origin/supabase/remove-firebase
+
+        logger.error('VFD transfer failed, refunded user', { 
+          userId, 
+          reference, 
+          error: vfdResult.error 
+        });
+        return { success: false, error: vfdResult.error || 'Transfer failed' };
+      }
+    } catch (importError) {
+      logger.error('Failed to import VFD transfer module', { importError });
+      return { success: false, error: 'Transfer service unavailable' };
     }
   } catch (error) {
     logger.error('Error initiating outbound transfer', { error, userId });

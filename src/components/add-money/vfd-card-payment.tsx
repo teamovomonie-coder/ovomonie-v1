@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,7 +23,6 @@ import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
 import { useVFDPayment } from '@/hooks/use-vfd-payment';
 import { useRouter } from 'next/navigation';
-import { submitPurchase } from '@/lib/purchase-helper';
 import { Loader2, AlertCircle, CreditCard, Trash2, Star, ChevronDown, Check, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -225,6 +225,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   };
 
     const handlePaymentSuccess = useCallback(async (amount: number, shouldSaveCard?: boolean) => {
+<<<<<<< HEAD
       // Force fetch updated balance from server
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -256,6 +257,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         category: 'transaction',
       });
 
+=======
+>>>>>>> origin/supabase/remove-firebase
       toast({ title: 'Success', description: 'Payment completed successfully' });
 
       onSuccess?.(amount);
@@ -268,7 +271,16 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setExpiryValue('');
       setCvvValue('');
       setSelectedSavedCard(null);
+<<<<<<< HEAD
     }, [addNotification, toast, onSuccess, vfdPayment, form, updateBalance]);
+=======
+      
+      // Refresh notifications to show the new one from backend
+      setTimeout(() => {
+        window.dispatchEvent(new Event('ovo-refresh-notifications'));
+      }, 500);
+    }, [toast, onSuccess, vfdPayment, form]);
+>>>>>>> origin/supabase/remove-firebase
 
     // Poll payment status after 3D Secure redirect
   const pollPaymentStatus = useCallback(async (reference: string, amount: number) => {
@@ -362,7 +374,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
     }
 
     if (!inputPin) {
-      toast({ title: 'Error', description: 'Please enter your authorization PIN', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please enter your Ovomonie PIN', variant: 'destructive' });
       return;
     }
 
@@ -378,7 +390,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setIsProcessing(true);
       setProcessingError(null);
 
-      // Verify account PIN
+      // Verify Ovomonie account PIN
       const pinVerifyRes = await fetch('/api/auth/verify-pin', {
         method: 'POST',
         headers: {
@@ -392,7 +404,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       
       if (!pinVerifyData.success) {
         setIsProcessing(false);
-        toast({ title: 'Error', description: 'Incorrect authorization PIN', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Incorrect Ovomonie PIN', variant: 'destructive' });
         return;
       }
 
@@ -427,41 +439,39 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         };
       }
 
-      // Try the centralized charge middleware first
-      try {
-        const payload: any = {
-          amount: cardData.amount,
-          reference,
-          type: 'deposit',
-          paymentMethod: 'card',
-          cardDetails: requestBody,
-          shouldTokenize: cardData.saveCard,
-        };
-
-        const result = await submitPurchase(payload);
-        if (result.ok && result.transactionId) {
-          // navigate to receipt which will fetch canonical transaction
-          router.push(`/receipt/${result.transactionId}`);
-          return;
-        }
-
-        // If middleware couldn't handle it (e.g., needs 3DS or OTP), fall back to previous direct VFD initiate
-      } catch (err) {
-        // Continue to fallback flow
-      }
-
-      // Fallback: call VFD initiate directly (keeps previous 3DS/OTP behavior)
-      const res = await fetch('/api/vfd/cards/initiate', {
+      // Call VFD card funding API directly
+      const res = await fetch('/api/funding/card', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          amount: cardData.amount,
+          clientReference: reference,
+          cardNumber: requestBody.cardNumber || requestBody.cardToken,
+          cardPin: requestBody.cardPin,
+          cvv: requestBody.cvv,
+          expiry: requestBody.expiryDate,
+        }),
       });
 
       const data = await res.json();
       setIsProcessing(false);
+
+      // Check for success
+      if (data.ok && data.newBalanceInKobo) {
+        // Update balance in real-time
+        await updateBalance(data.newBalanceInKobo);
+        
+        // Save card if tokenization was successful
+        if (cardData.saveCard && data.data?.cardToken) {
+          await saveCard(data.data.cardToken);
+        }
+        
+        handlePaymentSuccess(cardData.amount, false);
+        return;
+      }
 
       if (!data.ok) {
         setProcessingError(data.message || 'Payment initiation failed');
@@ -561,6 +571,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setIsProcessing(true);
       setProcessingError(null);
 
+<<<<<<< HEAD
       // Call both VFD and complete-payment in parallel
       const [vfdRes, completeRes] = await Promise.all([
         fetch('/api/vfd/cards/validate-otp', {
@@ -582,6 +593,18 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       ]);
       
       const completeData = await completeRes.json();
+=======
+      const res = await fetch('/api/funding/card/authorize-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reference: paymentReference, otp }),
+      });
+
+      const data = await res.json();
+>>>>>>> origin/supabase/remove-firebase
       setIsProcessing(false);
       
       if (completeData.ok) {
@@ -785,7 +808,11 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           {/* Saved Cards Dropdown */}
           {savedCards.length > 0 && (
             <div className="space-y-2">
+<<<<<<< HEAD
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Payment Method</label>
+=======
+              <Label>Payment Method</Label>
+>>>>>>> origin/supabase/remove-firebase
               <div className="relative">
                 <button
                   type="button"
@@ -1144,7 +1171,11 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
           <div className="space-y-4">
             <div>
+<<<<<<< HEAD
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">One-Time Password</label>
+=======
+              <Label>One-Time Password</Label>
+>>>>>>> origin/supabase/remove-firebase
               <Input
                 placeholder="000000"
                 maxLength={6}
@@ -1186,3 +1217,4 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 }
 
 export default VFDCardPayment;
+

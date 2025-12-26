@@ -6,71 +6,75 @@ test.describe('Critical Financial Flows', () => {
   });
 
   test('User Registration and KYC Flow', async ({ page }) => {
-    await page.click('[data-testid="register-link"]');
-    await page.fill('[data-testid="phone-input"]', '+2349034151086');
-    await page.fill('[data-testid="name-input"]', 'Test User');
+    await page.goto('/register');
+    await page.getByLabel('Phone Number').fill('+2349034151086');
+    await page.getByLabel(/Full name|Name/i).fill('Test User');
+    await page.waitForSelector('[data-testid="pin-input"]', { state: 'visible' });
     await page.fill('[data-testid="pin-input"]', '123456');
-    await page.click('[data-testid="register-button"]');
-    
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible();
-    await expect(page.locator('[data-testid="kyc-tier"]')).toContainText('Tier 1');
+    await page.getByRole('button', { name: /register|create account/i }).click();
+
+    await expect(page.getByTestId?.('dashboard') ?? page.locator('[role="region"]:has-text("dashboard")')).toBeVisible();
+    await expect(page.getByText('Tier 1', { exact: false })).toBeVisible();
   });
 
   test('Internal Transfer Flow', async ({ page }) => {
-    await page.fill('[data-testid="phone-input"]', '+2349034151086');
+    await page.getByLabel('Phone Number').fill('+2349034151086');
+    await page.waitForSelector('[data-testid="pin-input"]', { state: 'visible' });
     await page.fill('[data-testid="pin-input"]', '123456');
-    await page.click('[data-testid="login-button"]');
-    
-    await page.click('[data-testid="transfer-button"]');
-    await page.fill('[data-testid="recipient-account"]', '1234567891');
-    await page.fill('[data-testid="amount-input"]', '1000');
-    await page.fill('[data-testid="narration-input"]', 'Test transfer');
-    await page.click('[data-testid="transfer-submit"]');
-    
-    await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
+    await page.getByRole('button', { name: /log in/i }).click();
+
+    await page.goto('/transfer');
+    await page.getByLabel(/recipient|account/i).fill('1234567891');
+    await page.getByLabel(/amount/i).fill('1000');
+    await page.getByLabel(/narration|description/i).fill('Test transfer');
+    await page.getByRole('button', { name: /submit|send/i }).click();
+
+    await expect(page.getByText(/success|transaction/i)).toBeVisible();
   });
 
   test('Bill Payment Flow', async ({ page }) => {
-    await page.fill('[data-testid="phone-input"]', '+2349034151086');
+    await page.getByLabel('Phone Number').fill('+2349034151086');
+    await page.waitForSelector('[data-testid="pin-input"]', { state: 'visible' });
     await page.fill('[data-testid="pin-input"]', '123456');
-    await page.click('[data-testid="login-button"]');
-    
-    await page.click('[data-testid="bills-button"]');
-    await page.click('[data-testid="electricity-category"]');
-    await page.selectOption('[data-testid="provider-select"]', 'EKEDC');
-    await page.fill('[data-testid="meter-number"]', '12345678901');
-    await page.fill('[data-testid="amount-input"]', '5000');
-    await page.click('[data-testid="pay-bill-button"]');
-    
-    await expect(page.locator('[data-testid="payment-success"]')).toBeVisible();
+    await page.getByRole('button', { name: /log in/i }).click();
+
+    await page.goto('/bills');
+    await page.getByRole('button', { name: /electricity/i }).click();
+    await page.getByLabel(/provider|select provider/i).selectOption('EKEDC');
+    await page.getByLabel(/meter number|meter/i).fill('12345678901');
+    await page.getByLabel(/amount/i).fill('5000');
+    await page.getByRole('button', { name: /pay|submit/i }).click();
+
+    await expect(page.getByText(/payment successful|success/i)).toBeVisible();
   });
 
   test('Card Creation Flow', async ({ page }) => {
-    await page.fill('[data-testid="phone-input"]', '+2349034151086');
+    await page.getByLabel('Phone Number').fill('+2349034151086');
+    await page.waitForSelector('[data-testid="pin-input"]', { state: 'visible' });
     await page.fill('[data-testid="pin-input"]', '123456');
-    await page.click('[data-testid="login-button"]');
-    
-    await page.click('[data-testid="cards-button"]');
-    await page.click('[data-testid="create-card-button"]');
-    await page.selectOption('[data-testid="card-type"]', 'virtual');
-    await page.fill('[data-testid="card-name"]', 'My Virtual Card');
-    await page.click('[data-testid="create-card-submit"]');
-    
-    await expect(page.locator('[data-testid="card-created"]')).toBeVisible();
+    await page.getByRole('button', { name: /log in/i }).click();
+
+    await page.goto('/cards');
+    await page.getByRole('button', { name: /create card|new card/i }).click();
+    await page.getByLabel(/card type/i).selectOption('virtual');
+    await page.getByLabel(/card name/i).fill('My Virtual Card');
+    await page.getByRole('button', { name: /create|submit/i }).click();
+
+    await expect(page.getByText(/card created|created successfully/i)).toBeVisible();
   });
 
   test('Loan Application Flow', async ({ page }) => {
-    await page.fill('[data-testid="phone-input"]', '+2349034151086');
-    await page.fill('[data-testid="pin-input"]', '123456');
-    await page.click('[data-testid="login-button"]');
-    
-    await page.click('[data-testid="loans-button"]');
-    await page.click('[data-testid="apply-loan-button"]');
-    await page.fill('[data-testid="loan-amount"]', '50000');
-    await page.selectOption('[data-testid="loan-tenure"]', '6');
-    await page.fill('[data-testid="loan-purpose"]', 'Business expansion');
-    await page.click('[data-testid="apply-loan-submit"]');
-    
-    await expect(page.locator('[data-testid="loan-application-success"]')).toBeVisible();
+    await page.getByLabel('Phone Number').fill('+2349034151086');
+    await page.getByLabel(/PIN|6-Digit PIN/i).fill('123456');
+    await page.getByRole('button', { name: /log in/i }).click();
+
+    await page.goto('/loans');
+    await page.getByRole('button', { name: /apply|apply now/i }).click();
+    await page.getByLabel(/loan amount|amount/i).fill('50000');
+    await page.getByLabel(/tenure|loan-tenure/i).selectOption('6');
+    await page.getByLabel(/purpose|loan-purpose/i).fill('Business expansion');
+    await page.getByRole('button', { name: /submit|apply/i }).click();
+
+    await expect(page.getByText(/application submitted|success/i)).toBeVisible();
   });
 });

@@ -1,48 +1,39 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { inventoryService } from '@/lib/inventory-service';
 
-export async function GET() {
-    try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
-
-        const { data: locations, error } = await supabaseAdmin
-            .from('locations')
-            .select('*');
-
-        if (error) throw error;
-
-        return NextResponse.json(locations || []);
-    } catch (error) {
-        logger.error("Error fetching locations: ", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
-    }
+export async function GET(request: NextRequest) {
+  try {
+    const locations = await inventoryService.getLocations();
+    return NextResponse.json({ success: true, data: locations });
+  } catch (error) {
+    console.error('Locations GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
-export async function POST(request: Request) {
-    try {
-        if (!supabaseAdmin) {
-            return NextResponse.json({ message: 'Database not available' }, { status: 500 });
-        }
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, address, manager } = body;
 
-        const body = await request.json();
-        const { data, error } = await supabaseAdmin
-            .from('locations')
-            .insert({
-                ...body,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return NextResponse.json(data, { status: 201 });
-    } catch (error) {
-        logger.error("Error creating location: ", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+
+    const location = await inventoryService.createLocation({
+      name,
+      address,
+      manager
+    });
+
+    if (!location) {
+      return NextResponse.json({ error: 'Failed to create location' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data: location });
+  } catch (error) {
+    console.error('Locations POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

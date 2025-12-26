@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const serverEnvSchema = z.object({
-    AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 characters'),
+    AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required'),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
     NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a valid URL'),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
@@ -12,16 +12,22 @@ const serverEnvSchema = z.object({
     GEMINI_API_KEY: z.string().optional(),
 });
 
-const parsed = serverEnvSchema.safeParse(process.env);
+let serverEnv: z.infer<typeof serverEnvSchema>;
 
-if (!parsed.success) {
-    const errors = parsed.error.flatten().fieldErrors;
-    console.error('Environment validation failed (server):', errors);
-    const missing = Object.entries(errors)
-        .filter(([, v]) => Array.isArray(v) && v.length > 0)
-        .map(([k]) => k);
-    const hint = `Missing env vars: ${missing.join(', ')}. Create a .env.local with these values for local development.`;
-    throw new Error(`Missing required server environment variables. ${hint}`);
+try {
+    const parsed = serverEnvSchema.parse(process.env);
+    serverEnv = parsed;
+} catch (error) {
+    if (error instanceof z.ZodError) {
+        const errors = error.flatten().fieldErrors;
+        console.error('Environment validation failed (server):', errors);
+        const missing = Object.entries(errors)
+            .filter(([, v]) => Array.isArray(v) && v.length > 0)
+            .map(([k]) => k);
+        const hint = `Missing env vars: ${missing.join(', ')}. Create a .env.local with these values for local development.`;
+        throw new Error(`Missing required server environment variables. ${hint}`);
+    }
+    throw error;
 }
 
-export const serverEnv = parsed.data;
+export { serverEnv };

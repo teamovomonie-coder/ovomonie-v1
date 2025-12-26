@@ -15,7 +15,7 @@ import {
   type PaymentCategory,
 } from '@/lib/vfd-processor';
 // Firebase Admin removed - using Supabase
-import admin from 'firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,15 +57,14 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        // Check for idempotent request
-        const adminDb = await getDb();
-        const existingTxn = await adminDb
-          .collection('financialTransactions')
-          .where('reference', '==', reference)
-          .limit(1)
-          .get()
-          .then((snap) => (snap.empty ? null : snap.docs[0]))
-          .catch(() => null);
+        // Check for idempotent request using Supabase
+        const existingQuery = await supabaseAdmin
+          ?.from('financial_transactions')
+          .select('*')
+          .eq('reference', reference)
+          .limit(1);
+
+        const existingTxn = existingQuery && Array.isArray(existingQuery.data) && existingQuery.data.length > 0 ? existingQuery.data[0] : null;
 
         if (existingTxn) {
           logger.info(`[VFD Payment] Idempotent request for ${reference}`);
@@ -73,27 +72,27 @@ export async function POST(request: NextRequest) {
             success: true,
             message: 'Payment already processed',
             reference,
-            status: 'completed',
+            status: existingTxn.status || 'completed',
           }, { status: 200 });
         }
 
         // Initiate payment
         const response = await initiateVFDPayment(paymentRequest);
 
-        // Log transaction
-        await adminDb.collection('financialTransactions').add({
-          userId,
+        // Log transaction to Supabase
+        await supabaseAdmin?.from('financial_transactions').insert({
+          user_id: userId,
           reference,
           category,
           amount,
           description,
           status: response.status,
-          paymentGateway: 'VFD',
-          vfdReference: response.vfdReference,
-          requiresOTP: response.requiresOTP,
+          payment_gateway: 'VFD',
+          vfd_reference: response.vfdReference,
+          requires_otp: response.requiresOTP,
           metadata: paymentDetails,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
 
         logger.info(`[VFD Payment] Initiated: ${reference}`, { status: response.status, requiresOTP: response.requiresOTP });
@@ -130,20 +129,12 @@ export async function POST(request: NextRequest) {
         const response = await validateVFDPaymentOTP(reference, body.otp);
 
         // Update transaction status
-        const adminDb = await getDb();
-        await adminDb
-          .collection('financialTransactions')
-          .where('reference', '==', reference)
-          .get()
-          .then(async (snap) => {
-            if (!snap.empty) {
-              await snap.docs[0].ref.update({
-                status: response.status,
-                otpValidated: response.success,
-                updatedAt: new Date().toISOString(),
-              });
-            }
-          });
+        // Update transaction status in Supabase
+        await supabaseAdmin?.from('financial_transactions').update({
+          status: response.status,
+          otp_validated: response.success,
+          updated_at: new Date().toISOString(),
+        }).eq('reference', reference);
 
         logger.info(`[VFD Payment] OTP validated for ${reference}:`, { success: response.success });
 

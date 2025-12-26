@@ -21,7 +21,8 @@ type ReceiptData = {
 
 export default function MemoReceipt({ data, recipientName, onReset, transactionId, date, isInternalTransfer }: { data: ReceiptData; recipientName: string; onReset: () => void; transactionId?: string; date?: string; isInternalTransfer?: boolean }) {
   const { toast } = useToast();
-  const bankName = isInternalTransfer ? 'Ovomonie' : (nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Unknown Bank');
+  // Always show Ovomonie for internal transfers, check multiple conditions
+  const bankName = (isInternalTransfer || !data.bankCode || data.bankCode === 'internal') ? 'Ovomonie' : (nigerianBanks.find(b => b.code === data.bankCode)?.name || 'Ovomonie');
 
   const receiptRef = useRef<HTMLDivElement | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function MemoReceipt({ data, recipientName, onReset, transactionI
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <div className="w-full max-w-xs mx-auto rounded-xl p-2" style={{ boxShadow: '0 0 30px rgba(59, 130, 246, 0.14)' }}>
+        <div className="w-full max-w-xs mx-auto rounded-xl p-2" style={{ boxShadow: '0 0 30px rgba(59, 130, 246, 0.14)', width: '320px' }}>
           <Card className="w-full border-0 relative bg-white transform hover:-translate-y-1 transition-all duration-300" style={{ boxShadow: '0 10px 40px rgba(59, 130, 246, 0.25)' }}>
             <div className="bg-primary text-primary-foreground p-4 rounded-t-lg flex justify-between items-center">
         <h2 className="text-lg font-bold">Transfer Successful!</h2>
@@ -43,8 +44,15 @@ export default function MemoReceipt({ data, recipientName, onReset, transactionI
       <CardContent className="p-4 bg-card">
         <div className="border-2 border-primary-light-bg rounded-lg p-4 space-y-4 relative z-10">
           {data.photo && (
-            <div className="relative w-full h-56 mb-4 rounded-lg overflow-hidden">
-              <Image src={data.photo as string} alt="Memorable moment" fill style={{ objectFit: 'cover' }} />
+            <div className="relative w-full rounded-lg overflow-hidden" style={{ height: '224px', aspectRatio: '16/9' }}>
+              <Image 
+                src={data.photo as string} 
+                alt="Memorable moment" 
+                fill 
+                style={{ objectFit: 'cover' }} 
+                sizes="(max-width: 384px) 100vw, 384px"
+                priority
+              />
             </div>
           )}
           <div className="text-center space-y-1">
