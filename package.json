@@ -59,7 +59,7 @@
 >>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.1.1",
+    "@hookform/resolvers": "^5.2.2",
     "date-fns": "^4.1.0",
     "embla-carousel-autoplay": "^8.6.0",
     "framer-motion": "^10.12.16",
