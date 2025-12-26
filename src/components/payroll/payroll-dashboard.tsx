@@ -343,6 +343,12 @@ export function PayrollDashboard() {
       default:
         const totalEmployees = batches.reduce((sum, batch) => sum + batch.employees.length, 0);
         const totalPaid = batches.filter(b => b.status === 'Paid').reduce((sum, batch) => sum + getTotalSalary(batch.employees), 0);
+        
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 25);
+        const nextPayrollDate = format(nextMonth, 'MMM dd, yyyy');
+        const nextPayrollPeriod = format(nextMonth, 'MMMM yyyy');
+        
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -352,7 +358,7 @@ export function PayrollDashboard() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Employees</CardTitle><Users className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{totalEmployees}</div><p className="text-xs text-muted-foreground">Across all payrolls</p></CardContent></Card>
                 <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Paid (All Time)</CardTitle><Users className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">₦{totalPaid.toLocaleString()}</div><p className="text-xs text-muted-foreground">Successful disbursements</p></CardContent></Card>
-                <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Next Payroll Date</CardTitle><Calendar className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">Aug 25, 2024</div><p className="text-xs text-muted-foreground">For August 2024 period</p></CardContent></Card>
+                <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Next Payroll Date</CardTitle><Calendar className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{nextPayrollDate}</div><p className="text-xs text-muted-foreground">For {nextPayrollPeriod} period</p></CardContent></Card>
                  <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Pending Payments</CardTitle><Loader2 className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">₦0.00</div><p className="text-xs text-muted-foreground">No pending payrolls</p></CardContent></Card>
             </div>
             <Card>

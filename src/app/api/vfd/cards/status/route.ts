@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getVFDHeaders } from '@/lib/vfd-auth';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';

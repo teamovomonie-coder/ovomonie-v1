@@ -4,7 +4,7 @@ import { createNotification } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken(request.headers as Headers);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

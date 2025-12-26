@@ -8,11 +8,14 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+<<<<<<< HEAD
 
 <<<<<<< HEAD
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     let balance = await getWalletBalance(userId);
-    
-    // Fallback: fetch directly from Supabase if helper fails
+
+    // Fallback: fetch directly from Supabase if helper fails or returns zero
     if (!balance || balance.balance === 0) {
       const { supabaseAdmin } = await import('@/lib/supabase');
       if (supabaseAdmin) {
@@ -21,7 +24,7 @@ export async function GET(request: NextRequest) {
           .select('balance')
           .eq('id', userId)
           .maybeSingle();
-        
+
         if (data) {
           balance = {
             userId,
@@ -31,6 +34,7 @@ export async function GET(request: NextRequest) {
           };
         }
       }
+<<<<<<< HEAD
 =======
     const balance = await getWalletBalance(userId);
 
@@ -45,6 +49,8 @@ export async function GET(request: NextRequest) {
         }
       });
 >>>>>>> origin/supabase/remove-firebase
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     }
 
     return NextResponse.json({

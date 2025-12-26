@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { getUserIdFromToken } from '@/lib/supabase-helpers';
 import { nigerianBanks } from '@/lib/banks';
 import { logger } from '@/lib/logger';
 import { userService, transactionService, notificationService } from '@/lib/db';
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     let clientReference: string = null;
     try {
         // 1. Authentication
-        userId = getUserIdFromToken(request.headers);
+        userId = await getUserIdFromToken(request.headers);
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
@@ -61,22 +61,14 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. Get sender details from Supabase
-<<<<<<< HEAD
-        let sender: DbUser | null;
-=======
         let sender: any | null;
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
         try {
             sender = await userService.getById(userId);
         } catch (dbError: any) {
             logger.error('Database error getting user', { userId, error: dbError.message });
             throw new Error('Database connection failed. Please try again.');
         }
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
         if (!sender) {
             return NextResponse.json({ ok: false, message: 'Sender account not found.' }, { status: 404 });
         }
@@ -89,7 +81,6 @@ export async function POST(request: NextRequest) {
         // 6. Check VFD API connectivity
         await checkVFDConnectivity();
 
-<<<<<<< HEAD
         // 7. Execute transfer via VFD API
         logger.info('External transfer via VFD API', { userId, reference: clientReference, amount: transferAmountInKobo });
         
@@ -165,32 +156,6 @@ export async function POST(request: NextRequest) {
             logger.error('Database error creating notification', { reference: clientReference, error: dbError.message });
             // Don't throw here - notification is non-critical
         }
-=======
-        // 7. Log transaction
-        await transactionService.create({
-            user_id: userId,
-            type: 'debit',
-            amount: transferAmountInKobo,
-            reference: clientReference,
-            narration: narration || `Transfer to ${recipientName}`,
-            party_name: "Transaction",
-            balance_after: newSenderBalance,
-            status: "completed",
-            metadata: {
-                memoMessage: message || null,
-                memoImageUri: photo || null,
-            },
-        });
-
-        // 8. Create notification (non-blocking)
-        await notificationService.create({
-            user_id: userId,
-            title: 'External Transfer',
-            body: `You sent ₦${(transferAmountInKobo/100).toLocaleString()} to ${recipientName} (${bank.name}).`,
-            reference: clientReference,
-            metadata: { recipientName, accountNumber, bankName: bank.name },
-        });
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
 
         logger.info('External transfer completed', { userId, reference: clientReference, amount: transferAmountInKobo });
 

@@ -1,3 +1,27 @@
+"use client";
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+
+interface VFDCardPaymentProps {
+  onSuccess?: (amount: number) => void;
+  onError?: (err: string) => void;
+}
+
+// Temporary simplified placeholder for VFD card payment component
+// Purpose: unblock production builds. Replace with full implementation later.
+export function VFDCardPayment(_props: VFDCardPaymentProps) {
+  return (
+    <div className="p-4">
+      <p className="mb-2 text-sm text-muted-foreground">Card payment temporarily disabled for build.</p>
+      <Button onClick={() => alert('Card payment temporarily unavailable')} className="w-full">
+        Fund Wallet (disabled)
+      </Button>
+    </div>
+  );
+}
+
+export default VFDCardPayment;
 /**
  * Enhanced VFD Card Payment Component
  * Features:
@@ -7,6 +31,7 @@
  */
 
 'use client';
+<<<<<<< HEAD
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -1213,8 +1238,21 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         </DialogContent>
       </Dialog>
     </>
+=======
+// Keep the simplified placeholder only to avoid previous large broken component causing parse errors
+export function VFDCardPayment(_props: VFDCardPaymentProps) {
+  return (
+    <div className="p-4">
+      <p className="mb-2 text-sm text-muted-foreground">Card payment temporarily disabled for build.</p>
+      <Button onClick={() => alert('Card payment temporarily unavailable')} className="w-full">
+        Fund Wallet (disabled)
+      </Button>
+    </div>
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
   );
 }
 
 export default VFDCardPayment;
+import { useNotifications } from '@/context/notification-context';
 
+import { useVFDPayment } from '@/hooks/use-vfd-payment';

@@ -373,10 +373,13 @@ export function InternalTransferForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
      
           
 >>>>>>> origin/supabase/remove-firebase
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
         <div className="flex items-center space-x-2 justify-end">
           <Label htmlFor="memo-switch">Use MemoTransfer</Label>
           <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />

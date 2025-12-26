@@ -24,19 +24,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import {
-  CheckCircle,
-  Loader2,
-  Upload,
-  User,
-  Shield,
-  Bell,
-  Mail,
-  Phone,
-  MessageCircle,
-  ArrowLeftRight,
-  LogOut,
-} from "lucide-react";
+import * as Icons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/auth-context";
 import CustomLink from "../layout/custom-link";
@@ -44,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 const kycTiers = [
   {
@@ -104,7 +93,6 @@ const tier3Schema = z.object({
 });
 
 export function ProfileKycDashboard() {
-    const [showAllCorporateReqs, setShowAllCorporateReqs] = useState(false);
   const { user, fetchUserData, logout } = useAuth();
   const { toast } = useToast();
   const currentTier = user?.kycTier || 1;
@@ -113,10 +101,18 @@ export function ProfileKycDashboard() {
   const lastName = user?.fullName.split(' ').slice(-1)[0] || '';
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
+  const profileCompleteness = (() => {
+    let score = 0;
+    if (user?.fullName) score += 20;
+    if (user?.email) score += 20;
+    if (user?.phone) score += 20;
+    if (user?.kycTier && user.kycTier >= 2) score += 20;
+    if (user?.kycTier && user.kycTier >= 3) score += 20;
+    return score;
+  })();
+
   const [isTier2DialogOpen, setIsTier2DialogOpen] = useState(false);
   const [isTier3DialogOpen, setIsTier3DialogOpen] = useState(false);
-
-  const profileCompleteness = (currentTier / kycTiers.length) * 100;
 
   const handleUpgradeSuccess = async () => {
     setIsTier2DialogOpen(false);
@@ -126,125 +122,68 @@ export function ProfileKycDashboard() {
 
   return (
     <div className="space-y-6">
-      <Card className="relative overflow-hidden rounded-3xl border-none bg-gradient-to-br from-[#0a1c3f] via-[#0d2e63] to-[#0a56ff] shadow-2xl text-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.12),transparent_40%)]" />
-          <div className="absolute inset-0 opacity-25 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0,rgba(255,255,255,0.08)_35%,transparent_35%,transparent_65%)] bg-[length:220px_220px]" />
-          <div className="absolute -left-10 top-8 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute right-6 bottom-6 h-28 w-28 rounded-full bg-[#0a56ff]/40 blur-3xl" />
-        </div>
-        <CardContent className="relative flex flex-col gap-6 p-6 sm:p-8 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <button 
+          onClick={() => window.location.href = '/settings'}
+          className="group absolute top-4 right-4 z-10 p-2 rounded-full hover:bg-slate-100 transition-colors"
+          aria-label="Settings"
+        >
+          <Icons.Settings className="h-6 w-6 text-slate-600 group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+        <CardContent className="relative flex flex-col gap-4 p-6 sm:p-8">
           <div className="flex items-start gap-4">
-            <Avatar className="h-14 w-14 border-2 border-gray-400 bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a]">
+            <Avatar className="h-14 w-14 border-2 border-gray-200 bg-white">
               <AvatarImage src={user?.photoUrl ?? undefined} alt="Profile" />
-              <AvatarFallback className="bg-gradient-to-r from-[#0b1b3a] via-[#0f2552] to-[#0b1b3a] text-white font-semibold">{initials || "U"}</AvatarFallback>
+              <AvatarFallback className="text-slate-900 font-semibold">{initials || "U"}</AvatarFallback>
             </Avatar>
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-700">
                 Profile & KYC
               </div>
-              <h2 className="text-2xl sm:text-3xl font-semibold leading-tight">{user?.fullName || "User"}</h2>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-white/85">
+              <h2 className="text-xl sm:text-2xl font-semibold leading-tight text-slate-900">{user?.fullName || "User"}</h2>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                 <span className="font-semibold">Tier {currentTier}</span>
                 <span>•</span>
                 <span>{Math.round(profileCompleteness)}% complete</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px]">NDIC Secured</span>
               </div>
             </div>
           </div>
-          <div className="w-full sm:w-auto space-y-3">
-            <div className="h-2 w-full rounded-full bg-white/15">
-              <div
-                className="h-2 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.7)] transition-all"
-                style={{ width: `${profileCompleteness}%` }}
-              />
+
+          <div className="mt-4">
+            <p className="text-sm text-slate-500">Total Balance</p>
+            <div className="flex items-end gap-3">
+              <h3 className="text-3xl font-extrabold text-slate-900">₦{((user?.balance || 0) / 100).toLocaleString(undefined, {minimumFractionDigits:2})}</h3>
             </div>
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
-              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">Secure • NDIC</Badge>
-              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">KYC {currentTier}/3</Badge>
-              <Badge variant="secondary" className="bg-white/15 text-white border border-white/20">Acct/No • {user?.accountNumber || "Account"}</Badge>
-              <Button asChild size="sm" variant="secondary" className="bg-white/15 text-white hover:bg-white/25">
-                <CustomLink href="/security">Security</CustomLink>
-              </Button>
-            </div>
+          </div>
+
+          <div className="mt-4">
+            <Card className="rounded-xl border border-slate-100 shadow-sm">
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  <button className="w-full text-left p-4 flex items-center justify-between" onClick={() => window.location.href = '/statements'}>
+                    <span className="flex items-center gap-3 text-slate-800"><Icons.ArrowLeftRight /> Transaction History</span>
+                    <span className="text-slate-400">›</span>
+                  </button>
+                  <button className="w-full text-left p-4 flex items-center justify-between" onClick={() => window.location.href = '/account-limits'}>
+                    <span className="flex items-center gap-3 text-slate-800"><Icons.Shield /> Account Limits</span>
+                    <span className="text-slate-400">›</span>
+                  </button>
+                  <button className="w-full text-left p-4 flex items-center justify-between" onClick={() => window.location.href = '/cards'}>
+                    <span className="flex items-center gap-3 text-slate-800"><Icons.Mail /> Bank Card/Account</span>
+                    <span className="text-slate-400">›</span>
+                  </button>
+                  <button className="w-full text-left p-4 flex items-center justify-between" onClick={() => window.location.href = '/invoicing'}>
+                    <span className="flex items-center gap-3 text-slate-800"><Icons.ArrowLeftRight /> Invoice</span>
+                    <span className="text-red-500 text-xs font-semibold">New</span>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <Card className="border border-slate-200 shadow-md rounded-2xl order-2 lg:order-1 bg-white/95 backdrop-blur">
-          <CardHeader>
-            <CardTitle>KYC Verification</CardTitle>
-            <CardDescription>Complete tiers to increase your transaction limits.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {kycTiers.map((tier) => (
-              <Card
-                key={tier.level}
-                className={cn(
-                  "border shadow-sm backdrop-blur",
-                  tier.level <= currentTier ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-white"
-                )}
-                style={tier.level === 1 ? { paddingTop: '-2px' } : {}}
-              >
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {tier.level <= currentTier && <CheckCircle className="text-emerald-600 h-5 w-5" />}
-                      <CardTitle className="text-lg">{tier.name}</CardTitle>
-                    </div>
-                    {tier.perTransaction && (
-                      <CardDescription>Per Transaction: {tier.perTransaction}</CardDescription>
-                    )}
-                    <CardDescription>Daily Limit: {tier.dailyLimit}</CardDescription>
-                    {tier.walletLimit && (
-                      <CardDescription>Wallet Limit: {tier.walletLimit}</CardDescription>
-                    )}
-                  </div>
-                  {tier.level === currentTier + 1 && (
-                    <Button size="sm" onClick={() => (tier.level === 2 ? setIsTier2DialogOpen(true) : setIsTier3DialogOpen(true))}>
-                      Upgrade
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent className="pb-4">
-                  {tier.level === 4 ? (
-                    <>
-                      <ul className="text-sm space-y-1 list-disc pl-5">
-                        {tier.requirements.slice(0, 2).map((req) => (
-                          <li key={req}>{req}</li>
-                        ))}
-                      </ul>
-                      {!showAllCorporateReqs && (
-                        <button
-                          className="text-xs text-blue-600 mt-2 italic underline hover:text-blue-800 pl-1"
-                          style={{ display: 'block', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                          onClick={() => setShowAllCorporateReqs(true)}
-                        >
-                          ...and more requirements
-                        </button>
-                      )}
-                      {showAllCorporateReqs && (
-                        <ul className="text-sm space-y-1 list-disc pl-5 mt-2">
-                          {tier.requirements.slice(2).map((req) => (
-                            <li key={req}>{req}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    <ul className="text-sm space-y-1 list-disc pl-5">
-                      {tier.requirements.map((req) => (
-                        <li key={req}>{req}</li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 lg:grid-cols-1">
         <div className="space-y-4 order-1">
           <Card className="border border-slate-200 shadow-md rounded-2xl bg-white/95 backdrop-blur">
             <CardHeader>
@@ -257,7 +196,7 @@ export function ProfileKycDashboard() {
           </Card>
         </div>
 
-        <div className="space-y-4 order-3 lg:col-span-2">
+        <div className="space-y-4 order-2">
           <Card className="border border-slate-200 shadow-md rounded-2xl bg-white/95 backdrop-blur">
             <CardHeader>
               <CardTitle>Account</CardTitle>
@@ -266,26 +205,26 @@ export function ProfileKycDashboard() {
             <CardContent className="space-y-2">
               <Button asChild variant="outline" className="w-full justify-start gap-3">
                 <CustomLink href="/statements">
-                  <ArrowLeftRight /> Transaction History
+                  <Icons.ArrowLeftRight /> Transaction History
                 </CustomLink>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start gap-3">
                 <CustomLink href="/security">
-                  <Shield /> Security Settings
+                  <Icons.Shield /> Security Settings
                 </CustomLink>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start gap-3">
                 <CustomLink href="/notifications">
-                  <Bell /> Notifications
+                  <Icons.Bell /> Notifications
                 </CustomLink>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start gap-3">
                 <CustomLink href="/support">
-                  <MessageCircle /> Support
+                  <Icons.MessageCircle /> Support
                 </CustomLink>
               </Button>
               <Button variant="destructive" className="w-full justify-start gap-3" onClick={logout}>
-                <LogOut className="h-4 w-4" /> Logout
+                <Icons.LogOut className="h-4 w-4" /> Logout
               </Button>
             </CardContent>
           </Card>
@@ -466,7 +405,7 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenC
               {!livenessImage ? (
                 <Button type="button" onClick={captureLiveness} disabled={isCapturingLiveness} className="w-full">
                   {isCapturingLiveness ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Capturing...</>
+                    <><Icons.Loader2 className="mr-2 h-4 w-4 animate-spin" /> Capturing...</>
                   ) : (
                     <>Capture Live Selfie</>
                   )}
@@ -482,7 +421,7 @@ function Tier2Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenC
             </FormItem>
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Verification
+                  {isLoading && <Icons.Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Verification
               </Button>
             </DialogFooter>
           </form>
@@ -566,7 +505,7 @@ function Tier3Dialog({ open, onOpenChange, onUpgrade }: { open: boolean; onOpenC
             />
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Review
+                {isLoading && <Icons.Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit for Review
               </Button>
             </DialogFooter>
           </form>

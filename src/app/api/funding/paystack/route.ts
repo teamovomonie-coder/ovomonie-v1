@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/server';
-<<<<<<< HEAD
-import { getUserIdFromToken } from '@/lib/firestore-helpers';
-import { logger } from '@/lib/logger';
-import { initiatePaystackTransaction, verifyPaystackTransaction, resolveBankAccount } from '@/lib/paystack';
-import { userService, transactionService } from '@/lib/db';
-=======
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { initiatePaystackTransaction, verifyPaystackTransaction, resolveBankAccount } from '@/lib/paystack';
 import { supabaseAdmin } from '@/lib/supabase';
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
 
 export async function POST(request: Request) {
   try {
@@ -62,20 +55,6 @@ export async function POST(request: Request) {
         return NextResponse.json(initiation.data || { message: 'Paystack initialization failed' }, { status: initiation.status });
       }
 
-<<<<<<< HEAD
-      // Create pending transaction record in Supabase
-      await transactionService.create({
-        user_id: userId,
-        category: 'deposit',
-        type: 'credit',
-        amount: amountInKobo,
-        reference: clientReference || reference,
-        narration: 'Card deposit via Paystack (pending)',
-        party: { name: 'Paystack' },
-        balance_after: 0,
-      });
-      logger.debug('Created pending Paystack transaction', { reference });
-=======
       // Create pending transaction record
       const { data: pendingTx } = await supabaseAdmin
         .from('financial_transactions')
@@ -98,7 +77,6 @@ export async function POST(request: Request) {
         .single();
 
       logger.debug('Created pending Paystack transaction', { pendingRef: pendingTx?.id });
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
 
       return NextResponse.json({
         message: 'Paystack transaction initialized',
@@ -135,33 +113,6 @@ export async function POST(request: Request) {
       // Extract amount from Paystack response (in kobo)
       const amountInKobo = transactionData.amount || 0;
 
-<<<<<<< HEAD
-      // Finalize in Supabase
-      const user = await userService.getById(userId);
-      if (!user) {
-        return NextResponse.json({ message: 'User not found' }, { status: 404 });
-      }
-
-      const currentBalance = user.balance || 0;
-      const newBalance = currentBalance + amountInKobo;
-      
-      // Update user balance
-      await userService.updateBalance(userId, newBalance);
-      
-      // Create completed transaction
-      await transactionService.create({
-        user_id: userId,
-        category: 'deposit',
-        type: 'credit',
-        amount: amountInKobo,
-        reference: `${reference}-completed`,
-        narration: 'Card deposit via Paystack',
-        party: { name: 'Paystack' },
-        balance_after: newBalance,
-      });
-      
-      logger.info('Paystack funding completed', { userId, amount: amountInKobo, newBalance });
-=======
       // Get pending transactions
       const { data: pendingTxs } = await supabaseAdmin
         .from('financial_transactions')
@@ -205,7 +156,6 @@ export async function POST(request: Request) {
           })
           .in('id', pendingTxs.map(tx => tx.id));
       }
->>>>>>> f903fae907e75606307fe15fc6b05a04460c0c7d
 
       return NextResponse.json(
         {

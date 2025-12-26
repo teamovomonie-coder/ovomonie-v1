@@ -4,11 +4,15 @@
  */
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { supabaseAdmin } from './supabase';
 import { VirtualAccountRequest } from './vfd-wallet';
 =======
 import { supabase } from './supabase';
 >>>>>>> origin/supabase/remove-firebase
+=======
+import { supabaseAdmin } from './supabase';
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
 import { logger } from './logger';
 
 // Types
@@ -282,6 +286,7 @@ export async function initiateOutboundTransfer(
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const { executeVFDTransfer } = await import('./vfd-transfer');
     const vfdResult = await executeVFDTransfer(
       amount,
@@ -310,6 +315,8 @@ export async function initiateOutboundTransfer(
       });
 =======
     // Execute VFD transfer - dynamic import to avoid circular dependency
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     try {
       const { executeVFDTransfer } = await import('./vfd-transfer');
       const vfdResult = await executeVFDTransfer(
@@ -321,10 +328,9 @@ export async function initiateOutboundTransfer(
       );
 
       if (vfdResult.success) {
-        // Mark as completed
-        await supabase
+        await supabaseAdmin
           .from('wallet_transactions')
-          .update({ 
+          .update({
             status: 'completed',
             vfd_transaction_id: vfdResult.sessionId
           })
@@ -333,18 +339,20 @@ export async function initiateOutboundTransfer(
         logger.info('Outbound transfer completed', { userId, amount, reference });
         return { success: true, reference };
       } else {
-        // Mark as failed and refund
-        await supabase.rpc('refund_failed_transfer', {
+        await supabaseAdmin.rpc('refund_failed_transfer', {
           p_user_id: userId,
           p_amount: amount,
           p_reference: reference
         });
+<<<<<<< HEAD
 >>>>>>> origin/supabase/remove-firebase
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
 
-        logger.error('VFD transfer failed, refunded user', { 
-          userId, 
-          reference, 
-          error: vfdResult.error 
+        logger.error('VFD transfer failed, refunded user', {
+          userId,
+          reference,
+          error: vfdResult.error
         });
         return { success: false, error: vfdResult.error || 'Transfer failed' };
       }

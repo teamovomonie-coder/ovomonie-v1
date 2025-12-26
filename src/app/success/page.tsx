@@ -145,6 +145,7 @@ export default function SuccessPage() {
     try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     router.push('/dashboard');
 <<<<<<< HEAD
+<<<<<<< HEAD
   }, [currentReceipt?.reference, router]);
 =======
   }, [pending?.reference, router]);
@@ -286,11 +287,17 @@ export default function SuccessPage() {
       returnPath = '/external-transfer';
     }
 >>>>>>> origin/supabase/remove-firebase
+=======
+  }, [currentReceipt?.reference, router]);
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
 
   if (isProcessing || !isReady || !currentReceipt) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <div className="text-center">
@@ -314,18 +321,51 @@ export default function SuccessPage() {
           transactionId={currentReceipt.transactionId} 
           date={currentReceipt.completedAt || currentReceipt.data?.date} 
           isInternalTransfer={currentReceipt.data?.isInternalTransfer} 
+<<<<<<< HEAD
 =======
+=======
+        />
+      </div>
+    );
+  }
+
+  if (currentReceipt.type === 'external-transfer' && currentReceipt.recipientName) {
+    return (
+      <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
         <GeneralReceipt
-          title={(pending.type === 'external-transfer' ? 'External Transfer' : pending.data && pending.data.typeName) || 'Transaction'}
-          amount={pending.data?.amount || 0}
-          recipient={pending.recipientName || pending.data?.recipient}
-          accountInfo={pending.data?.accountNumber || ''}
-          transactionId={pending.transactionId || pending.data?.transactionId || `OVO-${Date.now()}`}
-          paymentMethod={pending.type === 'internal-transfer' || pending.data?.isInternalTransfer ? 'Ovomonie' : (pending.bankName || pending.data?.paymentMethod || pending.data?.method)}
-          date={pending.completedAt || pending.data?.date || new Date().toLocaleString()}
+          title="External Transfer"
+          amount={currentReceipt.data?.amount || 0}
+          recipient={currentReceipt.recipientName}
+          accountInfo={`${currentReceipt.data?.accountNumber} • ${currentReceipt.bankName}`}
+          transactionId={currentReceipt.transactionId || currentReceipt.reference || `OVO-${Date.now()}`}
+          paymentMethod={currentReceipt.bankName || 'Bank Transfer'}
+          date={currentReceipt.completedAt || new Date().toLocaleString()}
           onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
+<<<<<<< HEAD
           returnPath={returnPath}
 >>>>>>> origin/supabase/remove-firebase
+=======
+          returnPath="/external-transfer"
+        />
+      </div>
+    );
+  }
+
+  if (currentReceipt.type === 'internal-transfer' && currentReceipt.recipientName) {
+    return (
+      <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
+        <GeneralReceipt
+          title="Internal Transfer"
+          amount={currentReceipt.data?.amount || 0}
+          recipient={currentReceipt.recipientName}
+          accountInfo={`${currentReceipt.data?.accountNumber} • Ovomonie`}
+          transactionId={currentReceipt.transactionId || currentReceipt.reference || `OVO-${Date.now()}`}
+          paymentMethod="Ovomonie"
+          date={currentReceipt.completedAt || new Date().toLocaleString()}
+          onReport={() => { try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {} ; router.push('/support'); }}
+          returnPath="/internal-transfer"
+>>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
         />
       </div>
     );

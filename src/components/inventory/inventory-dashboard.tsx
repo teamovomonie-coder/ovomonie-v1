@@ -613,7 +613,7 @@ export function InventoryDashboard() {
     const lowStockItems: (Product & { lowStockLocations: Location[] })[] = [];
     products.forEach(p => {
         const lowLocations: Location[] = [];
-        (p.stockByLocation || []).forEach(s => {
+        p.stockByLocation?.forEach(s => {
             const location = locations.find(l => l.id === s.locationId);
             if (location && s.quantity <= p.minStockLevel) {
                 lowLocations.push(location);
@@ -631,7 +631,7 @@ export function InventoryDashboard() {
   const inventoryValue = useMemo(() => {
       return products.reduce((total, p) => {
           const productStock = (p.stockByLocation || []).reduce((sum, s) => sum + (s.quantity || 0), 0);
-          const costPrice = parseFloat(p.cost_price) || parseFloat(p.costPrice) || 0;
+          const costPrice = parseFloat((p as any).cost_price) || parseFloat((p as any).costPrice) || 0;
           return total + (costPrice * productStock);
       }, 0);
   }, [products]);
@@ -1002,15 +1002,15 @@ export function InventoryDashboard() {
                                                 <TableCell>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
-                                                            <Button variant="link" className={cn("p-0 h-auto font-bold", (product.stockByLocation || []).reduce((sum, s) => sum + s.quantity, 0) <= product.minStockLevel && "text-destructive")}>
-                                                                {(product.stockByLocation || []).reduce((sum, s) => sum + s.quantity, 0)} {product.unit}
+                                                            <Button variant="link" className={cn("p-0 h-auto font-bold", (product.stockByLocation?.reduce((sum, s) => sum + s.quantity, 0) || 0) <= product.minStockLevel && "text-destructive")}>
+                                                                {product.stockByLocation?.reduce((sum, s) => sum + s.quantity, 0) || 0} {product.unit}
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-64">
                                                             <div className="space-y-2">
                                                                 <h4 className="font-medium leading-none">Stock by Location</h4>
                                                                 {locations.map(loc => {
-                                                                    const stock = (product.stockByLocation || []).find(s => s.locationId === loc.id)?.quantity || 0;
+                                                                    const stock = product.stockByLocation?.find(s => s.locationId === loc.id)?.quantity || 0;
                                                                     return (
                                                                         <div key={loc.id} className="text-sm flex justify-between">
                                                                             <span>{loc.name}:</span>
@@ -1118,7 +1118,7 @@ export function InventoryDashboard() {
                                         <TableRow key={location.id}>
                                             <TableCell className="font-medium">{location.name}</TableCell>
                                             <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
-                                            <TableCell>{products.filter(p => (p.stockByLocation || []).some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+                                            <TableCell>{products.filter(p => p.stockByLocation?.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -1247,7 +1247,7 @@ export function InventoryDashboard() {
                                         {lowStockProducts.flatMap(product =>
                                             product.lowStockLocations.map(location => {
                                                 const supplier = suppliers.find(s => s.id === product.supplierId);
-                                                const stockInfo = product.stockByLocation.find(s => s.locationId === location.id);
+                                                const stockInfo = product.stockByLocation?.find(s => s.locationId === location.id);
                                                 return (
                                                     <TableRow key={`${product.id}-${location.id}`}>
                                                         <TableCell className="font-medium">{product.name}</TableCell>
