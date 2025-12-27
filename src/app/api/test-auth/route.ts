@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
-  const userId = getUserIdFromToken(request.headers);
+  const userId = getUserIdFromToken();
   
   return NextResponse.json({
     userId,

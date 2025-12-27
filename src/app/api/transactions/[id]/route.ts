@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await getUserIdFromToken(request.headers);
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }

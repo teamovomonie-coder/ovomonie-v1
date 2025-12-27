@@ -6,7 +6,7 @@ import { userService, transactionService, notificationService } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
-        const userId = getUserIdFromToken(request.headers);
+        const userId = getUserIdFromToken();
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }

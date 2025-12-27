@@ -21,27 +21,31 @@ export async function POST(request: Request) {
         if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
-        const { amount, clientReference, cardNumber, cardPin, cvv, expiry } = body;
+        const { amount, reference, cardNumber, cardPin, cvv2, expiryDate, shouldTokenize } = body;
 
         if (!amount || typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json({ message: 'A valid positive amount is required.' }, { status: 400 });
         }
-        if (!clientReference) {
-            return NextResponse.json({ message: 'Client reference ID is required for this transaction.' }, { status: 400 });
+        if (!reference) {
+            return NextResponse.json({ message: 'Reference is required for this transaction.' }, { status: 400 });
         }
 
-        // Idempotency
-        const existing = await transactionService.getByReference(clientReference);
+        // Idempotency check
+        const existing = await transactionService.getByReference(reference);
         if (existing) {
-                const user = await userService.getById(userId);
-                return NextResponse.json({ message: 'Already processed', newBalanceInKobo: user?.balance ?? 0 }, { status: 200 });
-            }
+            const user = await userService.getById(userId);
+            return NextResponse.json({ 
+                message: 'Transaction already processed', 
+                newBalanceInKobo: user?.balance ?? 0,
+                requiresOTP: false 
+            }, { status: 200 });
+        }
 
         const amountInKobo = Math.round(amount * 100);
 
-        if (!cardNumber || !cardPin || !cvv || !expiry) {
-            logger.error('Missing card details', { hasCardNumber: !!cardNumber, hasPin: !!cardPin, hasCvv: !!cvv, hasExpiry: !!expiry });
-            return NextResponse.json({ message: 'Card details (number, pin, cvv, expiry) are required for card funding.' }, { status: 400 });
+        if (!cardNumber || !cardPin || !cvv2 || !expiryDate) {
+            logger.error('Missing card details', { hasCardNumber: !!cardNumber, hasPin: !!cardPin, hasCvv: !!cvv2, hasExpiry: !!expiryDate });
+            return NextResponse.json({ message: 'Card details (number, pin, cvv, expiry) are required.' }, { status: 400 });
         }
 
         // Create pending payment record
@@ -49,141 +53,117 @@ export async function POST(request: Request) {
             const { error: pendingError } = await supabaseAdmin.from('pending_payments').insert({
                 user_id: userId,
                 amount: amountInKobo,
-                reference: clientReference,
+                reference: reference,
                 status: 'pending',
                 payment_method: 'card',
                 metadata: { cardLast4: cardNumber.slice(-4) },
             });
             
             if (pendingError) {
-                logger.error('Failed to create pending payment', { error: pendingError, reference: clientReference });
-            } else {
-                logger.info('Created pending payment', { reference: clientReference, amount: amountInKobo });
+                logger.error('Failed to create pending payment', { error: pendingError, reference });
             }
-        } else {
-            logger.warn('supabaseAdmin not available, skipping pending_payments insert');
-        }
-
-        // Convert MM/YY to YYMM for VFD
-        let expiryYyMm = expiry;
-        if (expiry.includes('/')) {
-            const [mm, yy] = expiry.split('/');
-            expiryYyMm = `${yy}${mm}`;
         }
         
-        logger.info('Processing card payment', { amount, amountInKobo, reference: clientReference, expiryFormat: expiryYyMm });
-
-        logger.info('Card payment request', { amount, reference: clientReference, cardNumberMasked: cardNumber.slice(-4), expiryYyMm });
+        logger.info('Processing card payment', { amount, reference, cardLast4: cardNumber.slice(-4) });
         
         const initiation = await initiateCardPayment({
             amount: Math.round(amount),
-            reference: clientReference,
+            reference,
             cardNumber,
             cardPin,
-            cvv2: cvv,
-            expiryDate: expiryYyMm,
-            shouldTokenize: false,
+            cvv2,
+            expiryDate,
+            shouldTokenize: shouldTokenize || false,
         });
 
-        logger.debug('VFD initiation', { initiation });
+        logger.debug('VFD initiation response', { status: initiation.status, ok: initiation.ok });
 
         if (!initiation.ok) {
             logger.error('VFD initiation failed', { 
                 status: initiation.status, 
                 message: initiation.data?.message,
                 vfdError: initiation.data?.vfdError,
-                vfdCode: initiation.data?.vfdCode,
-                fullResponse: initiation.data 
             });
             return NextResponse.json({ 
-                ok: false,
-                message: initiation.data?.message || 'Failed to authenticate with payment gateway',
-                details: initiation.data 
+                message: initiation.data?.message || 'Payment initiation failed',
+                requiresOTP: false
             }, { status: initiation.status || 500 });
         }
 
-        if (initiation.ok && initiation.data && initiation.data.data && initiation.data.data.serviceResponseCodes === 'COMPLETED') {
-            // Get user
+        const responseData = initiation.data?.data || initiation.data;
+        const serviceCode = responseData?.serviceResponseCodes || responseData?.status;
+
+        // Check if payment completed immediately
+        if (serviceCode === 'COMPLETED' || serviceCode === '00') {
             const user = await userService.getById(userId);
             
-            // Execute VFD transaction and update balance
             const newBalance = await executeVFDTransaction(
                 userId,
                 user?.account_number || '',
-                async () => {}, // VFD already processed
+                async () => {},
                 amountInKobo,
                 'credit'
             );
 
-            // Log transaction
-            const transaction = await transactionService.create({
+            await transactionService.create({
                 user_id: userId,
                 type: 'credit',
                 category: 'deposit',
                 amount: amountInKobo,
-                reference: clientReference,
+                reference,
                 narration: 'Card deposit via VFD',
                 party_name: 'VFD Card',
                 balance_after: newBalance,
             });
 
-            // Create notification
             await notificationService.create({
                 user_id: userId,
                 title: 'Wallet Funded',
-                body: `You successfully added ₦${(amountInKobo / 100).toLocaleString()} to your wallet via card.`,
+                body: `You successfully added ₦${(amountInKobo / 100).toLocaleString()} to your wallet.`,
                 category: 'transaction',
                 type: 'credit',
                 amount: amountInKobo,
-                reference: clientReference,
+                reference,
             });
 
-            // Remove from pending_payments (completed)
             if (supabaseAdmin) {
-                const { error: deleteError } = await supabaseAdmin.from('pending_payments')
-                    .delete()
-                    .eq('reference', clientReference);
-                
-                if (deleteError) {
-                    logger.error('Failed to delete pending payment', { error: deleteError, reference: clientReference });
-                } else {
-                    logger.info('Deleted pending payment', { reference: clientReference });
-                }
+                await supabaseAdmin.from('pending_payments').delete().eq('reference', reference);
             }
 
-            return NextResponse.json({ ok: true, message: 'Funding successful!', newBalanceInKobo: newBalance, vfd: initiation.data }, { status: 200 });
+            return NextResponse.json({ 
+                message: 'Payment completed successfully', 
+                newBalanceInKobo: newBalance,
+                requiresOTP: false,
+                reference
+            }, { status: 200 });
         }
 
-        // Handle 3DS or other actions required
-        logger.info('VFD requires further action', { 
-            code: initiation.data?.data?.code, 
-            narration: initiation.data?.data?.narration,
-            serviceResponseCodes: initiation.data?.data?.serviceResponseCodes 
-        });
+        // Check if OTP is required
+        if (serviceCode === 'OTP_REQUIRED' || responseData?.requiresOTP || responseData?.narration?.toLowerCase().includes('otp')) {
+            logger.info('Payment requires OTP', { reference });
+            return NextResponse.json({ 
+                message: 'OTP required for authorization',
+                requiresOTP: true,
+                reference,
+                vfdReference: responseData?.reference || reference
+            }, { status: 200 });
+        }
+
+        // Handle other cases
+        logger.info('Payment requires further action', { serviceCode, reference });
         return NextResponse.json({ 
-            ok: true,
-            message: initiation.data?.data?.narration || 'VFD initiation requires further action', 
-            vfd: initiation.data || initiation,
-            requiresAction: true,
-            redirectUrl: initiation.data?.data?.redirectHtml
+            message: responseData?.narration || 'Payment initiated, awaiting confirmation',
+            requiresOTP: false,
+            reference,
+            status: serviceCode
         }, { status: 200 });
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        const errorStack = err instanceof Error ? err.stack : undefined;
-        
-        logger.error('funding/card error', { 
-            message: errorMessage,
-            stack: errorStack,
-            errorType: err?.constructor?.name,
-            error: err
-        });
-        
-        console.error('Card funding error:', err);
+        logger.error('funding/card error', { message: errorMessage, error: err });
         
         return NextResponse.json({ 
-            ok: false,
             message: errorMessage || 'An internal server error occurred.',
-            details: process.env.NODE_ENV === 'development' ? { message: errorMessage, stack: errorStack } : undefined
+            requiresOTP: false
         }, { status: 500 });
     }
 }

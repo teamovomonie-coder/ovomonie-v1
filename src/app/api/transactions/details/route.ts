@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

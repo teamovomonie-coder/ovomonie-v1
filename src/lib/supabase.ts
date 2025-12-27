@@ -7,7 +7,21 @@ import { clientEnv } from './env.client';
  */
 export const supabase = createClient(
   clientEnv.NEXT_PUBLIC_SUPABASE_URL,
-  clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    },
+    global: {
+      fetch: (url, options = {}) => {
+        return fetch(url, {
+          ...options,
+          signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+      }
+    }
+  }
 );
 
 /**
@@ -17,7 +31,6 @@ export const supabase = createClient(
  */
 export const supabaseAdmin = (() => {
   if (typeof window !== 'undefined') {
-    // Running on client - don't create admin client
     return null;
   }
   
@@ -29,7 +42,21 @@ export const supabaseAdmin = (() => {
     }
     return createClient(
       serverEnv.NEXT_PUBLIC_SUPABASE_URL,
-      serverEnv.SUPABASE_SERVICE_ROLE_KEY
+      serverEnv.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        },
+        global: {
+          fetch: (url, options = {}) => {
+            return fetch(url, {
+              ...options,
+              signal: AbortSignal.timeout(15000) // 15 second timeout
+            });
+          }
+        }
+      }
     );
   } catch (error) {
     console.error('Failed to create Supabase admin client:', error);

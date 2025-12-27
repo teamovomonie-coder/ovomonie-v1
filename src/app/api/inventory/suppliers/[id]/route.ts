@@ -4,7 +4,7 @@ import { inventoryService } from '@/lib/inventory-service';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

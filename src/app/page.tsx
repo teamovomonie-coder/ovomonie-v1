@@ -16,7 +16,7 @@ export default function WelcomePage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated === true) {
             router.replace('/dashboard');
         }
     }, [isAuthenticated, router]);
@@ -24,13 +24,16 @@ export default function WelcomePage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowContent(true);
-        }, 2500); // 2.5 seconds for splash animation
+        }, 2500);
         return () => clearTimeout(timer);
     }, []);
     
-    if (isAuthenticated === true || isAuthenticated === null) {
-        // Show a loader or blank screen while checking auth or redirecting
+    if (isAuthenticated === null) {
         return <div className="h-screen w-screen bg-primary flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-foreground" /></div>
+    }
+    
+    if (isAuthenticated === true) {
+        return null;
     }
 
     return (

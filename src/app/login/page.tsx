@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CustomLink from '@/components/layout/custom-link';
 import BiometricLogin from '@/components/auth/biometric-login';
-import { biometricService } from '@/lib/biometric';
+import { BiometricAuth } from '@/lib/biometric';
 
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -40,12 +40,12 @@ function LoginFormContent() {
   
   useEffect(() => {
     const initBiometric = async () => {
-      await biometricService.initialize();
-      setBiometricAvailable(biometricService.isAvailable());
+      const available = await BiometricAuth.isAvailable();
+      setBiometricAvailable(available);
       
       // Check if user has biometric registered
       const savedPhone = localStorage.getItem('lastLoginPhone');
-      if (savedPhone && biometricService.hasBiometricRegistered(savedPhone)) {
+      if (savedPhone && BiometricAuth.hasRegistered(savedPhone)) {
         setLastUsedPhone(savedPhone);
         setShowBiometric(true);
       }

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     let clientReference: string = null;
     try {
         // 1. Authentication
-        userId = await getUserIdFromToken(request.headers);
+        userId = await getUserIdFromToken();
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }

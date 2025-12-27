@@ -1,105 +1,97 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
-import { getUserById, getUserByAccountNumber, updateUserBalance, createTransaction, createNotification } from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase';
+import { z } from 'zod';
+
+const transferSchema = z.object({
+  recipientAccountNumber: z.string().min(10),
+  amount: z.number().positive(),
+  narration: z.string().optional(),
+  clientReference: z.string().optional(),
+  senderPin: z.string().optional()
+});
 
 export async function POST(request: NextRequest) {
     try {
-        const userId = getUserIdFromToken(request.headers);
+        const userId = getUserIdFromToken();
         if (!userId) {
             return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { recipientAccountNumber, amount, narration, clientReference, senderPin } = body;
-
-        if (!recipientAccountNumber || !amount || amount <= 0) {
-            return NextResponse.json({ ok: false, message: 'Invalid request data' }, { status: 400 });
+        
+        // Validate input
+        const validation = transferSchema.safeParse(body);
+        if (!validation.success) {
+            return NextResponse.json({ 
+                ok: false, 
+                message: 'Invalid request data',
+                errors: validation.error.flatten().fieldErrors
+            }, { status: 400 });
         }
 
-        // Get sender
-        const sender = await getUserById(userId);
-        if (!sender) {
-            return NextResponse.json({ ok: false, message: 'Sender not found' }, { status: 404 });
-        }
+        const { recipientAccountNumber, amount, narration } = validation.data;
+        const clientReference = validation.data.clientReference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Get recipient
-        const recipient = await getUserByAccountNumber(recipientAccountNumber);
-        if (!recipient) {
-            return NextResponse.json({ ok: false, message: 'Recipient not found' }, { status: 404 });
-        }
-
-        // Check self-transfer
-        if (recipientAccountNumber === sender.account_number) {
-            return NextResponse.json({ ok: false, message: 'Cannot transfer to yourself' }, { status: 400 });
+        if (!supabaseAdmin) {
+            logger.error('Supabase admin client not available');
+            return NextResponse.json({ ok: false, message: 'Service unavailable' }, { status: 503 });
         }
 
         // Convert to kobo
         const amountKobo = Math.round(amount * 100);
 
-        // Check balance
-        if (sender.balance < amountKobo) {
-            return NextResponse.json({ ok: false, message: 'Insufficient balance' }, { status: 400 });
+        // Use database transaction to ensure atomicity
+        const { data, error } = await supabaseAdmin.rpc('process_internal_transfer', {
+            p_sender_id: userId,
+            p_recipient_account: recipientAccountNumber,
+            p_amount_kobo: amountKobo,
+            p_narration: narration || 'Internal transfer',
+            p_reference: clientReference
+        });
+
+        if (error) {
+            logger.error('Internal transfer failed', { error, userId, recipientAccountNumber, amount: amountKobo });
+            
+            // Handle specific error cases
+            if (error.message?.includes('Insufficient balance')) {
+                return NextResponse.json({ ok: false, message: 'Insufficient balance' }, { status: 400 });
+            }
+            if (error.message?.includes('Recipient not found')) {
+                return NextResponse.json({ ok: false, message: 'Recipient not found' }, { status: 404 });
+            }
+            if (error.message?.includes('Cannot transfer to yourself')) {
+                return NextResponse.json({ ok: false, message: 'Cannot transfer to yourself' }, { status: 400 });
+            }
+            if (error.message?.includes('Duplicate transaction')) {
+                return NextResponse.json({ ok: false, message: 'Duplicate transaction' }, { status: 409 });
+            }
+            
+            return NextResponse.json({ ok: false, message: 'Transfer failed' }, { status: 500 });
         }
 
-        // Update balances
-        const newSenderBalance = sender.balance - amountKobo;
-        const newRecipientBalance = recipient.balance + amountKobo;
-
-        await updateUserBalance(userId, newSenderBalance);
-        await updateUserBalance(recipient.id, newRecipientBalance);
-
-        // Create transactions
-        await createTransaction({
-            user_id: userId,
-            category: 'transfer',
-            type: 'debit',
+        logger.info('Internal transfer successful', {
+            userId,
+            recipientAccountNumber,
             amount: amountKobo,
-            reference: `${clientReference}-debit`,
-            narration: narration || `Transfer to ${recipient.full_name}`,
-            party_name: recipient.full_name,
-            balance_after: newSenderBalance,
-        });
-
-        await createTransaction({
-            user_id: recipient.id,
-            category: 'transfer',
-            type: 'credit',
-            amount: amountKobo,
-            reference: `${clientReference}-credit`,
-            narration: narration || `Transfer from ${sender.full_name}`,
-            party_name: sender.full_name,
-            balance_after: newRecipientBalance,
-        });
-
-        // Create notifications
-        await createNotification({
-            user_id: userId,
-            title: 'Money Sent',
-            body: `₦${amount.toLocaleString()} sent to ${recipient.full_name}`,
-            category: 'transaction',
-        });
-
-        await createNotification({
-            user_id: recipient.id,
-            title: 'Money Received',
-            body: `₦${amount.toLocaleString()} received from ${sender.full_name}`,
-            category: 'transaction',
+            reference: clientReference
         });
 
         return NextResponse.json({
             ok: true,
             message: 'Transfer successful!',
             data: {
-                newBalanceInKobo: newSenderBalance,
+                newBalanceInKobo: data.new_sender_balance,
                 transactionId: clientReference,
-                recipientName: recipient.full_name,
+                recipientName: data.recipient_name,
                 amount: amount,
                 reference: clientReference
             }
         });
 
     } catch (error) {
-        console.error('Internal transfer error:', error);
+        logger.error('Internal transfer error', { error, userId: getUserIdFromToken() });
         return NextResponse.json({ 
             ok: false, 
             message: 'Internal server error'

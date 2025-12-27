@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();

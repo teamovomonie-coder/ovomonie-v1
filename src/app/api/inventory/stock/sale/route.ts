@@ -4,7 +4,7 @@ import { inventoryService } from '@/lib/inventory-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getWalletBalance } from '@/lib/virtual-accounts';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     let balance = await getWalletBalance(userId);
 
-    // Fallback: fetch directly from Supabase if helper fails or returns zero
+    // Fallback: fetch directly from Supabase if helper fails
     if (!balance || balance.balance === 0) {
       const { supabaseAdmin } = await import('@/lib/supabase');
       if (supabaseAdmin) {
@@ -34,23 +30,6 @@ export async function GET(request: NextRequest) {
           };
         }
       }
-<<<<<<< HEAD
-=======
-    const balance = await getWalletBalance(userId);
-
-    if (!balance) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          userId,
-          balance: 0,
-          ledgerBalance: 0,
-          lastUpdated: new Date().toISOString()
-        }
-      });
->>>>>>> origin/supabase/remove-firebase
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     }
 
     return NextResponse.json({
@@ -60,16 +39,14 @@ export async function GET(request: NextRequest) {
       data: balance || { userId, balance: 0, ledgerBalance: 0, lastUpdated: new Date().toISOString() }
     });
   } catch (error) {
-    console.error('Wallet balance error:', error);
+    logger.error('Wallet balance error', { error, userId: getUserIdFromToken() });
     return NextResponse.json(
       { 
-        ok: true,
-        success: true,
-        balanceInKobo: 0,
-        error: 'Failed to fetch balance',
-        data: { balance: 0, ledgerBalance: 0 }
+        ok: false,
+        success: false,
+        error: 'Failed to fetch balance'
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

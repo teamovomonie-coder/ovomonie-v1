@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
         
         if (!supabaseAdmin) {
             return NextResponse.json({ message: 'Database not available' }, { status: 500 });

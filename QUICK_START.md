@@ -1,299 +1,237 @@
-# Quick Start: Notification & PIN System
+# Quick Start Guide - Post-Fixes
 
-## What Was Changed
+All critical fixes have been applied. Follow these steps to complete the setup:
 
-### 1. Real-time Notifications (Supabase)
-- **File:** `src/context/notification-context.tsx`
-- **Change:** Migrated from Firebase to Supabase real-time updates
-- **Result:** Notifications now appear instantly using WebSocket
+## 1. Apply Database Migration
 
-### 2. PIN Authorization
-- **New File:** `src/lib/pin-validator.ts`
-- **Updated APIs:**
-  - `POST /api/transfers/internal` - Requires transaction PIN
-  - `POST /api/funding/deposit` - Requires login PIN
-  - `POST /api/funding/withdraw` - Requires both PINs
-- **Result:** All transactions now validate PIN before processing
+### Option A: Via Supabase Dashboard (Easiest)
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Navigate to **SQL Editor**
+4. Copy the contents of `supabase/migrations/20250126000000_atomic_transfers.sql`
+5. Paste and click **Run**
+6. Verify success message
 
-### 3. Recipient Verification
-- **Enhancement:** Transfer API returns recipient name
-- **Result:** Users can confirm "Send ₦X to [Name]?" before confirming
+### Option B: Via Script
+```bash
+npm run migrate
+```
+
+### Verify Migration
+Run this SQL in Supabase SQL Editor:
+```sql
+SELECT routine_name 
+FROM information_schema.routines 
+WHERE routine_name = 'process_internal_transfer';
+```
+Should return one row.
 
 ---
 
-## How It Works
-
-### Transfer Example
-
-```
-User enters:
-- Recipient account: OVO123456789
-- Amount: ₦50,000
-- Transaction PIN: 5678
-
-API does:
-1. ✓ Validate PIN against stored hash
-2. ✓ Get recipient info from database
-3. ✓ Process via VFD (primary gateway)
-4. ✓ Backup transaction to Supabase
-5. ✓ Create notifications for both users
-6. ✓ Broadcast update via WebSocket
-
-User sees:
-- "Transfer Sent: ₦50,000 to John Doe"
-- Recipient sees: "Transfer Received: ₦50,000 from Jane Smith"
-- Updates appear immediately (no refresh needed)
-```
-
----
-
-## Testing Checklist
-
-### Before Testing
-- [ ] Run `npm install` (all packages installed)
-- [ ] Verify `.env.local` has Supabase keys
-- [ ] Execute migrations: `docs/supabase-migrations.sql`
-
-### Test Transfer
-```bash
-# 1. Register user
-POST http://localhost:3000/api/auth/register
-{
-  "phone": "2348012345678",
-  "pin": "1234",           # login PIN
-  "transactionPin": "5678" # transaction PIN
-}
-
-# 2. Login
-POST http://localhost:3000/api/auth/login
-{
-  "phone": "2348012345678",
-  "pin": "1234"  # use login PIN (not transaction PIN)
-}
-# Get token and userId from response
-
-# 3. Transfer to another user
-POST http://localhost:3000/api/transfers/internal
-Header: Authorization: Bearer {token}
-{
-  "recipientAccountNumber": "OVO987654321",
-  "amount": 50000,
-  "clientReference": "TXN-123",
-  "senderPin": "5678"  # use transaction PIN
-}
-
-# Response should include:
-{
-  "recipientName": "John Doe",
-  "amount": 50000,
-  "reference": "TXN-123",
-  "timestamp": "..."
-}
-```
-
-### Test Deposit
-```bash
-POST http://localhost:3000/api/funding/deposit
-Header: Authorization: Bearer {token}
-{
-  "amount": 100000,
-  "reference": "DEP-123",
-  "paymentMethod": "card",
-  "userPin": "1234"  # use login PIN
-}
-```
-
-### Test Withdrawal
-```bash
-POST http://localhost:3000/api/funding/withdraw
-Header: Authorization: Bearer {token}
-{
-  "amount": 50000,
-  "reference": "WTH-456",
-  "userPin": "1234",           # login PIN
-  "transactionPin": "5678",    # transaction PIN
-  "bankAccountNumber": "0123456789"
-}
-```
-
-### Test Wrong PIN
-```bash
-# Try transfer with wrong PIN
-POST http://localhost:3000/api/transfers/internal
-Header: Authorization: Bearer {token}
-{
-  "recipientAccountNumber": "OVO987654321",
-  "amount": 50000,
-  "clientReference": "TXN-456",
-  "senderPin": "0000"  # wrong PIN
-}
-
-# Response: 401 Unauthorized
-{
-  "message": "Invalid transaction PIN. Please try again."
-}
-```
-
----
-
-## Key Points
-
-### PIN Rules
-| Operation | Login PIN | Transaction PIN |
-|-----------|-----------|-----------------|
-| Register | ✓ Set | ✓ Set |
-| Login | ✓ Use | ✗ Ignored |
-| Transfer | ✗ Ignored | ✓ Use |
-| Deposit | ✓ Use | ✗ Ignored |
-| Withdraw | ✓ Use | ✓ Use |
-
-### Notifications
-- Create automatically on transactions
-- Appear instantly (no page refresh)
-- Can be marked as read
-- Stored with transaction reference for tracking
-
-### Security
-- PINs validated server-side only
-- PINs never logged or exposed
-- All transactions have audit trail
-- Failed attempts are logged
-
----
-
-## Common Commands
+## 2. Restart Development Server
 
 ```bash
-# Start development server
+# Stop current server (Ctrl+C)
 npm run dev
+```
 
-# Build for production
-npm run build
+This applies:
+- ✅ 15-second Supabase timeout
+- ✅ Fixed CORS settings
+- ✅ Updated auth context
+- ✅ Improved error handling
 
-# Run TypeScript check
-npm run typecheck
+---
 
-# Format code
-npm run format
+## 3. Test Connection Health
 
-# Run linter
-npm run lint
+```bash
+# One-time test
+npm run monitor:db
+
+# Continuous monitoring (every 30s)
+npm run monitor:db:watch
+```
+
+Expected output:
+```
+✅ Health Check... OK
+✅ Query Performance... 150ms
+✅ Connection Pooling... 5 concurrent queries in 200ms
+```
+
+If you see timeouts, check:
+- Internet connection
+- Supabase project status
+- Firewall/proxy settings
+
+---
+
+## 4. Test Atomic Transfers
+
+### Setup Test
+1. Login to your app
+2. Open browser DevTools > Application > Local Storage
+3. Copy the value of `ovo-auth-token`
+4. Open `scripts/test-atomic-transfers.js`
+5. Update `TEST_CONFIG`:
+```javascript
+const TEST_CONFIG = {
+  senderToken: 'your-token-here',
+  recipientAccount: 'recipient-account-number',
+  transferAmount: 100,
+  concurrentRequests: 5
+};
+```
+
+### Run Test
+```bash
+npm run test:transfers
+```
+
+Expected output:
+```
+✅ Successful: 5
+❌ Failed: 0
+✅ Balance is correct! No race condition detected.
+✅ Duplicate prevention working correctly!
 ```
 
 ---
 
-## Files Changed Summary
+## 5. Monitor Logs
 
-| File | Status | Change |
-|------|--------|--------|
-| `src/context/notification-context.tsx` | Updated | Supabase real-time |
-| `src/lib/pin-validator.ts` | Created | PIN validation utils |
-| `src/app/api/transfers/internal/route.ts` | Updated | Add PIN validation |
-| `src/app/api/funding/deposit/route.ts` | Updated | Add PIN validation |
-| `src/app/api/funding/withdraw/route.ts` | Updated | Add dual PIN validation |
-| `docs/NOTIFICATION_AND_PIN_SYSTEM.md` | Created | Full documentation |
-| `docs/SYSTEM_ARCHITECTURE.md` | Created | Architecture diagrams |
-| `IMPLEMENTATION_CHECKLIST.md` | Created | Verification checklist |
+### Check for Connection Errors
+```bash
+# In dev server terminal, watch for:
+[AuthContext] Balance changed: 0 -> 50000
+✅ No timeout errors
+```
 
----
-
-## Database Requirement
-
-Before testing, execute migrations in Supabase:
-
-1. Open [Supabase Dashboard](https://app.supabase.com)
-2. Go to SQL Editor
-3. Copy entire contents of `docs/supabase-migrations.sql`
-4. Click RUN
-
-This creates:
-- `users` table (with PIN hash columns)
-- `notifications` table
-- `financial_transactions` table
+### Check Structured Logs
+All API routes now use structured logging:
+```json
+{
+  "level": "info",
+  "message": "Internal transfer successful",
+  "timestamp": "2025-12-26T16:30:00.000Z",
+  "meta": {
+    "userId": "...",
+    "amount": 10000,
+    "reference": "TXN_..."
+  }
+}
+```
 
 ---
 
-## Expected Behavior
+## 6. Verify Security Features
 
-### User Registration
-1. User enters phone, login PIN, transaction PIN
-2. All PINs are hashed with bcrypt
-3. User gets account number and balance
-4. Can immediately login
+### CORS
+Try accessing API from different origin:
+```bash
+curl -H "Origin: https://malicious-site.com" http://localhost:3000/api/wallet/balance
+# Should fail with CORS error
+```
 
-### User Login
-1. User enters phone and login PIN only
-2. System validates PIN against stored hash
-3. Returns JWT token and user data
-4. User is authenticated
+### Rate Limiting
+Make 6 rapid login attempts:
+```bash
+# Should get 429 after 5 attempts
+```
 
-### P2P Transfer
-1. User enters recipient account, amount, transaction PIN
-2. System validates transaction PIN
-3. System looks up recipient name for verification
-4. VFD processes payment
-5. Supabase updated with new balances
-6. Notifications created and broadcast in real-time
-7. Both users see update instantly
+### CSRF Protection
+Try POST without CSRF token:
+```bash
+curl -X POST http://localhost:3000/api/transfers/internal \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 100}'
+# Should get 403 Forbidden
+```
 
-### Real-time Notifications
-1. Transaction completed → Notification inserted in Supabase
-2. postgres_changes event triggered
-3. WebSocket broadcast to all users subscribed
-4. Frontend receives update → State updated → UI renders new notification
-5. All happens within milliseconds
+---
+
+## 7. Production Checklist
+
+Before deploying:
+
+- [ ] Migration applied to production database
+- [ ] Environment variables set in deployment platform
+- [ ] CORS origins updated in `src/middleware.ts`
+- [ ] Supabase connection pooling enabled
+- [ ] Database backups configured
+- [ ] Monitoring/alerting set up
+- [ ] Load testing completed
+- [ ] Security audit passed
 
 ---
 
 ## Troubleshooting
 
-### "Invalid transaction PIN" for correct PIN
-- **Cause:** PIN hash in database incorrect
-- **Fix:** Ensure PIN was hashed with `hashSecret()` during registration
-- **Verify:** Check bcrypt hash format in users.transaction_pin_hash
+### Connection Timeouts Still Occurring
+1. Check Supabase project status
+2. Verify environment variables are correct
+3. Test with `npm run monitor:db`
+4. Check network/firewall settings
+5. Consider using Supabase connection pooler
 
-### Notifications not appearing
-- **Cause:** WebSocket not connected
-- **Fix:** Check browser console for connection errors
-- **Verify:** Ensure user.userId is set in auth context
+### Migration Fails
+1. Check Supabase service role key is correct
+2. Verify database permissions
+3. Apply manually via SQL Editor
+4. Check for existing function conflicts
 
-### "Recipient account not found"
-- **Cause:** Recipient doesn't exist in database
-- **Fix:** Verify recipient was registered with correct account number
-- **Check:** Query Supabase: `SELECT account_number FROM users`
+### Transfers Not Atomic
+1. Verify migration was applied successfully
+2. Check function exists in database
+3. Review API route is calling `process_internal_transfer`
+4. Check database logs for errors
 
-### "Insufficient balance"
-- **Cause:** User balance in kobo less than amount in kobo
-- **Note:** Balance stored in kobo (₦0.01 units)
-- **Example:** ₦100 stored as 10000 in database
+### Rate Limiting Too Strict
+Adjust in `src/lib/middleware/rate-limit.ts`:
+```javascript
+transfer: rateLimit({
+  windowMs: 60 * 1000,
+  maxRequests: 20, // Increase this
+  message: '...'
+})
+```
 
 ---
 
-## Next Steps
+## Next Steps (Optional)
 
-1. ✅ Execute Supabase migrations
-2. ✅ Test registration with both PINs
-3. ✅ Test login with login PIN
-4. ✅ Test transfer with transaction PIN
-5. ✅ Test withdrawal with both PINs
-6. ✅ Test wrong PIN (verify 401 response)
-7. ✅ Verify notifications appear in real-time
-8. ✅ Test marking notification as read
-9. ✅ Deploy to production
+### Enable TypeScript Strict Mode
+1. Update `tsconfig.json`: `"strict": true`
+2. Fix type errors: `npm run typecheck`
+3. Commit fixes
+
+### Add Redis for Rate Limiting
+1. Install: `npm install ioredis`
+2. Update `src/lib/middleware/rate-limit.ts`
+3. Use Redis instead of in-memory Map
+
+### Implement WebSockets
+1. Replace balance polling with WebSocket
+2. Real-time balance updates
+3. Reduced server load
+
+### Add APM Monitoring
+1. Install Sentry/DataDog
+2. Track errors and performance
+3. Set up alerts
 
 ---
 
 ## Support
 
-For issues or questions:
-1. Check `docs/NOTIFICATION_AND_PIN_SYSTEM.md` for detailed docs
-2. Check `docs/SYSTEM_ARCHITECTURE.md` for architecture diagrams
-3. Check `IMPLEMENTATION_CHECKLIST.md` for troubleshooting
-4. Review error logs for specific error messages
+If you encounter issues:
+1. Check logs in dev server terminal
+2. Review `FIXES_APPLIED_2025.md`
+3. Test with monitoring scripts
+4. Check Supabase dashboard for errors
 
----
-
-**Version:** 1.0
-**Status:** ✅ Ready for Testing
-**Date:** January 15, 2024
-
+All fixes are documented in:
+- `FIXES_APPLIED_2025.md` - Complete fix summary
+- `MIGRATION_INSTRUCTIONS.md` - Migration details
+- This file - Quick start guide

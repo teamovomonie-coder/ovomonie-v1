@@ -81,9 +81,23 @@ export const rateLimits = {
   
   // Moderate limits for financial operations
   financial: rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 10, // 10 requests per minute
+    windowMs: 60 * 1000,
+    maxRequests: 10,
     message: 'Too many financial requests. Please wait a moment.',
+  }),
+  
+  // Transfer specific limits
+  transfer: rateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    message: 'Too many transfer requests. Please wait a moment.',
+  }),
+  
+  // Payment specific limits
+  payment: rateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    message: 'Too many payment requests. Please wait a moment.',
   }),
   
   // General API limits

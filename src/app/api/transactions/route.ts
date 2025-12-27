@@ -4,7 +4,7 @@ import { transactionService } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken(request.headers);
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
