@@ -2,6 +2,11 @@
 import type {NextConfig} from 'next';
 import path from 'path'
 
+// Polyfill self for SSR
+if (typeof globalThis.self === 'undefined') {
+  (globalThis as any).self = globalThis;
+}
+
 const nextConfig: NextConfig = {
   experimental: {
     instrumentationHook: true,
