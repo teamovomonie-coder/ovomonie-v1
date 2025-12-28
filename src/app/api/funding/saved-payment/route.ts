@@ -17,25 +17,41 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { cardId, amount } = body;
+    const { paymentId, paymentType, amount } = body;
 
-    if (!cardId || !amount || amount < 100) {
+    if (!paymentId || !paymentType || !amount || amount < 100) {
       return NextResponse.json({ message: 'Invalid request' }, { status: 400 });
     }
 
-    // Get saved card details
-    const { data: card, error: cardError } = await supabaseAdmin
-      .from('saved_cards')
-      .select('*')
-      .eq('id', cardId)
-      .eq('user_id', userId)
-      .single();
+    let paymentMethod;
+    if (paymentType === 'card') {
+      const { data: card, error: cardError } = await supabaseAdmin
+        .from('bank_cards')
+        .select('*')
+        .eq('id', paymentId)
+        .eq('user_id', userId)
+        .single();
 
-    if (cardError || !card) {
-      return NextResponse.json({ message: 'Card not found' }, { status: 404 });
+      if (cardError || !card) {
+        return NextResponse.json({ message: 'Card not found' }, { status: 404 });
+      }
+      paymentMethod = `card ending in ${card.card_number.slice(-4)}`;
+    } else if (paymentType === 'account') {
+      const { data: account, error: accountError } = await supabaseAdmin
+        .from('bank_accounts')
+        .select('*')
+        .eq('id', paymentId)
+        .eq('user_id', userId)
+        .single();
+
+      if (accountError || !account) {
+        return NextResponse.json({ message: 'Bank account not found' }, { status: 404 });
+      }
+      paymentMethod = `${account.bank_name} account ${account.account_number}`;
+    } else {
+      return NextResponse.json({ message: 'Invalid payment type' }, { status: 400 });
     }
 
-    // Get user's current balance
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('wallet_balance_kobo')
@@ -46,7 +62,6 @@ export async function POST(request: Request) {
 
     const newBalance = (user.wallet_balance_kobo || 0) + (amount * 100);
 
-    // Update balance
     const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({ wallet_balance_kobo: newBalance })
@@ -54,14 +69,13 @@ export async function POST(request: Request) {
 
     if (updateError) throw updateError;
 
-    // Log transaction
     await supabaseAdmin.from('transactions').insert({
       user_id: userId,
       type: 'credit',
       amount_kobo: amount * 100,
-      description: `Wallet funding via saved card ending in ${card.last4}`,
+      description: `Wallet funding via ${paymentMethod}`,
       status: 'completed',
-      reference: `saved-card-${Date.now()}`
+      reference: `saved-payment-${Date.now()}`
     });
 
     return NextResponse.json({
@@ -70,7 +84,7 @@ export async function POST(request: Request) {
       message: 'Wallet funded successfully'
     });
   } catch (error) {
-    logger.error('Error funding with saved card:', error);
+    logger.error('Error funding with saved payment:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

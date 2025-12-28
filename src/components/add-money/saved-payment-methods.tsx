@@ -67,14 +67,60 @@ export function SavedPaymentMethods() {
     setProcessingId(cardId);
     try {
       const token = localStorage.getItem('ovo-auth-token');
-      const response = await fetch('/api/funding/saved-card', {
+      const response = await fetch('/api/funding/saved-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          cardId,
+          paymentId: cardId,
+          paymentType: 'card',
+          amount: parseFloat(amount)
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment failed');
+      }
+
+      await syncBalance();
+      toast({
+        title: 'Success',
+        description: `₦${parseFloat(amount).toLocaleString()} added to your wallet`
+      });
+      setAmount('');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Payment failed'
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleFundWithAccount = async (accountId: string) => {
+    if (!amount || parseFloat(amount) < 100) {
+      toast({ variant: 'destructive', title: 'Invalid Amount', description: 'Minimum amount is ₦100' });
+      return;
+    }
+
+    setProcessingId(accountId);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const response = await fetch('/api/funding/saved-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          paymentId: accountId,
+          paymentType: 'account',
           amount: parseFloat(amount)
         })
       });
@@ -221,13 +267,26 @@ export function SavedPaymentMethods() {
                     <p className="text-sm text-muted-foreground">{account.accountNumber} • {account.accountName}</p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleDeleteAccount(account.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleFundWithAccount(account.id)}
+                    disabled={processingId === account.id}
+                  >
+                    {processingId === account.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Use'
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteAccount(account.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
