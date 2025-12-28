@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node -r ./self-polyfill.js node_modules/next/dist/bin/next build",
     "build:analyze": "cross-env ANALYZE=true next build",
     "build:check": "npm run lint:fix && npm run build",
     "build:force": "next build --no-lint",
