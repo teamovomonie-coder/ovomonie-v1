@@ -1,7 +1,7 @@
 -- Create invoices table
 CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   invoice_number TEXT NOT NULL,
   from_name TEXT NOT NULL,
   from_address TEXT,
@@ -35,16 +35,16 @@ DROP POLICY IF EXISTS "Users can delete their own invoices" ON invoices;
 -- RLS Policies
 CREATE POLICY "Users can view their own invoices"
   ON invoices FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
 
 CREATE POLICY "Users can create their own invoices"
   ON invoices FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
 
 CREATE POLICY "Users can update their own invoices"
   ON invoices FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
 
 CREATE POLICY "Users can delete their own invoices"
   ON invoices FOR DELETE
-  USING (auth.uid() = user_id);
+  USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');

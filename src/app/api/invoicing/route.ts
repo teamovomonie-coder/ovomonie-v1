@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
+        logger.info('Creating invoice with data:', { userId, body });
 
         if (!body.invoiceNumber || !body.toName) {
             return NextResponse.json({ message: 'Missing required invoice fields.' }, { status: 400 });
@@ -83,13 +84,18 @@ export async function POST(request: Request) {
             logo: body.logo || null,
         };
 
+        logger.info('Inserting invoice:', newInvoice);
+
         const { data: createdInvoice, error } = await supabaseAdmin
             .from('invoices')
             .insert(newInvoice)
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error('Supabase error:', error);
+            throw error;
+        }
 
         const mapped = {
             id: createdInvoice.id,
@@ -111,6 +117,9 @@ export async function POST(request: Request) {
         return NextResponse.json(mapped, { status: 201 });
     } catch (error) {
         logger.error("Error creating invoice:", error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ 
+            message: 'Internal Server Error', 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+        }, { status: 500 });
     }
 }
