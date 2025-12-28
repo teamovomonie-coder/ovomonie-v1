@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import { getUserIdFromToken } from '@/lib/supabase-helpers';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getUserIdFromToken();
+    const reqHeaders = req.headers as { get(name: string): string | null };
+    const userId = getUserIdFromToken(reqHeaders);
+    
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: accounts, error: accountsError } = await supabase
+    if (!supabaseAdmin) {
+      return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+    }
+
+    const { data: accounts, error: accountsError } = await supabaseAdmin
       .from('bank_accounts')
       .select('id, bank_name, account_number, account_name, verified_at')
       .eq('user_id', userId)
       .eq('is_active', true);
 
-    const { data: cards, error: cardsError } = await supabase
+    const { data: cards, error: cardsError } = await supabaseAdmin
       .from('bank_cards')
       .select('id, card_number, card_type, expiry_date, cardholder_name, verified_at')
       .eq('user_id', userId)
