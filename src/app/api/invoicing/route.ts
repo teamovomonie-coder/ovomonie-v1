@@ -37,6 +37,7 @@ export async function GET(request: Request) {
             lineItems: inv.line_items,
             notes: inv.notes,
             status: inv.status,
+            logo: inv.logo,
             client: inv.to_name
         }));
 
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
             line_items: body.lineItems || [],
             notes: body.notes || null,
             status: body.status || 'Draft',
+            logo: body.logo || null,
         };
 
         const { data: createdInvoice, error } = await supabaseAdmin
@@ -102,6 +104,7 @@ export async function POST(request: Request) {
             lineItems: createdInvoice.line_items,
             notes: createdInvoice.notes,
             status: createdInvoice.status,
+            logo: createdInvoice.logo,
             client: createdInvoice.to_name
         };
 

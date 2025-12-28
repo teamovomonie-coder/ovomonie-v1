@@ -42,6 +42,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             line_items: body.lineItems || [],
             notes: body.notes || null,
             status: body.status || 'Draft',
+            logo: body.logo || null,
             updated_at: new Date().toISOString()
         };
 
@@ -67,6 +68,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             lineItems: updatedInvoice.line_items,
             notes: updatedInvoice.notes,
             status: updatedInvoice.status,
+            logo: updatedInvoice.logo,
             client: updatedInvoice.to_name
         };
 

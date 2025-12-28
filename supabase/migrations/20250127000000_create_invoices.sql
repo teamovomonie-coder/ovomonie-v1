@@ -13,18 +13,24 @@ CREATE TABLE IF NOT EXISTS invoices (
   line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
   notes TEXT,
   status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Unpaid', 'Paid', 'Overdue')),
-  client_reference TEXT,
+  logo TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Create index for faster queries
-CREATE INDEX idx_invoices_user_id ON invoices(user_id);
-CREATE INDEX idx_invoices_status ON invoices(status);
-CREATE INDEX idx_invoices_invoice_number ON invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
 
 -- Enable RLS
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
+DROP POLICY IF EXISTS "Users can create their own invoices" ON invoices;
+DROP POLICY IF EXISTS "Users can update their own invoices" ON invoices;
+DROP POLICY IF EXISTS "Users can delete their own invoices" ON invoices;
 
 -- RLS Policies
 CREATE POLICY "Users can view their own invoices"

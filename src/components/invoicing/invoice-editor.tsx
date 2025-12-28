@@ -35,7 +35,7 @@ export const invoiceSchema = z.object({
   dueDate: z.date(),
   lineItems: z.array(lineItemSchema).min(1, 'At least one item is required.'),
   notes: z.string().optional(),
-  logo: z.any().optional(),
+  logo: z.string().optional(),
 });
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>;
