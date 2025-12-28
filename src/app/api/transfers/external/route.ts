@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 5.5. Validate payment restrictions
-        const validation = await validatePayment(userId, transferAmountInKobo, recipientName, narration);
+        const validation = await validatePayment(userId, transferAmountInKobo, recipientName, narration, 'transfer');
         if (!validation.allowed) {
             return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
         }

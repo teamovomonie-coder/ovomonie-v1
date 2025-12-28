@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         const amountKobo = Math.round(amount * 100);
 
         // Validate payment restrictions
-        const validation = await validatePayment(userId, amountKobo, recipientAccountNumber, narration);
+        const validation = await validatePayment(userId, amountKobo, recipientAccountNumber, narration, 'transfer');
         if (!validation.allowed) {
             return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
         }

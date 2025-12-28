@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate payment restrictions
-    const validation = await validatePayment(userId, amountKobo, billerName || billerId, category);
+    const validation = await validatePayment(userId, amountKobo, billerName || billerId, category, 'online');
     if (!validation.allowed) {
       return NextResponse.json({ message: validation.reason }, { status: 403 });
     }

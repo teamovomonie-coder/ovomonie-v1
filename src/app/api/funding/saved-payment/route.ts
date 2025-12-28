@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import { validatePayment } from '@/lib/payment-validator';
 
 export async function POST(request: Request) {
   try {
@@ -59,6 +60,12 @@ export async function POST(request: Request) {
       .single();
 
     if (userError) throw userError;
+
+    // Validate payment restrictions for online payment
+    const validation = await validatePayment(userId, amount * 100, paymentMethod, 'Wallet funding', 'online');
+    if (!validation.allowed) {
+      return NextResponse.json({ message: validation.reason }, { status: 403 });
+    }
 
     const newBalance = (user.wallet_balance_kobo || 0) + (amount * 100);
 
