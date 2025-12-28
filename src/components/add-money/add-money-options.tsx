@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import QRCode from 'qrcode';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -477,6 +477,9 @@ function FundWithQr() {
         };
         
         try {
+            // Dynamic import to avoid SSR issues
+            const QRCode = (await import('qrcode')).default;
+            
             // Create URL that redirects to scan-qr page with encoded data
             const encodedData = encodeURIComponent(JSON.stringify(payload));
             const paymentUrl = `https://ovomonie-v1.vercel.app/scan-qr?data=${encodedData}`;
