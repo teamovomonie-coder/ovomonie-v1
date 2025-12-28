@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const result = await vfdWallet.getAccountEnquiry();
 
     if (!result.ok || !result.data) {
+      console.error('[Bank Transfer API] Failed to get account enquiry:', result);
       return NextResponse.json(
         { error: 'Unable to get transfer details', details: result.message },
         { status: 500 }

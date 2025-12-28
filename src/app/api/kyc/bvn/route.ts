@@ -1,6 +1,6 @@
 /**
- * NIN Verification API
- * Verifies National Identity Number and retrieves user details
+ * BVN Verification API
+ * Verifies Bank Verification Number and retrieves user details
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
   try {
     const userId = getUserIdFromToken(req.headers) || 'dev-user-fallback';
 
-    const { nin } = await req.json();
+    const { bvn } = await req.json();
 
-    if (!nin || nin.length !== 11) {
+    if (!bvn || bvn.length !== 11) {
       return NextResponse.json(
-        { ok: false, message: 'Valid 11-digit NIN is required' },
+        { ok: false, message: 'Valid 11-digit BVN is required' },
         { status: 400 }
       );
     }
@@ -27,44 +27,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
     }
 
-    let ninResult;
+    let bvnResult;
     try {
-      // Try VFD NIN verification
-      ninResult = await vfdWalletService.verifyNIN({
+      // Try VFD BVN verification
+      bvnResult = await vfdWalletService.verifyBVN({
         accountNumber: user.account_number || 'DEV-ACCOUNT',
-        nin,
+        bvn,
       });
     } catch (error) {
-      logger.warn('VFD NIN verification failed, using mock verification', { error });
-      // Mock NIN verification for development
-      ninResult = {
+      logger.warn('VFD BVN verification failed, using mock verification', { error });
+      // Mock BVN verification for development
+      bvnResult = {
         verified: true,
         data: {
           firstName: 'John',
           lastName: 'Doe',
           middleName: 'Smith',
           dateOfBirth: '1990-01-01',
-          gender: 'Male',
-          nin: nin,
+          bvn: bvn,
           phone: user.phone || '08012345678'
         },
-        message: 'NIN verified successfully (development mode)'
+        message: 'BVN verified successfully (development mode)'
       };
     }
 
-    logger.info('NIN verification completed', {
+    logger.info('BVN verification completed', {
       userId,
-      verified: ninResult.verified,
+      verified: bvnResult.verified,
     });
 
     return NextResponse.json({
       ok: true,
-      data: ninResult,
+      data: bvnResult,
     });
   } catch (error: any) {
-    logger.error('NIN verification error', { error: error.message });
+    logger.error('BVN verification error', { error: error.message });
     return NextResponse.json(
-      { ok: false, message: error.message || 'NIN verification failed' },
+      { ok: false, message: error.message || 'BVN verification failed' },
       { status: 500 }
     );
   }

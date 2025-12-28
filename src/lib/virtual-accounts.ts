@@ -3,16 +3,7 @@
  * Handles VFD virtual account creation, mapping, and reconciliation
  */
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 import { supabaseAdmin } from './supabase';
-import { VirtualAccountRequest } from './vfd-wallet';
-=======
-import { supabase } from './supabase';
->>>>>>> origin/supabase/remove-firebase
-=======
-import { supabaseAdmin } from './supabase';
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
 import { logger } from './logger';
 
 // Types
@@ -285,38 +276,7 @@ export async function initiateOutboundTransfer(
       return { success: false, error: 'Failed to process transfer' };
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    const { executeVFDTransfer } = await import('./vfd-transfer');
-    const vfdResult = await executeVFDTransfer(
-      amount,
-      recipientAccount,
-      recipientBank,
-      narration,
-      reference
-    );
-
-    if (vfdResult.success) {
-      await supabaseAdmin
-        .from('wallet_transactions')
-        .update({ 
-          status: 'completed',
-          vfd_transaction_id: vfdResult.sessionId
-        })
-        .eq('reference', reference);
-
-      logger.info('Outbound transfer completed', { userId, amount, reference });
-      return { success: true, reference };
-    } else {
-      await supabaseAdmin.rpc('refund_failed_transfer', {
-        p_user_id: userId,
-        p_amount: amount,
-        p_reference: reference
-      });
-=======
     // Execute VFD transfer - dynamic import to avoid circular dependency
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     try {
       const { executeVFDTransfer } = await import('./vfd-transfer');
       const vfdResult = await executeVFDTransfer(
@@ -344,10 +304,6 @@ export async function initiateOutboundTransfer(
           p_amount: amount,
           p_reference: reference
         });
-<<<<<<< HEAD
->>>>>>> origin/supabase/remove-firebase
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
 
         logger.error('VFD transfer failed, refunded user', {
           userId,

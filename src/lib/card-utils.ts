@@ -17,8 +17,8 @@ export interface CardInfo {
 
 // Card brand detection patterns
 const CARD_PATTERNS: { brand: CardBrand; pattern: RegExp; cvvLength: number; lengths: number[]; gaps: number[] }[] = [
-  // Verve (Nigerian cards) - starts with 506099, 507850, 507865, 507866, 507867, 507868, 507869, 650002-650027
-  { brand: 'verve', pattern: /^(506099|507850|50786[5-9]|650002|650010|650011|65002[0-7]|5061)/, cvvLength: 3, lengths: [16, 18, 19], gaps: [4, 8, 12, 16] },
+  // Verve (Nigerian cards) - comprehensive patterns
+  { brand: 'verve', pattern: /^(506099|507850|50786[5-9]|650002|650010|650011|65002[0-7]|5061|506[01])/, cvvLength: 3, lengths: [16, 18, 19], gaps: [4, 8, 12, 16] },
   
   // Visa - starts with 4
   { brand: 'visa', pattern: /^4/, cvvLength: 3, lengths: [13, 16, 19], gaps: [4, 8, 12] },
@@ -174,22 +174,10 @@ export function validateExpiry(expiry: string): { isValid: boolean; isExpired: b
   if (year < currentYear || (year === currentYear && month < currentMonth)) {
     return { isValid: false, isExpired: true, message: 'Card has expired' };
   }
-<<<<<<< HEAD
-  
-<<<<<<< HEAD
-  // Card valid for max 50 years from now (to support test cards)
-  if (year > currentYear + 50) {
-=======
-  // Card valid for max 20 years from now (or 50 years in dev mode)
-  const maxYears = isDev ? 50 : 20;
-  if (year > currentYear + maxYears) {
->>>>>>> origin/supabase/remove-firebase
-=======
 
   // Card valid for max 20 years from now (or 50 years in dev mode)
   const maxYears = isDev ? 50 : 20;
   if (year > currentYear + maxYears) {
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     return { isValid: false, isExpired: false, message: 'Invalid expiry year' };
   }
   

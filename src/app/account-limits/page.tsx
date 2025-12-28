@@ -278,15 +278,24 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
       const response = await fetch('/api/kyc/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...formData, newTier: tier }),
+        body: JSON.stringify({ 
+          tier: tier,
+          bvn: formData.bvn,
+          nin: formData.nin,
+          documentType: formData.cacNumber ? 'CAC' : undefined,
+          documentNumber: formData.cacNumber,
+          ...formData
+        }),
       });
 
-      if (!response.ok) throw new Error('Upgrade failed');
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.message || 'Upgrade failed');
       
-      toast({ title: 'Upgrade Submitted', description: 'Your KYC upgrade is under review.' });
+      toast({ title: 'Upgrade Successful', description: result.message });
       onOpenChange(false);
+      window.location.reload(); // Refresh to show new tier
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to submit upgrade request.' });
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to submit upgrade request.' });
     } finally {
       setIsLoading(false);
     }
@@ -296,7 +305,7 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
     switch (tier) {
       case 2:
         return [
-          { name: 'bvn', label: 'Bank Verification Number (BVN)', type: 'text', placeholder: '11-digit BVN', component: 'input' },
+          { name: 'bvn', label: 'Bank Verification Number (BVN)', type: 'text', placeholder: '11-digit BVN' },
           { name: 'selfie', label: 'Live Selfie Capture', type: 'custom', component: 'selfie' },
           { name: 'phone', label: 'Phone Number Verification', type: 'custom', component: 'otp' }
         ];
@@ -308,12 +317,12 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
         ];
       case 4:
         return [
-          { name: 'cacNumber', label: 'CAC Registration Number', type: 'text', placeholder: 'RC123456', component: 'input' },
-          { name: 'businessDocs', label: 'Business Documents', type: 'file', accept: 'application/pdf', component: 'input' },
-          { name: 'businessOwner', label: 'Business Owner Name', type: 'text', placeholder: 'Full name of business owner', component: 'input' },
-          { name: 'directorName', label: 'Director Name', type: 'text', placeholder: 'Full name', component: 'input' },
-          { name: 'directorId', label: 'Director ID', type: 'file', accept: 'image/*,application/pdf', component: 'input' },
-          { name: 'businessAddress', label: 'Proof of Business Address', type: 'file', accept: 'image/*,application/pdf', component: 'input' }
+          { name: 'cacNumber', label: 'CAC Registration Number', type: 'text', placeholder: 'RC123456' },
+          { name: 'businessDocs', label: 'Business Documents', type: 'file', accept: 'application/pdf' },
+          { name: 'businessOwner', label: 'Business Owner Name', type: 'text', placeholder: 'Full name of business owner' },
+          { name: 'directorName', label: 'Director Name', type: 'text', placeholder: 'Full name' },
+          { name: 'directorId', label: 'Director ID', type: 'file', accept: 'image/*,application/pdf' },
+          { name: 'businessAddress', label: 'Proof of Business Address', type: 'file', accept: 'image/*,application/pdf' }
         ];
       default:
         return [];
@@ -368,6 +377,7 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
                   type={field.type}
                   placeholder={field.placeholder}
                   accept={field.accept}
+                  value={formData[field.name] || ''}
                   onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                   required
                 />

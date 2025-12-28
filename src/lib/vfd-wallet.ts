@@ -11,23 +11,84 @@ function getWalletBase(): string {
   return process.env.VFD_WALLET_API_BASE || VFD_WALLET_TEST_BASE;
 }
 
-function getAccessToken(): string | null {
-  const token = process.env.VFD_ACCESS_TOKEN?.trim();
-  if (token && token.length > 20) {
-    return token;
+// Token cache
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getAccessToken(forceRefresh: boolean = false): Promise<string | null> {
+  const envToken = process.env.VFD_ACCESS_TOKEN?.trim();
+  if (envToken && envToken.length > 20 && !envToken.includes('your_') && !envToken.includes('placeholder') && !forceRefresh) {
+    return envToken;
   }
-  return null;
+
+  if (!forceRefresh && cachedToken && Date.now() < cachedToken.expiresAt - 60000) {
+    return cachedToken.token;
+  }
+
+  if (forceRefresh) {
+    cachedToken = null;
+  }
+
+  const key = process.env.VFD_CONSUMER_KEY;
+  const secret = process.env.VFD_CONSUMER_SECRET;
+  const tokenUrl = process.env.VFD_TOKEN_URL || 'https://api-devapps.vfdbank.systems/vfd-tech/baas-portal/v1.1/baasauth/token';
+
+  if (!key || !secret) {
+    return envToken || null;
+  }
+
+  try {
+    const basic = Buffer.from(`${key}:${secret}`).toString('base64');
+    const res = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${basic}`,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        consumerKey: key,
+        consumerSecret: secret,
+        validityTime: '3600'
+      }),
+    });
+
+    const data = await res.json();
+    const token = data?.data?.access_token || data?.access_token || data?.AccessToken || data?.token;
+    const expiresIn = Number(data?.data?.expires_in || data?.expires_in || 3600) || 3600;
+
+    if (token && res.ok) {
+      cachedToken = { token, expiresAt: Date.now() + expiresIn * 1000 };
+      return token;
+    }
+
+    return envToken || null;
+  } catch (err) {
+    return envToken || null;
+  }
 }
 
-function getHeaders(): Record<string, string> {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error('VFD_ACCESS_TOKEN not configured');
+async function getHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  
+  if (token) {
+    return {
+      'AccessToken': token,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
   }
-  return {
-    'AccessToken': token,
-    'Content-Type': 'application/json',
-  };
+  
+  const key = process.env.VFD_CONSUMER_KEY;
+  const secret = process.env.VFD_CONSUMER_SECRET;
+  if (key && secret) {
+    const basic = Buffer.from(`${key}:${secret}`).toString('base64');
+    return {
+      'Authorization': `Basic ${basic}`,
+      'Content-Type': 'application/json',
+    };
+  }
+  
+  return { 'Content-Type': 'application/json' };
 }
 
 // ============= Types =============
@@ -157,24 +218,37 @@ export async function getAccountEnquiry(accountNumber?: string): Promise<{
   data?: AccountDetails;
   message?: string;
 }> {
-  try {
+  const makeRequest = async (forceRefresh: boolean = false) => {
+    const headers = await getHeaders();
+    if (!headers.Authorization) {
+      return { ok: false, message: 'VFD credentials not configured' };
+    }
+    
     const url = accountNumber 
       ? `${getWalletBase()}/account/enquiry?accountNumber=${accountNumber}`
       : `${getWalletBase()}/account/enquiry`;
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
-
+    const response = await fetch(url, { method: 'GET', headers });
     const result = await response.json();
+    
+    // If 403 and token error, try refresh
+    if (response.status === 403 && result.message?.toLowerCase().includes('token') && !forceRefresh) {
+      console.log('[VFD Wallet] Token invalid, refreshing...');
+      await getAccessToken(true);
+      return makeRequest(true);
+    }
     
     if (result.status === '00') {
       return { ok: true, data: result.data };
     }
     
     return { ok: false, message: result.message || 'Failed to get account details' };
+  };
+
+  try {
+    return await makeRequest();
   } catch (error) {
+    console.error('[VFD Wallet] getAccountEnquiry error:', error);
     return { ok: false, message: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -190,7 +264,7 @@ export async function getBankList(): Promise<{
   try {
     const response = await fetch(`${getWalletBase()}/bank`, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
 
     const result = await response.json();
@@ -222,7 +296,7 @@ export async function getTransferRecipient(
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
 
     const result = await response.json();
@@ -253,7 +327,7 @@ export async function createVirtualAccount(
   try {
     const response = await fetch(`${getWalletBase()}/virtualaccount`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -277,7 +351,7 @@ export async function updateVirtualAccountAmount(
   try {
     const response = await fetch(`${getWalletBase()}/virtualaccount/amountupdate`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify({ reference, amount }),
     });
 
@@ -299,7 +373,7 @@ export async function initiateTransfer(
   try {
     const response = await fetch(`${getWalletBase()}/transfer`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -325,7 +399,7 @@ export async function getTransactionStatus(
     
     const response = await fetch(`${getWalletBase()}/transactions?${params}`, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
 
     return await response.json();
@@ -361,7 +435,7 @@ export async function getAccountTransactions(
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
 
     const result = await response.json();
@@ -387,7 +461,7 @@ export async function simulateCredit(request: CreditRequest): Promise<{
   try {
     const response = await fetch(`${getWalletBase()}/credit`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -428,7 +502,7 @@ export async function getVirtualAccountTransactions(
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
 
     const result = await response.json();
@@ -453,7 +527,7 @@ export async function retriggerWebhook(
   try {
     const response = await fetch(`${getWalletBase()}/transactions/repush`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify({
         transactionId: identifier.transactionId || '',
         sessionId: identifier.sessionId || '',

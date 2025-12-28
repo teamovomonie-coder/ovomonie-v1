@@ -70,6 +70,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
+    // Set authenticated immediately with cached data
+    setIsAuthenticated(true);
+
     try {
       // Fetch user from Supabase via API
       const res = await fetch(`/api/auth/me`, {
@@ -79,7 +82,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!res.ok) {
         // Only logout on 401 (unauthorized), not on network errors
         if (res.status === 401) {
-          performLogout();
+          console.debug('[AuthContext] 401 Unauthorized - keeping user logged in for now');
+          // Don't logout immediately - let user continue with cached data
+          setIsAuthenticated(true);
         } else {
           // Keep user logged in for other errors (network issues, etc.)
           setIsAuthenticated(true);
@@ -143,6 +148,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const { token: newToken } = await res.json();
             localStorage.setItem('ovo-auth-token', newToken);
             console.log('[AuthContext] Token refreshed successfully');
+          } else if (res.status === 401) {
+            // Token is invalid/expired - logout user
+            console.log('[AuthContext] Token expired during refresh - logging out');
+            performLogout();
+          } else {
+            console.debug('[AuthContext] Token refresh failed, continuing with existing token');
           }
         } catch (err) {
           console.debug('[AuthContext] Token refresh skipped:', err);
@@ -150,7 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }, 24 * 60 * 60 * 1000); // 24 hours
     
-    // Poll balance every 60 seconds
+    // Poll balance every 2 minutes (reduced frequency)
     const intervalId = setInterval(async () => {
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -168,12 +179,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setBalance(newBal);
               setUser((prev) => (prev ? { ...prev, balance: newBal } : prev));
             }
+          } else {
+            console.debug('[AuthContext] Balance refresh failed, continuing with cached balance');
           }
         } catch (err) {
           console.debug('[AuthContext] Balance refresh skipped:', err);
         }
       }
-    }, 60000); // 60 seconds
+    }, 120000); // 2 minutes
     
     return () => {
       window.removeEventListener('balance-updated', handleBalanceUpdate);

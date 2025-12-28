@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Image from 'next/image';
+import QRCode from 'qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -466,18 +466,36 @@ function FundWithQr() {
     }, [qrData]);
 
 
-    const generateQr = (data: z.infer<typeof qrSchema>) => {
+    const generateQr = async (data: z.infer<typeof qrSchema>) => {
         const amount = data.amount && data.amount > 0 ? data.amount : undefined;
         const payload = {
+            type: 'ovomonie-funding',
             accountNumber: user?.accountNumber,
             accountName: user?.fullName,
             amount,
+            timestamp: Date.now()
         };
-        const qrText = encodeURIComponent(JSON.stringify(payload));
-        const url = `https://placehold.co/256x256.png?text=Scan%20Me`;
-        const expiry = amount ? Date.now() + 5 * 60 * 1000 : 0;
-        setQrData({ url, amount, expiry });
-        if (expiry) setTimeLeft(300);
+        
+        try {
+            // Create URL that redirects to scan-qr page with encoded data
+            const encodedData = encodeURIComponent(JSON.stringify(payload));
+            const paymentUrl = `https://ovomonie-v1.vercel.app/scan-qr?data=${encodedData}`;
+            
+            const qrDataUrl = await QRCode.toDataURL(paymentUrl, {
+                width: 256,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            });
+            
+            const expiry = amount ? Date.now() + 5 * 60 * 1000 : 0;
+            setQrData({ url: qrDataUrl, amount, expiry });
+            if (expiry) setTimeLeft(300);
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+        }
     };
 
     if (qrData) {
@@ -485,17 +503,40 @@ function FundWithQr() {
         const seconds = timeLeft % 60;
         return (
             <div className="text-center space-y-4">
-                <p>Let others scan this QR code to fund your wallet.</p>
-                <div className="bg-white p-4 inline-block rounded-lg shadow-md">
-                    <Image src={qrData.url} alt="Funding QR Code" width={256} height={256} data-ai-hint="qr code" />
-                </div>
-                {qrData.amount && <p className="text-2xl font-bold">Amount: ₦{qrData.amount.toLocaleString()}</p>}
+                <p className="text-sm text-muted-foreground">Share this QR code to receive funds</p>
+                
+                <Card className="inline-block">
+                    <CardContent className="p-6 space-y-4">
+                        <div className="bg-white p-4 rounded-lg shadow-md">
+                            <img src={qrData.url} alt="Funding QR Code" width={256} height={256} className="rounded" />
+                        </div>
+                        
+                        <div className="space-y-2 text-left">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Account Name</span>
+                                <span className="font-semibold">{user?.fullName}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Account Number</span>
+                                <span className="font-mono">{user?.accountNumber}</span>
+                            </div>
+                            {qrData.amount && (
+                                <div className="flex justify-between text-sm pt-2 border-t">
+                                    <span className="text-muted-foreground">Amount</span>
+                                    <span className="text-xl font-bold">₦{qrData.amount.toLocaleString()}</span>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {qrData.expiry > 0 && (
                     <div className="flex items-center justify-center gap-2 font-mono text-destructive p-2 bg-destructive/10 rounded-md">
                         <Timer className="w-5 h-5" />
-                        <span>Code expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
+                        <span>Expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
                     </div>
                 )}
+                
                 <Button onClick={() => { setQrData(null); form.reset(); }} className="w-full">Generate New Code</Button>
             </div>
         );

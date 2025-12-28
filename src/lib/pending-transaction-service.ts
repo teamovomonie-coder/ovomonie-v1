@@ -82,6 +82,14 @@ class PendingTransactionService {
    */
   async createPending(data: ReceiptData): Promise<{ ok: boolean; data?: unknown; message?: string }> {
     try {
+      // Check if user is authenticated before attempting create
+      const token = this.getAuthToken();
+      if (!token) {
+        console.debug('[PendingTransactionService] No auth token, using localStorage fallback');
+        this.setLocalStorage(data);
+        return { ok: false, message: 'Not authenticated, using local storage' };
+      }
+
       const response = await this.fetchWithAuth(this.baseUrl, {
         method: 'POST',
         body: JSON.stringify({
@@ -96,7 +104,7 @@ class PendingTransactionService {
 
       return await response.json();
     } catch (error) {
-      console.error('[PendingTransactionService] Create error:', error);
+      console.debug('[PendingTransactionService] Create error:', error);
       // Fallback to localStorage if API fails
       this.setLocalStorage(data);
       return { ok: false, message: 'Failed to save to database, using local storage' };
@@ -108,6 +116,13 @@ class PendingTransactionService {
    */
   async getLatest(): Promise<ReceiptData | null> {
     try {
+      // Check if user is authenticated before attempting database fetch
+      const token = this.getAuthToken();
+      if (!token) {
+        console.debug('[PendingTransactionService] No auth token, using localStorage fallback');
+        return this.getFromLocalStorage();
+      }
+
       const response = await this.fetchWithAuth(`${this.baseUrl}?latest=true`);
       const result = await response.json();
       
@@ -188,13 +203,24 @@ class PendingTransactionService {
    */
   async deletePending(reference: string): Promise<{ ok: boolean; message?: string }> {
     try {
+      // Check if user is authenticated before attempting delete
+      const token = this.getAuthToken();
+      if (!token) {
+        console.debug('[PendingTransactionService] No auth token, skipping database delete');
+        return { ok: true, message: 'Skipped database delete - not authenticated' };
+      }
+
       const response = await this.fetchWithAuth(`${this.baseUrl}?reference=${encodeURIComponent(reference)}`, {
         method: 'DELETE',
       });
 
       return await response.json();
     } catch (error) {
-      console.error('[PendingTransactionService] Delete error:', error);
+      console.debug('[PendingTransactionService] Delete error:', error);
+      // Don't treat auth errors as failures - just skip the delete
+      if (error instanceof Error && error.message === 'Not authenticated') {
+        return { ok: true, message: 'Skipped database delete - not authenticated' };
+      }
       return { ok: false, message: 'Failed to delete' };
     }
   }
