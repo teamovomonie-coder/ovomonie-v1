@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { userService, transactionService, notificationService } from '@/lib/db';
 import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { getVFDAccessToken } from '@/lib/vfd-auth';
+import { validatePayment } from '@/lib/payment-validator';
 
 /**
  * Check VFD API connectivity before processing transfers
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
         // 5. Check sufficient balance
         if (sender.balance < transferAmountInKobo) {
             return NextResponse.json({ ok: false, message: 'Insufficient funds.' }, { status: 400 });
+        }
+
+        // 5.5. Validate payment restrictions
+        const validation = await validatePayment(userId, transferAmountInKobo, recipientName, narration);
+        if (!validation.allowed) {
+            return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
         }
 
         // 6. Check VFD API connectivity

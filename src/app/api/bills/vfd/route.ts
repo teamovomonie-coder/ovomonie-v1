@@ -8,6 +8,7 @@ import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { vfdBillsService, type BillPaymentRequest } from '@/lib/vfd-bills-service';
 import { db, userService, transactionService, notificationService } from '@/lib/db';
+import { validatePayment } from '@/lib/payment-validator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -155,6 +156,12 @@ export async function POST(request: NextRequest) {
     const amountKobo = Number(amount) * 100;
     if (user.balance < amountKobo) {
       return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+    }
+
+    // Validate payment restrictions
+    const validation = await validatePayment(userId, amountKobo, billerName || billerId, category);
+    if (!validation.allowed) {
+      return NextResponse.json({ message: validation.reason }, { status: 403 });
     }
 
     const newBalance = user.balance - amountKobo;

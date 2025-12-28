@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
+import { validatePayment } from '@/lib/payment-validator';
 import { z } from 'zod';
 
 const transferSchema = z.object({
@@ -41,6 +42,12 @@ export async function POST(request: NextRequest) {
 
         // Convert to kobo
         const amountKobo = Math.round(amount * 100);
+
+        // Validate payment restrictions
+        const validation = await validatePayment(userId, amountKobo, recipientAccountNumber, narration);
+        if (!validation.allowed) {
+            return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
+        }
 
         // Use database transaction to ensure atomicity
         const { data, error } = await supabaseAdmin.rpc('process_internal_transfer', {
