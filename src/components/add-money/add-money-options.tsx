@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle, Timer } from 'lucide-react';
+import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle, Timer, Wallet } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/context/notification-context';
 import { VFDCardPayment } from './vfd-card-payment';
 import { QRGenerator } from './qr-generator';
+import { SavedPaymentMethods } from './saved-payment-methods';
 
 // --- Mock Agent Data ---
 const mockAgents = {
@@ -601,14 +602,16 @@ function FundWithAgent() {
 // --- Main Component ---
 export function AddMoneyOptions() {
   return (
-    <Tabs defaultValue="bank" className="w-full">
-      <TabsList className="grid w-full grid-cols-5 h-auto">
+    <Tabs defaultValue="saved" className="w-full">
+      <TabsList className="grid w-full grid-cols-6 h-auto">
+        <TabsTrigger value="saved" className="flex-col sm:flex-row h-16 sm:h-10"><Wallet className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Saved</TabsTrigger>
         <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Bank</TabsTrigger>
         <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Card</TabsTrigger>
         <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />USSD</TabsTrigger>
-        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR Code</TabsTrigger>
+        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR</TabsTrigger>
         <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Agent</TabsTrigger>
       </TabsList>
+      <TabsContent value="saved" className="pt-6"><SavedPaymentMethods /></TabsContent>
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
       <TabsContent value="card" className="pt-6"><VFDCardPayment /></TabsContent>
       <TabsContent value="ussd" className="pt-6"><FundWithUssd /></TabsContent>
