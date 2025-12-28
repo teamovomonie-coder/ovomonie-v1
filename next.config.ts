@@ -62,7 +62,22 @@ const nextConfig: NextConfig = {
     ];
   },
   webpack(config, { isServer }) {
-    if (!isServer) {
+    if (isServer) {
+      config.resolve = config.resolve || {}
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        genkit: path.resolve(__dirname, 'src/__mocks__/genkit-client-stub.js'),
+        '@genkit-ai/googleai': path.resolve(__dirname, 'src/__mocks__/genkit-googleai-stub.js'),
+      }
+      
+      // Define self for server-side
+      const webpack = require('webpack');
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          'self': 'globalThis',
+        })
+      );
+    } else {
       config.resolve = config.resolve || {}
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
