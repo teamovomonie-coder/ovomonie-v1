@@ -6,6 +6,7 @@ import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import BackButton from '@/components/layout/back-button';
 import OfflineBannerWrapper from '@/components/layout/offline-banner-wrapper';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 export const metadata: Metadata = {
   title: 'OVOMONIE',
@@ -25,14 +26,16 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <OfflineBannerWrapper />
-        <AuthProvider>
-          <BackButton />
-          <NotificationProvider>
-            {children}
-            <Toaster />
-          </NotificationProvider>
-        </AuthProvider>
+        <ErrorBoundary>
+          <OfflineBannerWrapper />
+          <AuthProvider>
+            <BackButton />
+            <NotificationProvider>
+              {children}
+              <Toaster />
+            </NotificationProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
