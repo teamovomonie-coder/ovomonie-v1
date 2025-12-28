@@ -23,17 +23,17 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         
         // Validate input
-        const validation = transferSchema.safeParse(body);
-        if (!validation.success) {
+        const inputValidation = transferSchema.safeParse(body);
+        if (!inputValidation.success) {
             return NextResponse.json({ 
                 ok: false, 
                 message: 'Invalid request data',
-                errors: validation.error.flatten().fieldErrors
+                errors: inputValidation.error.flatten().fieldErrors
             }, { status: 400 });
         }
 
-        const { recipientAccountNumber, amount, narration } = validation.data;
-        const clientReference = validation.data.clientReference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { recipientAccountNumber, amount, narration } = inputValidation.data;
+        const clientReference = inputValidation.data.clientReference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         if (!supabaseAdmin) {
             logger.error('Supabase admin client not available');
