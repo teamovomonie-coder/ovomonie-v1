@@ -1,0 +1,15 @@
+
+> ovomonie@0.1.0 build
+> node -r ./self-polyfill.js ./node_modules/next/dist/bin/next build
+
+   ▲ Next.js 15.5.9
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     ✓ optimizeCss
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 45s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
