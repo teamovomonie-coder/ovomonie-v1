@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
   },
   transpilePackages: [],
+  generateBuildId: async () => {
+    return 'build-' + Date.now();
+  },
   images: {
     remotePatterns: [
       {
