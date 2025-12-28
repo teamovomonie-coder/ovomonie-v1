@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import BackButton from '@/components/layout/back-button';
-import OfflineBannerWrapper from '@/components/layout/offline-banner-wrapper';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 export const metadata: Metadata = {
@@ -27,7 +26,6 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ErrorBoundary>
-          <OfflineBannerWrapper />
           <AuthProvider>
             <BackButton />
             <NotificationProvider>
