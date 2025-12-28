@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import BackButton from '@/components/layout/back-button';
-import { OfflineBanner } from "@/components/layout/offline-banner";
+import OfflineBannerWrapper from '@/components/layout/offline-banner-wrapper';
 
 export const metadata: Metadata = {
   title: 'OVOMONIE',
@@ -25,7 +25,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <OfflineBanner />
+        <OfflineBannerWrapper />
         <AuthProvider>
           <BackButton />
           <NotificationProvider>
