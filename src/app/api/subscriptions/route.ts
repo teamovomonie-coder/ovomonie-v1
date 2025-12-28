@@ -53,8 +53,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Database not available' }, { status: 500 });
     }
 
+    // Check if autopay is enabled
+    const { data: settings } = await supabaseAdmin
+      .from('payment_settings')
+      .select('enable_autopay')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (settings && !settings.enable_autopay) {
+      return NextResponse.json({ message: 'Auto-pay is disabled. Enable it in payment settings to create subscriptions.' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { merchantName, amount, frequency, nextBillingDate } = body;
+
+    if (!merchantName || !amount || !frequency) {
+      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+    }
+
+    const billingDate = nextBillingDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabaseAdmin
       .from('subscriptions')
@@ -63,7 +80,7 @@ export async function POST(request: Request) {
         merchant_name: merchantName,
         amount_kobo: amount * 100,
         frequency,
-        next_billing_date: nextBillingDate,
+        next_billing_date: billingDate,
         status: 'active'
       })
       .select()
@@ -71,7 +88,16 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ message: 'Subscription created', data }, { status: 201 });
+    const mapped = {
+      id: data.id,
+      merchantName: data.merchant_name,
+      amount: data.amount_kobo / 100,
+      frequency: data.frequency,
+      nextBillingDate: data.next_billing_date,
+      status: data.status
+    };
+
+    return NextResponse.json({ message: 'Subscription created successfully', data: mapped }, { status: 201 });
   } catch (error) {
     logger.error('Error creating subscription:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });

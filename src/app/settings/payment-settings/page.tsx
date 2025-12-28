@@ -363,6 +363,12 @@ export default function PaymentSettingsPage() {
                   onCheckedChange={(checked) => {
                     setEnableAutopay(checked);
                     handleToggleSetting('enableAutopay', checked);
+                    if (!checked) {
+                      toast({ 
+                        title: "Auto-Pay Disabled", 
+                        description: "New subscriptions cannot be created while auto-pay is disabled" 
+                      });
+                    }
                   }}
                 />
               </div>
