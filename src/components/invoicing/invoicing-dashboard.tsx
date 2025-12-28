@@ -68,24 +68,48 @@ export function InvoicingDashboard() {
     }
   }, [fetchInvoices, view]);
 
-  const handleCreateNew = () => {
-    const newInvoice: Invoice = {
-      id: `DRAFT-${Date.now()}`,
-      invoiceNumber: `INV-${String(Date.now()).slice(-4)}`,
-      fromName: 'PAAGO DAVID (Ovo Thrive)',
-      fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-      toName: '',
-      toEmail: '',
-      toAddress: '',
-      issueDate: new Date(),
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-      lineItems: [{ description: '', quantity: 1, price: 0 }],
-      notes: 'Thank you for your business. Please pay within 30 days.',
-      status: 'Draft',
-      client: ''
-    };
-    setSelectedInvoice(newInvoice);
-    setView('editor');
+  const handleCreateNew = async () => {
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Please login to create invoices.');
+
+      const userRes = await fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      let userName = '';
+      let userAddress = '';
+      
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        userName = userData.full_name || userData.name || '';
+        userAddress = userData.address || '';
+      }
+
+      const newInvoice: Invoice = {
+        id: `DRAFT-${Date.now()}`,
+        invoiceNumber: `INV-${String(Date.now()).slice(-4)}`,
+        fromName: userName,
+        fromAddress: userAddress,
+        toName: '',
+        toEmail: '',
+        toAddress: '',
+        issueDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+        lineItems: [{ description: '', quantity: 1, price: 0 }],
+        notes: 'Thank you for your business. Please pay within 30 days.',
+        status: 'Draft',
+        client: ''
+      };
+      setSelectedInvoice(newInvoice);
+      setView('editor');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: (error as Error).message,
+      });
+    }
   };
 
   const handleEdit = (invoice: Invoice) => {
