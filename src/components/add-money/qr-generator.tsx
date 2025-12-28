@@ -61,18 +61,11 @@ export function QRGenerator() {
         };
         
         try {
-            const QRCode = (await import('qrcode')).default;
             const encodedData = encodeURIComponent(JSON.stringify(payload));
             const paymentUrl = `https://ovomonie-v1.vercel.app/scan-qr?data=${encodedData}`;
             
-            const qrDataUrl = await QRCode.toDataURL(paymentUrl, {
-                width: 256,
-                margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            });
+            // Use QR code API service
+            const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(paymentUrl)}`;
             
             const expiry = amount ? Date.now() + 5 * 60 * 1000 : 0;
             setQrData({ url: qrDataUrl, amount, expiry });
