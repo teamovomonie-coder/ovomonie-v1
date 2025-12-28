@@ -2,15 +2,7 @@
 import type {NextConfig} from 'next';
 import path from 'path'
 
-// Polyfill self for SSR
-if (typeof globalThis.self === 'undefined') {
-  (globalThis as any).self = globalThis;
-}
-
 const nextConfig: NextConfig = {
-  experimental: {
-    instrumentationHook: true,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -18,9 +10,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
   },
   transpilePackages: [],
-  generateBuildId: async () => {
-    return 'build-' + Date.now();
-  },
   images: {
     remotePatterns: [
       {
@@ -72,14 +61,6 @@ const nextConfig: NextConfig = {
         genkit: path.resolve(__dirname, 'src/__mocks__/genkit-client-stub.js'),
         '@genkit-ai/googleai': path.resolve(__dirname, 'src/__mocks__/genkit-googleai-stub.js'),
       }
-      
-      // Define self for server-side
-      const webpack = require('webpack');
-      config.plugins.push(
-        new webpack.DefinePlugin({
-          'self': 'globalThis',
-        })
-      );
     } else {
       config.resolve = config.resolve || {}
       config.resolve.alias = {
@@ -88,7 +69,6 @@ const nextConfig: NextConfig = {
         '@genkit-ai/googleai': path.resolve(__dirname, 'src/__mocks__/genkit-googleai-stub.js'),
       }
     }
-
     return config
   },
 };
