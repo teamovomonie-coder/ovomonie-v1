@@ -19,6 +19,7 @@ import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/context/notification-context';
 import { VFDCardPayment } from './vfd-card-payment';
+import { QRGenerator } from './qr-generator';
 
 // --- Mock Agent Data ---
 const mockAgents = {
@@ -740,7 +741,7 @@ export function AddMoneyOptions() {
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
       <TabsContent value="card" className="pt-6"><VFDCardPayment /></TabsContent>
       <TabsContent value="ussd" className="pt-6"><FundWithUssd /></TabsContent>
-      <TabsContent value="qr" className="pt-6"><FundWithQr /></TabsContent>
+      <TabsContent value="qr" className="pt-6"><QRGenerator /></TabsContent>
       <TabsContent value="agent" className="pt-6"><FundWithAgent /></TabsContent>
     </Tabs>
   );
