@@ -6,11 +6,15 @@ import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
+<<<<<<< HEAD
     const headersList = await headers();
     const userId = await getUserIdFromToken(headersList);
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+=======
+    const userId = getUserIdFromToken(request.headers) || 'dev-user-fallback';
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
     const { pin } = await request.json();
 

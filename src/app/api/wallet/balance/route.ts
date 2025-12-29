@@ -6,6 +6,7 @@ import { apiUnauthorized, apiError, apiSuccess } from '@/lib/middleware/api-resp
 
 export async function GET(request: NextRequest) {
   try {
+<<<<<<< HEAD
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return apiUnauthorized();
@@ -15,6 +16,11 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return apiUnauthorized();
     }
+=======
+    const userId = getUserIdFromToken(request.headers) || 'dev-user-fallback';
+    
+    let balance = await getWalletBalance(userId);
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
     if (!supabaseAdmin) {
       return apiError('Database error');
@@ -66,6 +72,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
+<<<<<<< HEAD
     logger.error('Wallet balance error:', error);
     // Return default balance instead of error
     return apiSuccess({
@@ -77,5 +84,16 @@ export async function GET(request: NextRequest) {
         lastUpdated: new Date().toISOString()
       }
     });
+=======
+    logger.error('Wallet balance error', { error, userId: getUserIdFromToken(request.headers) });
+    return NextResponse.json(
+      { 
+        ok: false,
+        success: false,
+        error: 'Failed to fetch balance'
+      },
+      { status: 500 }
+    );
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
   }
 }

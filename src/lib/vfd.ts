@@ -12,7 +12,8 @@ let tokenExchangeFailed = false; // Track if token exchange has failed
 async function getAccessToken(forceRefresh: boolean = false): Promise<string | null> {
   // 1) If explicit token provided via env (and it's not a placeholder), prefer it
   const envToken = process.env.VFD_ACCESS_TOKEN?.trim();
-  if (envToken && envToken.length > 20 && !envToken.includes('your_') && !envToken.includes('placeholder')) {
+  if (envToken && envToken.length > 20 && !envToken.includes('your_') && !envToken.includes('placeholder') && !forceRefresh) {
+    console.log('[VFD] Using environment token');
     return envToken;
   }
 
@@ -28,160 +29,72 @@ async function getAccessToken(forceRefresh: boolean = false): Promise<string | n
     tokenExchangeFailed = false;
   }
 
-  // 3) If token exchange previously failed and we're not forcing refresh, skip it
-  if (tokenExchangeFailed && !forceRefresh) {
-    console.log('[VFD] Token exchange previously failed, will use Basic auth');
-    return null;
-  }
-
-  // 4) Attempt client credentials exchange using consumer key/secret
+  // 3) Attempt client credentials exchange using consumer key/secret
   const key = process.env.VFD_CONSUMER_KEY;
   const secret = process.env.VFD_CONSUMER_SECRET;
-  const tokenUrl = process.env.VFD_TOKEN_URL || 'https://api-devapps.vfdbank.systems/vfd-tech/baas-portal/v1/baasauth/token';
-  const base = getBase();
+  const tokenUrl = process.env.VFD_TOKEN_URL || 'https://api-devapps.vfdbank.systems/vfd-tech/baas-portal/v1.1/baasauth/token';
 
   if (!key || !secret) {
     console.error('[VFD] Missing required VFD credentials');
-    return null;
+    return envToken || null;
   }
 
-  // Try VFD-specific token request (JSON body with consumerKey/consumerSecret)
+  // Try VFD-specific token request with proper headers
   try {
     console.log('[VFD] Requesting new access token from:', tokenUrl);
     const basic = Buffer.from(`${key}:${secret}`).toString('base64');
+    
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Basic ${basic}`,
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         consumerKey: key,
         consumerSecret: secret,
-        validityTime: '-1', // -1 means token doesn't expire
+        validityTime: '3600' // 1 hour
       }),
     });
 
     console.log('[VFD] Token response status:', res.status);
     
-    const contentType = res.headers.get('content-type') || '';
-    let data: any = {};
-    const text = await res.text();
-    console.log('[VFD] Token response body:', text || '<empty>');
+    const responseText = await res.text();
+    console.log('[VFD] Token response body:', responseText || '<empty>');
     
-    if (text) {
+    let data: any = {};
+    if (responseText) {
       try { 
-        data = JSON.parse(text); 
+        data = JSON.parse(responseText); 
       } catch (e) { 
-        data = { text }; 
+        console.error('[VFD] Failed to parse token response:', e);
+        data = { text: responseText }; 
       }
     }
 
-    // VFD returns token in data.access_token (nested)
-    // Also check common field names: access_token, AccessToken, token
+    // VFD returns token in various formats
     const token = data?.data?.access_token || data?.access_token || data?.AccessToken || data?.token || data?.accessToken;
-    const expiresIn = Number(data?.data?.expires_in || data?.expires_in || data?.expires || 0) || 0;
+    const expiresIn = Number(data?.data?.expires_in || data?.expires_in || data?.expires || 3600) || 3600;
 
-        if (token) {
-      // VFD returns very large expires_in for non-expiring tokens, use 24 hours as practical limit
-      const practicalExpiry = expiresIn > 86400 ? 86400 : (expiresIn || 840);
-      const expiresAt = Date.now() + practicalExpiry * 1000;
+    if (token && res.ok) {
+      const expiresAt = Date.now() + expiresIn * 1000;
       cachedToken = { token, expiresAt };
       tokenExchangeFailed = false;
-      console.log('[VFD] Access token obtained successfully, caching for', practicalExpiry, 'seconds');
+      console.log('[VFD] Access token obtained successfully, caching for', expiresIn, 'seconds');
       return token;
-        }
-
-    // If no token returned, log the issue
-    console.error('[VFD] No token in response:', data);
-    
-    // If the token endpoint returned 202 (async processing) or empty response, mark as failed
-    // and don't retry - we'll use Basic auth fallback instead
-    if (res.status === 202 || !text) {
-      console.log('[VFD] Token endpoint returned 202/empty - will use Basic auth fallback');
-      tokenExchangeFailed = true;
-      return null;
     }
+
+    // If no token returned, fall back to env token
+    console.error('[VFD] No token in response or request failed:', { status: res.status, data });
+    tokenExchangeFailed = true;
+    return envToken || null;
     
-    // If the token endpoint returned 202 (async processing), try polling
-    if (res.status === 202) {
-      console.log('[VFD] Token request returned 202, trying polling...');
-      const location = res.headers.get('location') || res.headers.get('Location') || data?.path || data?.location;
-      const maxAttempts = 8;
-      const delayMs = 1000;
-
-      // Helper to parse token from response-like objects
-      const extractToken = (obj: any) => obj?.access_token || obj?.AccessToken || obj?.token || obj?.accessToken || obj?.data?.accessToken;
-
-      // If a Location was provided, poll that first
-      if (location) {
-        let pollUrl = location;
-        try {
-          const u = new URL(pollUrl, tokenUrl);
-          pollUrl = u.toString();
-        } catch (e) {
-          pollUrl = `${tokenUrl.replace(/\/$/, '')}/${String(location).replace(/^\//, '')}`;
-        }
-
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          await new Promise(r => setTimeout(r, attempt === 0 ? 500 : delayMs));
-          try {
-            const pollRes = await fetch(pollUrl, { headers: { Authorization: `Basic ${Buffer.from(`${key}:${secret}`).toString('base64')}` } });
-            const ct = pollRes.headers.get('content-type') || '';
-            let pollData: any = {};
-            if (ct.includes('application/json')) pollData = await pollRes.json().catch(() => ({}));
-            else {
-              const t = await pollRes.text().catch(() => '');
-              try { pollData = JSON.parse(t); } catch (e) { pollData = { text: t }; }
-            }
-            const ptoken = extractToken(pollData);
-            const pExpires = Number(pollData?.expires_in || pollData?.expires || 0) || 0;
-            if (ptoken) {
-              const expiresAt = pExpires > 0 ? Date.now() + pExpires * 1000 : Date.now() + 15 * 60 * 1000;
-              cachedToken = { token: ptoken, expiresAt };
-              return ptoken;
-            }
-          } catch (e) {
-            // continue polling
-          }
-        }
-      }
-
-      // If no Location header or polling it didn't yield a token, poll the token URL itself
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await new Promise(r => setTimeout(r, attempt === 0 ? 500 : delayMs));
-        try {
-          const pollRes = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: {
-              Authorization: `Basic ${Buffer.from(`${key}:${secret}`).toString('base64')}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'grant_type=client_credentials',
-          });
-          const ct = pollRes.headers.get('content-type') || '';
-          let pollData: any = {};
-          if (ct.includes('application/json')) pollData = await pollRes.json().catch(() => ({}));
-          else {
-            const t = await pollRes.text().catch(() => '');
-            try { pollData = JSON.parse(t); } catch (e) { pollData = { text: t }; }
-          }
-          const ptoken = extractToken(pollData);
-          const pExpires = Number(pollData?.expires_in || pollData?.expires || 0) || 0;
-          if (ptoken) {
-            const expiresAt = pExpires > 0 ? Date.now() + pExpires * 1000 : Date.now() + 15 * 60 * 1000;
-            cachedToken = { token: ptoken, expiresAt };
-            return ptoken;
-          }
-        } catch (e) {
-          // continue polling
-        }
-      }
-    }
   } catch (err) {
-    // swallow and return null (caller will handle missing token)
+    console.error('[VFD] Token exchange error:', err);
+    tokenExchangeFailed = true;
+    return envToken || null;
   }
-
-  return null;
 }
 
 export async function initiateCardPayment(payload: {
@@ -194,13 +107,18 @@ export async function initiateCardPayment(payload: {
   shouldTokenize?: boolean;
 }) {
   const base = getBase();
-  let token = await getAccessToken();
   const key = process.env.VFD_CONSUMER_KEY;
   const secret = process.env.VFD_CONSUMER_SECRET;
   
+  // In development, use environment token directly if available
+  let token = process.env.VFD_ACCESS_TOKEN;
+  if (!token || token.length < 20 || token.includes('your_') || token.includes('placeholder')) {
+    token = await getAccessToken();
+  }
+  
   console.log('[VFD] initiateCardPayment called');
-  console.log('[VFD] Token obtained:', token ? `${token.substring(0, 20)}...` : 'null (will use Basic auth)');
-  console.log('[VFD] Consumer key present:', !!key);
+  console.log('[VFD] Using token:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
+  console.log('[VFD] Using basic auth:', !token && key && secret ? 'YES' : 'NO');
   
   if (!token && !(key && secret)) {
     console.error('[VFD] No valid credentials available');
@@ -238,29 +156,27 @@ export async function initiateCardPayment(payload: {
 
   const makeRequest = async (accessToken: string | null, useBasicAuth: boolean = false) => {
     const basic = key && secret ? Buffer.from(`${key}:${secret}`).toString('base64') : null;
-    // VFD Cards API - try multiple auth methods
+    
     const headersObj: any = { 
       'Content-Type': 'application/json',
+      'Accept': 'application/json'
     };
     
     if (accessToken && !useBasicAuth) {
-      // Use both AccessToken and Authorization Bearer
+      // Primary: Use both AccessToken and Authorization Bearer headers
       headersObj.AccessToken = accessToken;
       headersObj.Authorization = `Bearer ${accessToken}`;
-      console.log('[VFD] Using AccessToken + Bearer headers');
+      console.log('[VFD] Using AccessToken and Bearer headers');
     } else if (basic) {
-      // Use Basic auth with consumer credentials
+      // Fallback: Use Basic auth with consumer credentials
       headersObj.Authorization = `Basic ${basic}`;
-      headersObj.ConsumerKey = key;
-      headersObj.ConsumerSecret = secret;
-      console.log('[VFD] Using Basic auth + consumer credentials');
+      console.log('[VFD] Using Basic auth fallback');
     }
     
     console.log('[VFD] Request headers:', { 
       'Content-Type': headersObj['Content-Type'],
       AccessToken: headersObj.AccessToken ? `${headersObj.AccessToken.substring(0, 20)}...` : undefined,
-      Authorization: headersObj.Authorization ? '***' : undefined,
-      ConsumerKey: headersObj.ConsumerKey ? '***' : undefined,
+      Authorization: headersObj.Authorization ? 'Basic ***' : undefined,
     });
 
     return await fetch(url, {
@@ -270,7 +186,7 @@ export async function initiateCardPayment(payload: {
     });
   };
 
-  // First attempt with token (if available)
+  // First attempt with token (if available) - try to refresh if 403
   let res = await makeRequest(token, false);
   console.log('[VFD] Payment response status:', res.status);
   
@@ -284,30 +200,16 @@ export async function initiateCardPayment(payload: {
     data = { message: responseText || 'No response body' };
   }
 
-  // If first attempt failed with auth error and we used token, retry with Basic auth
-  const errorMsg = (data?.message || '').toLowerCase();
-  if ((res.status === 401 || res.status === 403 || errorMsg.includes('unauthorized') || errorMsg.includes('invalid token') || errorMsg.includes('expired')) && token) {
-    console.log('[VFD] Token auth failed, retrying with Basic auth...');
-    res = await makeRequest(null, true);
-    console.log('[VFD] Basic auth response status:', res.status);
-    const retryText = await res.text();
-    console.log('[VFD] Basic auth response body:', retryText || '<empty>');
-    try {
-      data = JSON.parse(retryText);
-    } catch (e) {
-      data = { message: retryText || 'No response body' };
-    }
-  }
-  
-  // If still failing with auth error, try getting fresh token and retry
-  if ((res.status === 401 || res.status === 403) && !token) {
-    console.log('[VFD] Basic auth also failed. Trying fresh token exchange...');
+  // If token is invalid (403), try to get a fresh token
+  if (res.status === 403 && (data?.message?.toLowerCase().includes('token') || data?.message?.toLowerCase().includes('access denied'))) {
+    console.log('[VFD] Token appears invalid, attempting to refresh...');
     const freshToken = await getAccessToken(true); // Force refresh
-    if (freshToken) {
+    if (freshToken && freshToken !== token) {
+      console.log('[VFD] Got fresh token, retrying payment...');
       res = await makeRequest(freshToken, false);
-      console.log('[VFD] Fresh token response status:', res.status);
+      console.log('[VFD] Retry response status:', res.status);
       const retryText = await res.text();
-      console.log('[VFD] Fresh token response body:', retryText || '<empty>');
+      console.log('[VFD] Retry response body:', retryText || '<empty>');
       try {
         data = JSON.parse(retryText);
       } catch (e) {
@@ -324,17 +226,19 @@ export async function initiateCardPayment(payload: {
     
     console.error('[VFD] Payment failed:', { status: res.status, message: vfdMessage, code: vfdCode, fullResponse: data });
     
-    if (vfdMessage.toLowerCase().includes('wallet access token') || vfdMessage.toLowerCase().includes('authentication')) {
-      userMessage = 'Failed to authenticate with payment gateway. Please contact support.';
-      console.error('[VFD] Authentication error - credentials may need to be refreshed or activated');
+    if (vfdMessage.toLowerCase().includes('wallet access token') || vfdMessage.toLowerCase().includes('authentication') || vfdMessage.toLowerCase().includes('unauthorized')) {
+      userMessage = 'Unable to process card payment at this time. Please ensure your VFD credentials are valid or try again later.';
+      console.error('[VFD] Authentication error - credentials may be invalid or expired:', { vfdMessage, status: res.status, hasToken: !!token, hasBasicAuth: !!(key && secret) });
     } else if (res.status === 403 || res.status === 401) {
-      userMessage = 'Failed to authenticate with payment gateway';
+      userMessage = 'Payment service authentication failed. Please contact support.';
     } else if (vfdMessage.toLowerCase().includes('insufficient')) {
       userMessage = 'Insufficient funds on card';
-    } else if (vfdMessage.toLowerCase().includes('invalid card')) {
-      userMessage = 'Invalid card details. Please check and try again.';
+    } else if (vfdMessage.toLowerCase().includes('invalid card') || vfdMessage.toLowerCase().includes('card number')) {
+      userMessage = 'Invalid card details. Please check your card number, expiry, and CVV.';
+    } else if (vfdMessage.toLowerCase().includes('pin')) {
+      userMessage = 'Invalid card PIN. Please check your 4-digit card PIN.';
     } else {
-      userMessage = vfdMessage || 'Payment initiation failed. Please try again.';
+      userMessage = vfdMessage || 'Payment processing failed. Please try again.';
     }
     
     return { status: res.status, ok: false, data: { ...data, message: userMessage, vfdError: vfdMessage, vfdCode } };

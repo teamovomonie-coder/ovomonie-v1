@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const securityQuestions = [
@@ -34,6 +34,30 @@ export default function SecurityQuestionsPage() {
   const [question3, setQuestion3] = useState("");
   const [answer3, setAnswer3] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasExisting, setHasExisting] = useState(false);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const token = localStorage.getItem("ovo-auth-token");
+        const res = await fetch("/api/security/questions", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.questions) {
+            setQuestion1(data.questions.question1 || "");
+            setQuestion2(data.questions.question2 || "");
+            setQuestion3(data.questions.question3 || "");
+            setHasExisting(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch security questions", error);
+      }
+    };
+    fetchQuestions();
+  }, []);
 
   const handleSave = async () => {
     if (!question1 || !answer1 || !question2 || !answer2 || !question3 || !answer3) {
@@ -41,12 +65,38 @@ export default function SecurityQuestionsPage() {
       return;
     }
 
+    if (question1 === question2 || question1 === question3 || question2 === question3) {
+      toast({ variant: "destructive", title: "Error", description: "Please select different questions" });
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      toast({ title: "Success", description: "Security questions have been saved successfully" });
+    try {
+      const token = localStorage.getItem("ovo-auth-token");
+      const res = await fetch("/api/security/questions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ question1, answer1, question2, answer2, question3, answer3 }),
+      });
+
+      if (res.ok) {
+        toast({ title: "Success", description: "Security questions have been saved successfully" });
+        setHasExisting(true);
+        setAnswer1("");
+        setAnswer2("");
+        setAnswer3("");
+      } else {
+        const data = await res.json();
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to save security questions" });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to save security questions" });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleReset = () => {
@@ -69,7 +119,7 @@ export default function SecurityQuestionsPage() {
         <div className="space-y-4 max-w-2xl">
           <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Set Security Questions</CardTitle>
+              <CardTitle className="text-base font-semibold">{hasExisting ? "Update" : "Set"} Security Questions</CardTitle>
               <CardDescription className="text-sm">
                 These questions will help verify your identity if you forget your password
               </CardDescription>

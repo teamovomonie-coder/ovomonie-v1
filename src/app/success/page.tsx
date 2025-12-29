@@ -31,6 +31,7 @@ export default function SuccessPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const hasLoadedRef = useRef(false);
 
+<<<<<<< HEAD
   // Function to fetch receipt from API by reference
   const fetchReceiptFromAPI = async (reference: string): Promise<ReceiptStore | null> => {
     try {
@@ -253,12 +254,68 @@ export default function SuccessPage() {
         setIsInitialized(true);
         setTimeout(() => router.replace('/dashboard'), 1000);
       }
+=======
+  const loadNewReceipt = useCallback(async () => {
+    // Check localStorage immediately (no loading state)
+    try {
+      const raw = localStorage.getItem('ovo-pending-receipt');
+      if (raw) {
+        const parsed = JSON.parse(raw) as ReceiptStore;
+        if (parsed && typeof parsed === 'object' && ('type' in parsed) && ('data' in parsed)) {
+          setCurrentReceipt(parsed);
+          setIsReady(true);
+          setIsProcessing(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.debug('[SuccessPage] localStorage parse error:', e);
+    }
+    
+    // If no localStorage receipt, redirect immediately
+    router.replace('/dashboard');
+  }, [router]);
+
+  useEffect(() => {
+    loadNewReceipt();
+  }, [loadNewReceipt]);
+
+  useEffect(() => {
+    const handler = () => {
+      // Set expected receipt ID from the latest transaction
+      const getExpectedId = async () => {
+        try {
+          const latest = await pendingTransactionService.getLatest();
+          if (latest) {
+            const expectedId = latest.transactionId || latest.reference || `${latest.type}-${Date.now()}`;
+            setExpectedReceiptId(expectedId);
+          }
+        } catch (e) {
+          // Fallback to localStorage
+          const raw = localStorage.getItem('ovo-pending-receipt');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const expectedId = parsed.transactionId || parsed.reference || `${parsed.type}-${Date.now()}`;
+            setExpectedReceiptId(expectedId);
+          }
+        }
+      };
+      
+      setIsProcessing(true);
+      setCurrentReceipt(null);
+      setIsReady(false);
+      getExpectedId().then(() => {
+        // Only reload once, don't create infinite loop
+        loadNewReceipt();
+      });
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
     };
     
     loadReceipt();
   }, [router]);
 
   const handleReset = useCallback(async () => {
+<<<<<<< HEAD
     // Complete cleanup of all receipt data
     try {
       const keysToRemove: string[] = [];
@@ -274,6 +331,14 @@ export default function SuccessPage() {
     }
     router.push('/dashboard');
   }, [router]);
+=======
+    if (currentReceipt?.reference) {
+      await pendingTransactionService.deletePending(currentReceipt.reference);
+    }
+    try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
+    router.push('/dashboard');
+  }, [currentReceipt?.reference, router]);
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
   if (!isInitialized) {
     return (

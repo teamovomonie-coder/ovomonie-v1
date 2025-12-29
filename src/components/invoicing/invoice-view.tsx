@@ -59,46 +59,30 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
     }
   }
 
+  const handleDownload = () => {
+    window.print();
+    toast({ title: "Print Dialog Opened", description: "Save as PDF or print your invoice." });
+  }
+
   const handlePay = async () => {
     setIsProcessingPayment(true);
     try {
-        const productsRes = await fetch('/api/inventory/products');
-        if (!productsRes.ok) throw new Error('Could not fetch products for inventory update.');
-        const allProducts: { id: string; name: string }[] = await productsRes.json();
-        
-        const saleLineItems = invoice.lineItems.map(item => {
-            const product = allProducts.find(p => p.name.toLowerCase() === item.description.toLowerCase());
-            return {
-                productId: product?.id,
-                quantity: item.quantity
-            };
-        }).filter((item): item is { productId: string; quantity: number } => !!item.productId);
-
-        if (saleLineItems.length > 0) {
-             const saleRes = await fetch('/api/inventory/stock/sale', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lineItems: saleLineItems,
-                    referenceId: invoice.invoiceNumber
-                })
-            });
-            if (!saleRes.ok) throw new Error('Failed to update inventory stock.');
-        }
-
         const token = localStorage.getItem('ovo-auth-token');
         if (!token) throw new Error('Authentication failed.');
 
-        const updateRes = await fetch(`/api/invoicing/${invoice.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ ...invoice, status: 'Paid' }),
+        const updateRes = await fetch(`/api/invoicing/${invoice.id}/pay`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
         });
-        if (!updateRes.ok) throw new Error('Failed to update invoice status.');
+        
+        if (!updateRes.ok) {
+            const errorData = await updateRes.json();
+            throw new Error(errorData.message || 'Failed to update invoice status.');
+        }
         
         toast({
-            title: "Payment Successful & Inventory Updated!",
-            description: `Stock for ${saleLineItems.length} item(s) has been updated and invoice marked as paid.`,
+            title: "Payment Successful!",
+            description: "Invoice has been marked as paid.",
         });
 
         onInvoiceUpdated();
@@ -106,14 +90,10 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
 
     } catch (error) {
         console.error("Failed to process payment:", error);
-        let description = "There was an error processing this payment.";
-        if (error instanceof Error) {
-            description = error.message;
-        }
         toast({
             variant: 'destructive',
             title: "Payment Failed",
-            description: description,
+            description: error instanceof Error ? error.message : "There was an error processing this payment.",
         });
     } finally {
         setIsProcessingPayment(false);
@@ -128,7 +108,7 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Invoice Preview</h2>
             </div>
             <div className="flex gap-2 self-end sm:self-center">
-                <Button variant="outline"><Download className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Download</span></Button>
+                <Button variant="outline" onClick={handleDownload}><Download className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Download</span></Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button><Share2 className="mr-0 sm:mr-2" /> <span className="hidden sm:inline">Share</span></Button>
@@ -250,7 +230,7 @@ export function InvoiceView({ invoice, onBack, onInvoiceUpdated }: InvoiceViewPr
                 {invoice.status !== 'Paid' && (
                     <Button size="lg" className="w-full sm:w-auto" onClick={handlePay} disabled={isProcessingPayment}>
                         {isProcessingPayment && <Loader2 className="mr-2 animate-spin" />}
-                        <CreditCard className="mr-2" /> Mark as Paid & Update Stock
+                        <CreditCard className="mr-2" /> Mark as Paid
                     </Button>
                 )}
             </CardFooter>

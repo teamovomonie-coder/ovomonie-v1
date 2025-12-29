@@ -387,6 +387,7 @@ export function InternalTransferForm() {
 
   return (
     <Form {...form}>
+<<<<<<< HEAD
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto">
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-2xl border border-slate-200">
           <div className="flex items-center justify-between mb-4">
@@ -499,6 +500,12 @@ export function InternalTransferForm() {
               )}
             />
           </div>
+=======
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex items-center space-x-2 justify-end">
+          <Label htmlFor="memo-switch">Use MemoTransfer</Label>
+          <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
         </div>
 
         {isMemoTransfer && (

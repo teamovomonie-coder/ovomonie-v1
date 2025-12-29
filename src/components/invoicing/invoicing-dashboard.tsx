@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Eye, Loader2 } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { PlusCircle, Eye, Loader2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { InvoiceFormData } from './invoice-editor';
 import { format } from 'date-fns';
@@ -32,6 +33,7 @@ export function InvoicingDashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
   const fetchInvoices = useCallback(async () => {
@@ -66,24 +68,48 @@ export function InvoicingDashboard() {
     }
   }, [fetchInvoices, view]);
 
-  const handleCreateNew = () => {
-    const newInvoice: Invoice = {
-      id: `DRAFT-${Date.now()}`,
-      invoiceNumber: `INV-${String(Date.now()).slice(-4)}`,
-      fromName: 'PAAGO DAVID (Ovo Thrive)',
-      fromAddress: '123 Fintech Avenue, Lagos, Nigeria',
-      toName: '',
-      toEmail: '',
-      toAddress: '',
-      issueDate: new Date(),
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-      lineItems: [{ description: '', quantity: 1, price: 0 }],
-      notes: 'Thank you for your business. Please pay within 30 days.',
-      status: 'Draft',
-      client: ''
-    };
-    setSelectedInvoice(newInvoice);
-    setView('editor');
+  const handleCreateNew = async () => {
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) throw new Error('Please login to create invoices.');
+
+      const userRes = await fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      let userName = '';
+      let userAddress = '';
+      
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        userName = userData.full_name || userData.name || '';
+        userAddress = userData.address || '';
+      }
+
+      const newInvoice: Invoice = {
+        id: `DRAFT-${Date.now()}`,
+        invoiceNumber: `INV-${String(Date.now()).slice(-4)}`,
+        fromName: userName,
+        fromAddress: userAddress,
+        toName: '',
+        toEmail: '',
+        toAddress: '',
+        issueDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+        lineItems: [{ description: '', quantity: 1, price: 0 }],
+        notes: 'Thank you for your business. Please pay within 30 days.',
+        status: 'Draft',
+        client: ''
+      };
+      setSelectedInvoice(newInvoice);
+      setView('editor');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: (error as Error).message,
+      });
+    }
   };
 
   const handleEdit = (invoice: Invoice) => {
@@ -167,14 +193,21 @@ export function InvoicingDashboard() {
   }
 
   const renderInvoices = (statusFilter?: 'Paid' | 'Unpaid' | 'Overdue' | 'Draft') => {
-    const invoicesToRender = statusFilter ? invoices.filter(inv => inv.status === statusFilter) : invoices;
+    let invoicesToRender = statusFilter ? invoices.filter(inv => inv.status === statusFilter) : invoices;
+    
+    if (searchQuery) {
+      invoicesToRender = invoicesToRender.filter(inv => 
+        inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inv.client.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
     
     if (isLoading) {
-        return <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+        return <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /></div>;
     }
 
     if (invoicesToRender.length === 0) {
-        return <div className="text-center text-muted-foreground py-10">No invoices in this category.</div>
+        return <div className="text-center text-muted-foreground py-10">{searchQuery ? 'No invoices match your search.' : 'No invoices in this category.'}</div>
     }
 
     return (
@@ -218,15 +251,27 @@ export function InvoicingDashboard() {
 
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Invoicing</h2>
-        <Button onClick={handleCreateNew}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Invoicing</h2>
+        <Button onClick={handleCreateNew} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" /> Create Invoice
         </Button>
       </div>
 
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search invoices..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       <Tabs defaultValue="all">
-        <TabsList className="w-full sm:w-auto overflow-x-auto">
+        <TabsList className="w-full sm:w-auto grid grid-cols-5 sm:inline-flex">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="unpaid">Unpaid</TabsTrigger>
           <TabsTrigger value="paid">Paid</TabsTrigger>

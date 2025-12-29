@@ -1,28 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getUserIdFromToken } from '@/lib/supabase-helpers';
-import { headers } from 'next/headers';
+import { getUserIdFromToken } from '@/lib/auth-helpers';
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase configuration');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken();
+    const reqHeaders = request.headers as { get(name: string): string | null };
+    const userId = getUserIdFromToken(reqHeaders);
+    
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    if (!supabaseAdmin) {
+      return NextResponse.json({ message: 'Database not available' }, { status: 500 });
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('users')
-      .select('id, full_name, email, phone, username, avatar_url')
+      .select('id, full_name, email, phone, username, avatar_url, address')
       .eq('id', userId)
       .maybeSingle();
 
@@ -33,33 +29,41 @@ export async function GET(request: NextRequest) {
 
     if (!data) {
       return NextResponse.json({
-        fullName: '',
+        full_name: '',
         email: '',
-        phoneNumber: '',
+        phone: '',
         username: '',
-        avatarUrl: ''
+        avatar_url: '',
+        address: ''
       });
     }
 
     return NextResponse.json({
-      fullName: data.full_name || '',
+      full_name: data.full_name || '',
+      name: data.full_name || '',
       email: data.email || '',
-      phoneNumber: data.phone || '',
+      phone: data.phone || '',
       username: data.username || '',
-      avatarUrl: data.avatar_url || ''
+      avatar_url: data.avatar_url || '',
+      address: data.address || ''
     });
   } catch (error) {
-    console.error('Error fetching profile:', error);
     logger.error('Error fetching profile:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ message: 'Internal Server Error', error: error instanceof Error ? error.message : 'Unknown' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken();
+    const reqHeaders = request.headers as { get(name: string): string | null };
+    const userId = getUserIdFromToken(reqHeaders);
+    
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json({ message: 'Database not available' }, { status: 500 });
     }
 
     const body = await request.json();
@@ -75,7 +79,7 @@ export async function PUT(request: NextRequest) {
 
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .update(updateData)
       .eq('id', userId)
@@ -89,7 +93,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ message: 'Profile updated successfully' });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    logger.error('Error updating profile:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

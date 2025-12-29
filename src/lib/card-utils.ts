@@ -17,8 +17,8 @@ export interface CardInfo {
 
 // Card brand detection patterns
 const CARD_PATTERNS: { brand: CardBrand; pattern: RegExp; cvvLength: number; lengths: number[]; gaps: number[] }[] = [
-  // Verve (Nigerian cards) - starts with 506099, 507850, 507865, 507866, 507867, 507868, 507869, 650002-650027
-  { brand: 'verve', pattern: /^(506099|507850|50786[5-9]|650002|650010|650011|65002[0-7]|5061)/, cvvLength: 3, lengths: [16, 18, 19], gaps: [4, 8, 12, 16] },
+  // Verve (Nigerian cards) - comprehensive patterns
+  { brand: 'verve', pattern: /^(506099|507850|50786[5-9]|650002|650010|650011|65002[0-7]|5061|506[01])/, cvvLength: 3, lengths: [16, 18, 19], gaps: [4, 8, 12, 16] },
   
   // Visa - starts with 4
   { brand: 'visa', pattern: /^4/, cvvLength: 3, lengths: [13, 16, 19], gaps: [4, 8, 12] },

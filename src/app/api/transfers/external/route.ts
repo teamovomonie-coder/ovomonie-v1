@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { userService, transactionService, notificationService } from '@/lib/db';
 import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { getVFDAccessToken } from '@/lib/vfd-auth';
+import { validatePayment } from '@/lib/payment-validator';
 
 /**
  * Check VFD API connectivity before processing transfers
@@ -66,10 +67,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: false, message: 'Insufficient funds.' }, { status: 400 });
         }
 
+<<<<<<< HEAD
         // 5. Skip VFD connectivity check in development
         if (process.env.NODE_ENV !== 'development') {
             await checkVFDConnectivity();
         }
+=======
+        // 5.5. Validate payment restrictions
+        const validation = await validatePayment(userId, transferAmountInKobo, recipientName, narration, 'transfer');
+        if (!validation.allowed) {
+            return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
+        }
+
+        // 6. Check VFD API connectivity
+        await checkVFDConnectivity();
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
         // 6. Execute transfer (skip VFD in development)
         logger.info('External transfer via VFD API', { userId, reference: clientReference, amount: transferAmountInKobo });

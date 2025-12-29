@@ -5,20 +5,21 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle, Timer } from 'lucide-react';
+import { Landmark, CreditCard, Hash, QrCode, Store, Copy, Share2, Loader2, CheckCircle, Timer, Wallet } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PinModal } from '@/components/auth/pin-modal';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/context/notification-context';
 import { VFDCardPayment } from './vfd-card-payment';
+import { QRGenerator } from './qr-generator';
+import { SavedPaymentMethods } from './saved-payment-methods';
 
 // --- Mock Agent Data ---
 const mockAgents = {
@@ -432,90 +433,6 @@ function FundWithUssd() {
     );
 }
 
-// --- QR Code Tab ---
-const qrSchema = z.object({
-    amount: z.coerce.number().optional()
-});
-
-function FundWithQr() {
-    const { user } = useAuth();
-    const [qrData, setQrData] = useState<{url: string; amount?: number; expiry: number } | null>(null);
-    const [timeLeft, setTimeLeft] = useState(0);
-
-    const form = useForm<z.infer<typeof qrSchema>>({
-        resolver: zodResolver(qrSchema),
-        defaultValues: { amount: 0 }
-    });
-
-    useEffect(() => {
-        if (!qrData || !qrData.expiry) return;
-
-        const timerId = setInterval(() => {
-            const now = Date.now();
-            const remaining = Math.round((qrData.expiry - now) / 1000);
-            if (remaining > 0) {
-                setTimeLeft(remaining);
-            } else {
-                setTimeLeft(0);
-                clearInterval(timerId);
-                setQrData(null);
-            }
-        }, 1000);
-
-        return () => clearInterval(timerId);
-    }, [qrData]);
-
-
-    const generateQr = (data: z.infer<typeof qrSchema>) => {
-        const amount = data.amount && data.amount > 0 ? data.amount : undefined;
-        const payload = {
-            accountNumber: user?.accountNumber,
-            accountName: user?.fullName,
-            amount,
-        };
-        const qrText = encodeURIComponent(JSON.stringify(payload));
-        const url = `https://placehold.co/256x256.png?text=Scan%20Me`;
-        const expiry = amount ? Date.now() + 5 * 60 * 1000 : 0;
-        setQrData({ url, amount, expiry });
-        if (expiry) setTimeLeft(300);
-    };
-
-    if (qrData) {
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        return (
-            <div className="text-center space-y-4">
-                <p>Let others scan this QR code to fund your wallet.</p>
-                <div className="bg-white p-4 inline-block rounded-lg shadow-md">
-                    <Image src={qrData.url} alt="Funding QR Code" width={256} height={256} data-ai-hint="qr code" />
-                </div>
-                {qrData.amount && <p className="text-2xl font-bold">Amount: ₦{qrData.amount.toLocaleString()}</p>}
-                {qrData.expiry > 0 && (
-                    <div className="flex items-center justify-center gap-2 font-mono text-destructive p-2 bg-destructive/10 rounded-md">
-                        <Timer className="w-5 h-5" />
-                        <span>Code expires in: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
-                    </div>
-                )}
-                <Button onClick={() => { setQrData(null); form.reset(); }} className="w-full">Generate New Code</Button>
-            </div>
-        );
-    }
-    
-    return (
-         <Form {...form}>
-            <form onSubmit={form.handleSubmit(generateQr)} className="space-y-4">
-                 <FormField control={form.control} name="amount" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Amount (Optional)</FormLabel>
-                        <FormControl><Input type="number" placeholder="Leave blank for any amount" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
-                    </FormItem>
-                 )} />
-                <Button type="submit" className="w-full">Generate QR Code</Button>
-            </form>
-        </Form>
-    );
-}
-
 // --- Agent Deposit ---
 const agentSchema = z.object({
     agentId: z.string().min(4, 'Enter a valid agent ID.'),
@@ -685,6 +602,7 @@ function FundWithAgent() {
 // --- Main Component ---
 export function AddMoneyOptions() {
   return (
+<<<<<<< HEAD
     <Tabs defaultValue="bank" className="w-full">
       <TabsList className="grid w-full grid-cols-5 h-auto">
         <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Bank</span></TabsTrigger>
@@ -692,11 +610,22 @@ export function AddMoneyOptions() {
         <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">USSD</span></TabsTrigger>
         <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">QR Code</span></TabsTrigger>
         <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Agent</span></TabsTrigger>
+=======
+    <Tabs defaultValue="saved" className="w-full">
+      <TabsList className="grid w-full grid-cols-6 h-auto">
+        <TabsTrigger value="saved" className="flex-col sm:flex-row h-16 sm:h-10"><Wallet className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Saved</TabsTrigger>
+        <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Bank</TabsTrigger>
+        <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Card</TabsTrigger>
+        <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />USSD</TabsTrigger>
+        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR</TabsTrigger>
+        <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Agent</TabsTrigger>
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
       </TabsList>
+      <TabsContent value="saved" className="pt-6"><SavedPaymentMethods /></TabsContent>
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
       <TabsContent value="card" className="pt-6"><VFDCardPayment /></TabsContent>
       <TabsContent value="ussd" className="pt-6"><FundWithUssd /></TabsContent>
-      <TabsContent value="qr" className="pt-6"><FundWithQr /></TabsContent>
+      <TabsContent value="qr" className="pt-6"><QRGenerator /></TabsContent>
       <TabsContent value="agent" className="pt-6"><FundWithAgent /></TabsContent>
     </Tabs>
   );

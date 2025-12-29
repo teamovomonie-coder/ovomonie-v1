@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
+import { validatePayment } from '@/lib/payment-validator';
 import { z } from 'zod';
 
 const transferSchema = z.object({
@@ -22,17 +23,17 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         
         // Validate input
-        const validation = transferSchema.safeParse(body);
-        if (!validation.success) {
+        const inputValidation = transferSchema.safeParse(body);
+        if (!inputValidation.success) {
             return NextResponse.json({ 
                 ok: false, 
                 message: 'Invalid request data',
-                errors: validation.error.flatten().fieldErrors
+                errors: inputValidation.error.flatten().fieldErrors
             }, { status: 400 });
         }
 
-        const { recipientAccountNumber, amount, narration } = validation.data;
-        const clientReference = validation.data.clientReference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { recipientAccountNumber, amount, narration } = inputValidation.data;
+        const clientReference = inputValidation.data.clientReference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         if (!supabaseAdmin) {
             logger.error('Supabase admin client not available');
@@ -41,6 +42,12 @@ export async function POST(request: NextRequest) {
 
         // Convert to kobo
         const amountKobo = Math.round(amount * 100);
+
+        // Validate payment restrictions
+        const validation = await validatePayment(userId, amountKobo, recipientAccountNumber, narration, 'transfer');
+        if (!validation.allowed) {
+            return NextResponse.json({ ok: false, message: validation.reason }, { status: 403 });
+        }
 
         // Use database transaction to ensure atomicity
         const { data, error } = await supabaseAdmin.rpc('process_internal_transfer', {

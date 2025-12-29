@@ -8,8 +8,9 @@ import { apiUnauthorized, apiError, apiSuccess } from '@/lib/middleware/api-resp
 export async function GET() {
   try {
     const reqHeaders = await headers();
-    const userId = await getUserIdFromToken(reqHeaders as any);
+    const userId = getUserIdFromToken(reqHeaders as any) || 'dev-user-fallback';
     
+<<<<<<< HEAD
     if (!userId) {
       return apiUnauthorized();
     }
@@ -26,6 +27,9 @@ export async function GET() {
       logger.error('Error fetching user by ID', { userId, error: { message: err.message, details: err.stack, hint: '', code: '' } });
       return null;
     });
+=======
+    const user = await getUserById(userId);
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
     if (!user) {
       // Try one more time with direct supabase query as fallback

@@ -4,7 +4,10 @@
  */
 
 import { supabaseAdmin } from './supabase';
+<<<<<<< HEAD
 import { VirtualAccountRequest } from './vfd-wallet';
+=======
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 import { logger } from './logger';
 
 // Types
@@ -277,6 +280,10 @@ export async function initiateOutboundTransfer(
       return { success: false, error: 'Failed to process transfer' };
     }
 
+<<<<<<< HEAD
+=======
+    // Execute VFD transfer - dynamic import to avoid circular dependency
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
     try {
       const { executeVFDTransfer } = await import('./vfd-transfer');
       const vfdResult = await executeVFDTransfer(
@@ -304,6 +311,7 @@ export async function initiateOutboundTransfer(
           p_amount: amount,
           p_reference: reference
         });
+<<<<<<< HEAD
 
         logger.error('VFD transfer failed, refunded user', {
           userId,
@@ -343,6 +351,8 @@ export async function initiateOutboundTransfer(
           p_amount: amount,
           p_reference: reference
         });
+=======
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
         logger.error('VFD transfer failed, refunded user', {
           userId,

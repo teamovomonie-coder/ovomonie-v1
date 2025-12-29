@@ -66,12 +66,12 @@ const serviceData: ServiceCategory[] = [
   {
     title: "Travel & Lifestyle",
     services: [
-      { label: "Flight Tickets", icon: Plane, href: "/flights" },
-      { label: "Hotel Bookings", icon: Hotel, href: "/hotel-booking" },
-      { label: "Ride Booking", icon: Car, href: "/ride-booking" },
-      { label: "Event Tickets", icon: Ticket, href: "/events" },
-      { label: "Food Delivery", icon: Utensils, href: "/food-delivery" },
-      { label: "Online Shopping", icon: ShoppingCart, href: "/online-shopping" },
+      { label: "Flight Tickets", icon: Plane, href: "#" },
+      { label: "Hotel Bookings", icon: Hotel, href: "#" },
+      { label: "Ride Booking", icon: Car, href: "#" },
+      { label: "Event Tickets", icon: Ticket, href: "#" },
+      { label: "Food Delivery", icon: Utensils, href: "#" },
+      { label: "Online Shopping", icon: ShoppingCart, href: "#" },
       { label: "Community", icon: Users, href: "/community" },
     ],
   },

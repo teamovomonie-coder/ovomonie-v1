@@ -18,6 +18,25 @@ const nextConfig = {
   
   // Bundle optimization
   webpack: (config, { isServer, dev }) => {
+    // Fix webpack chunk loading issues
+    if (!dev) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          default: {
+            minChunks: 2,
+            priority: -20,
+            reuseExistingChunk: true,
+          },
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            priority: -10,
+            chunks: 'all',
+          },
+        },
+      };
+    }
     // Ignore problematic modules completely
     config.resolve.alias = {
       ...config.resolve.alias,

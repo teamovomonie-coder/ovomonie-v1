@@ -79,15 +79,24 @@ export async function POST(request: Request) {
         logger.debug('VFD initiation response', { status: initiation.status, ok: initiation.ok });
 
         if (!initiation.ok) {
+            const errorMsg = initiation.data?.message || initiation.data?.vfdError || 'Payment initiation failed';
             logger.error('VFD initiation failed', { 
                 status: initiation.status, 
-                message: initiation.data?.message,
+                message: errorMsg,
                 vfdError: initiation.data?.vfdError,
             });
+            
+            // Update pending payment status
+            if (supabaseAdmin) {
+                await supabaseAdmin.from('pending_payments')
+                    .update({ status: 'failed', error_message: errorMsg })
+                    .eq('reference', reference);
+            }
+            
             return NextResponse.json({ 
-                message: initiation.data?.message || 'Payment initiation failed',
+                message: errorMsg,
                 requiresOTP: false
-            }, { status: initiation.status || 500 });
+            }, { status: 400 });
         }
 
         const responseData = initiation.data?.data || initiation.data;
