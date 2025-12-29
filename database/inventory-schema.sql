@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS inventory_products (
     sku VARCHAR(100) UNIQUE,
     category_id UUID REFERENCES inventory_categories(id),
     supplier_id UUID REFERENCES inventory_suppliers(id),
-    unit_price DECIMAL(10,2) DEFAULT 0,
-    cost_price DECIMAL(10,2) DEFAULT 0,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0, -- Made NOT NULL
+    cost_price DECIMAL(10,2) NOT NULL DEFAULT 0, -- Made NOT NULL
     reorder_level INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -65,11 +65,11 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
     location_id UUID REFERENCES inventory_locations(id),
     transaction_type VARCHAR(50) NOT NULL, -- 'sale', 'purchase', 'adjustment', 'transfer'
     quantity INTEGER NOT NULL,
-    unit_price DECIMAL(10,2),
-    total_amount DECIMAL(10,2),
+    unit_price DECIMAL(10,2) NOT NULL, -- Made NOT NULL
+    total_amount DECIMAL(10,2) NOT NULL, -- Made NOT NULL
     reference VARCHAR(255),
     notes TEXT,
-    user_id VARCHAR(255), -- Reference to users table
+    user_id UUID, -- Changed from VARCHAR(255) to UUID for consistency
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

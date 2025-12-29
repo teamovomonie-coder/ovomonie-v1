@@ -47,7 +47,7 @@ export function NotificationCenter() {
           return (
           <div 
             key={notification.id} 
-            className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+            className="flex items-start gap-4 p-4 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors border border-gray-200 shadow-sm"
             onClick={() => handleNotificationClick(notification)}
           >
             <div className="relative">

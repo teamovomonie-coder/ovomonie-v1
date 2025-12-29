@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getUserById } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { apiUnauthorized, apiError, apiSuccess } from '@/lib/middleware/api-response';
 
 export async function GET() {
   try {
@@ -10,12 +11,54 @@ export async function GET() {
     const userId = await getUserIdFromToken(reqHeaders as any);
     
     if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return apiUnauthorized();
     }
 
-    const user = await getUserById(userId);
+    // Add timeout protection with longer timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database timeout')), 15000)
+    );
+
+    const user = await Promise.race([
+      getUserById(userId),
+      timeoutPromise
+    ]).catch(err => {
+      logger.error('Error fetching user by ID', { userId, error: { message: err.message, details: err.stack, hint: '', code: '' } });
+      return null;
+    });
 
     if (!user) {
+      // Try one more time with direct supabase query as fallback
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase');
+        if (supabaseAdmin) {
+          const { data: fallbackUser, error } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+          
+          if (fallbackUser && !error) {
+            logger.info('User found via fallback query', { userId });
+            return NextResponse.json({
+              userId: fallbackUser.id,
+              phone: fallbackUser.phone,
+              fullName: fallbackUser.full_name,
+              email: fallbackUser.email,
+              accountNumber: fallbackUser.account_number,
+              balance: fallbackUser.balance || 0,
+              kycTier: fallbackUser.kyc_tier || 1,
+              isAgent: fallbackUser.is_agent || false,
+              status: fallbackUser.status || 'active',
+              avatarUrl: fallbackUser.avatar_url,
+              photoUrl: fallbackUser.avatar_url,
+            });
+          }
+        }
+      } catch (fallbackError) {
+        logger.error('Fallback query also failed', { userId, error: fallbackError });
+      }
+      
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
@@ -35,7 +78,7 @@ export async function GET() {
       photoUrl: user.avatar_url,
     });
   } catch (error) {
-    console.error('Auth me error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    logger.error('Auth me error:', error);
+    return apiError('Internal server error');
   }
 }

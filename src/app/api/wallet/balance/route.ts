@@ -1,46 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
-import { getWalletBalance } from '@/lib/virtual-accounts';
+import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase';
+import { apiUnauthorized, apiError, apiSuccess } from '@/lib/middleware/api-response';
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return apiUnauthorized();
     }
-<<<<<<< HEAD
 
-<<<<<<< HEAD
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
-    let balance = await getWalletBalance(userId);
+    const userId = await getUserIdFromToken(request.headers);
+    if (!userId) {
+      return apiUnauthorized();
+    }
 
-    // Fallback: fetch directly from Supabase if helper fails or returns zero
-    if (!balance || balance.balance === 0) {
-      const { supabaseAdmin } = await import('@/lib/supabase');
-      if (supabaseAdmin) {
-        const { data } = await supabaseAdmin
-          .from('users')
-          .select('balance')
-          .eq('id', userId)
-          .maybeSingle();
+    if (!supabaseAdmin) {
+      return apiError('Database error');
+    }
 
-        if (data) {
-          balance = {
-            userId,
-            balance: data.balance || 0,
-            ledgerBalance: data.balance || 0,
-            lastUpdated: new Date().toISOString()
-          };
-        }
-      }
-<<<<<<< HEAD
-=======
-    const balance = await getWalletBalance(userId);
+    // Add timeout protection (3 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database timeout')), 3000)
+    );
 
-    if (!balance) {
-      return NextResponse.json({
-        success: true,
+    const userData = await Promise.race([
+      supabaseAdmin
+        .from('users')
+        .select('id, balance, status')
+        .eq('id', userId)
+        .single(),
+      timeoutPromise
+    ]).catch(err => {
+      logger.warn('Database query timeout or error', { userId, error: err.message });
+      return { data: null, error: err };
+    });
+
+    if (!userData || !userData.data) {
+      // Return default balance instead of error
+      return apiSuccess({
+        balanceInKobo: 0,
         data: {
           userId,
           balance: 0,
@@ -48,28 +48,34 @@ export async function GET(request: NextRequest) {
           lastUpdated: new Date().toISOString()
         }
       });
->>>>>>> origin/supabase/remove-firebase
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     }
 
-    return NextResponse.json({
-      ok: true,
-      success: true,
-      balanceInKobo: balance?.balance || 0,
-      data: balance || { userId, balance: 0, ledgerBalance: 0, lastUpdated: new Date().toISOString() }
+    if (userData.data.status?.toUpperCase() !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Account not active', ok: false }, { status: 403 });
+    }
+
+    const balance = userData.data.balance || 0;
+
+    return apiSuccess({
+      balanceInKobo: balance,
+      data: {
+        userId,
+        balance,
+        ledgerBalance: balance,
+        lastUpdated: new Date().toISOString()
+      }
     });
   } catch (error) {
-    console.error('Wallet balance error:', error);
-    return NextResponse.json(
-      { 
-        ok: true,
-        success: true,
-        balanceInKobo: 0,
-        error: 'Failed to fetch balance',
-        data: { balance: 0, ledgerBalance: 0 }
-      },
-      { status: 200 }
-    );
+    logger.error('Wallet balance error:', error);
+    // Return default balance instead of error
+    return apiSuccess({
+      balanceInKobo: 0,
+      data: {
+        userId: 'unknown',
+        balance: 0,
+        ledgerBalance: 0,
+        lastUpdated: new Date().toISOString()
+      }
+    });
   }
 }

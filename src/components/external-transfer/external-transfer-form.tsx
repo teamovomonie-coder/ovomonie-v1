@@ -286,11 +286,56 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       });
 
       const result = await response.json();
-      if (!response.ok) {
-        const error: any = new Error(result.message || 'An error occurred during the transfer.');
-        error.response = response; 
-        throw error;
+      
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || 'Transfer failed');
       }
+
+      const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+      
+      // Create receipt data from API response if available, otherwise use form data
+      const receiptData = result.data.receiptData || {
+        type: 'external-transfer',
+        recipientName,
+        bankName,
+        accountNumber: submittedData.accountNumber,
+        amount: submittedData.amount,
+        narration: submittedData.narration || `Transfer to ${recipientName}`,
+        completedAt: new Date().toISOString(),
+        message: submittedData.message,
+        photo: submittedData.photo
+      };
+      
+      // Create and save receipt data IMMEDIATELY after successful response
+      const finalReceiptData = {
+        type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
+        data: {
+          ...submittedData,
+          bankCode: submittedData.bankCode,
+          accountNumber: submittedData.accountNumber,
+          amount: submittedData.amount, // Ensure amount is at data level
+        },
+        recipientName,
+        bankName,
+        reference: clientReference,
+        amount: submittedData.amount, // Also keep at root level for compatibility
+        transactionId: result.data.transactionId || clientReference,
+        completedAt: receiptData.completedAt || new Date().toLocaleString(),
+      };
+      
+      // Clear any existing receipt data first
+      localStorage.removeItem('ovo-pending-receipt');
+      
+      // Save new receipt data
+      localStorage.setItem('ovo-pending-receipt', JSON.stringify(finalReceiptData));
+      
+      // Verify it was saved correctly
+      const verification = localStorage.getItem('ovo-pending-receipt');
+      console.log('Receipt saved and verified:', JSON.parse(verification || '{}'));
+      
+      // Update UI state
+      updateBalance(result.data.newBalanceInKobo);
+      setIsPinModalOpen(false);
 
       toast({
         title: 'Transfer Successful!',
@@ -303,30 +348,20 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         category: 'transaction',
       });
 
-      updateBalance(result.data.newBalanceInKobo);
-      setIsPinModalOpen(false);
-
-      // Save receipt data for success page
-      try {
-        const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
-        const receiptData = {
-          type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
-          data: submittedData,
-          recipientName,
-          bankName,
-          reference: clientReference,
-          amount: submittedData.amount,
-          transactionId: result.data.transactionId || clientReference,
-          completedAt: new Date().toLocaleString(),
-        };
-        await pendingTransactionService.savePendingReceipt(receiptData);
-        localStorage.setItem('ovo-pending-receipt', JSON.stringify(receiptData));
-      } catch (e) {
-        console.warn('[ExternalTransfer] could not save pending receipt', e);
-      }
-
-      // Navigate to success page to show receipt
-      router.push('/success');
+      // Navigate to success page with receipt data and fallback to receipt page
+      console.log('Navigating to success page with receipt data');
+      
+      // Try success page first, with receipt page as fallback
+      const successUrl = `/success?ref=${encodeURIComponent(clientReference)}`;
+      const receiptUrl = `/receipt/${encodeURIComponent(clientReference)}?txId=${encodeURIComponent(result.data.transactionId || clientReference)}&type=external-transfer`;
+      
+      // Also store a direct API receipt URL as additional fallback
+      const apiReceiptUrl = `/api/receipt/${encodeURIComponent(clientReference)}?type=external-transfer`;
+      
+      // Navigate to success page, but store receipt URL as backup
+      sessionStorage.setItem('ovo-receipt-fallback', receiptUrl);
+      sessionStorage.setItem('ovo-api-receipt-url', apiReceiptUrl);
+      router.push(successUrl);
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';
@@ -361,23 +396,58 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
     return (
       <>
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Transfer Summary</CardTitle>
-            <CardDescription>Please review the details before confirming.</CardDescription>
+        <Card className="w-full max-w-md mx-auto shadow-xl border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-[#001f3f] to-[#003366] text-white pb-8">
+            <CardTitle className="text-xl">Confirm Transfer</CardTitle>
+            <CardDescription className="text-white/80">Review details before proceeding</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center"><span className="text-muted-foreground">Recipient</span><span className="font-semibold">{recipientName}</span></div>
-            <div className="flex justify-between items-center"><span className="text-muted-foreground">Bank</span><span className="font-semibold">{bankName}</span></div>
-            <div className="flex justify-between items-center"><span className="text-muted-foreground">Account Number</span><span className="font-semibold">{submittedData.accountNumber}</span></div>
-            <div className="flex justify-between items-center"><span className="text-muted-foreground">Amount</span><span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span></div>
-            {submittedData.narration && (<div className="flex justify-between items-center"><span className="text-muted-foreground">Narration</span><span className="font-semibold">{submittedData.narration}</span></div>)}
-            {isMemoTransfer && submittedData.photo && (<div className="space-y-2"><span className="text-muted-foreground">Attached Photo</span><div className="relative w-full h-32 rounded-lg overflow-hidden"><Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" /></div></div>)}
-            {isMemoTransfer && submittedData.message && (<div className="space-y-2"><span className="text-muted-foreground">Message</span><blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote></div>)}
+          <CardContent className="space-y-4 pt-6 pb-6">
+            <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Recipient</span>
+                <span className="font-semibold text-gray-900">{recipientName}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Bank</span>
+                <span className="font-semibold text-gray-900">{bankName}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Account Number</span>
+                <span className="font-mono font-semibold text-gray-900">{submittedData.accountNumber}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm text-gray-600">Amount</span>
+                <span className="font-bold text-2xl text-[#001f3f]">₦{submittedData.amount.toLocaleString()}</span>
+              </div>
+            </div>
+            
+            {submittedData.narration && (
+              <div className="bg-blue-50 rounded-lg p-4">
+                <span className="text-xs text-gray-600 block mb-1">Narration</span>
+                <span className="font-medium text-gray-900">{submittedData.narration}</span>
+              </div>
+            )}
+            
+            {isMemoTransfer && submittedData.photo && (
+              <div className="space-y-2">
+                <span className="text-sm text-gray-600">Attached Photo</span>
+                <div className="relative w-full h-32 rounded-lg overflow-hidden border-2 border-gray-200">
+                  <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
+                </div>
+              </div>
+            )}
+            {isMemoTransfer && submittedData.message && (
+              <div className="bg-purple-50 rounded-lg p-4">
+                <span className="text-xs text-gray-600 block mb-2">Message</span>
+                <blockquote className="border-l-4 border-purple-400 pl-3 italic text-gray-700">"{submittedData.message}"</blockquote>
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="flex gap-2">
-            <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-            <Button className="w-full" onClick={async () => {
+          <CardFooter className="flex gap-3 px-6 pb-6">
+            <Button variant="outline" className="w-full py-6 border-2" onClick={() => setStep('form')} disabled={isProcessing}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <Button className="w-full py-6 bg-[#001f3f] hover:bg-[#001f3f]/90 text-white font-semibold shadow-lg" onClick={async () => {
                 try {
                   if (submittedData && recipientName) {
                     const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
@@ -436,9 +506,14 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           </Alert>
           
         {!defaultMemo && (
-            <div className="flex items-center space-x-2 justify-end">
-                <Label htmlFor="memo-switch">Use MemoTransfer</Label>
-                <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
+            <div className="flex items-center space-x-3 justify-end p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border-2 border-blue-200">
+                <Label htmlFor="memo-switch" className="text-sm font-semibold text-gray-700">Use MemoTransfer</Label>
+                <Switch 
+                  id="memo-switch" 
+                  checked={isMemoTransfer} 
+                  onCheckedChange={setIsMemoTransfer}
+                  className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300"
+                />
             </div>
         )}
 
@@ -447,27 +522,27 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           name="bankCode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Recipient's Bank</FormLabel>
+              <FormLabel className="text-sm font-medium">Recipient's Bank</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="border-2 border-gray-200 focus:border-[#001f3f] focus:ring-2 focus:ring-[#001f3f]/20 transition-all">
                             <SelectValue placeholder="Select a bank" />
                         </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-white max-h-[300px]">
                         <SelectGroup>
-                            <SelectLabel>Top Banks</SelectLabel>
+                            <SelectLabel className="bg-gray-50 font-semibold">Top Banks</SelectLabel>
                             {topBanks.map(bank => (
-                                <SelectItem key={bank.code} value={bank.code}>
+                                <SelectItem key={bank.code} value={bank.code} className="bg-white hover:bg-gray-100">
                                     {bank.name}
                                 </SelectItem>
                             ))}
                         </SelectGroup>
-                        <SelectSeparator />
+                        <SelectSeparator className="bg-gray-200" />
                         <SelectGroup>
-                            <SelectLabel>All Banks</SelectLabel>
+                            <SelectLabel className="bg-gray-50 font-semibold">All Banks</SelectLabel>
                              {otherBanks.map(bank => (
-                                <SelectItem key={bank.code} value={bank.code}>
+                                <SelectItem key={bank.code} value={bank.code} className="bg-white hover:bg-gray-100">
                                     {bank.name}
                                 </SelectItem>
                             ))}
@@ -484,17 +559,21 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           name="accountNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Recipient's Account Number</FormLabel>
+              <FormLabel className="text-sm font-medium">Recipient's Account Number</FormLabel>
               <div className="relative">
                   <FormControl>
-                      <Input placeholder="10-digit account number" {...field} />
+                      <Input 
+                        placeholder="10-digit account number" 
+                        {...field} 
+                        className="border-2 border-gray-200 focus:border-[#001f3f] focus:ring-2 focus:ring-[#001f3f]/20 transition-all"
+                      />
                   </FormControl>
                   {isVerifying && (
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
                   )}
               </div>
               {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
+                  <div className="text-green-600 bg-green-500/10 p-3 rounded-lg text-sm font-semibold mt-2 flex items-center gap-2">
                      <Check className="h-4 w-4" /> {recipientName}
                   </div>
               )}
@@ -508,9 +587,16 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount (₦)</FormLabel>
+              <FormLabel className="text-sm font-medium">Amount (₦)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
+                <Input 
+                  type="number" 
+                  placeholder="e.g., 5000" 
+                  {...field} 
+                  value={field.value === 0 ? '' : field.value} 
+                  onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} 
+                  className="border-2 border-gray-200 focus:border-[#001f3f] focus:ring-2 focus:ring-[#001f3f]/20 transition-all"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -522,9 +608,13 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           name="narration"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Narration (Optional)</FormLabel>
+              <FormLabel className="text-sm font-medium">Narration (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., For groceries" {...field} />
+                <Input 
+                  placeholder="e.g., For groceries" 
+                  {...field} 
+                  className="border-2 border-gray-200 focus:border-[#001f3f] focus:ring-2 focus:ring-[#001f3f]/20 transition-all"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -582,7 +672,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
           </div>
         )}
 
-        <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>
+        <Button type="submit" className="w-full !mt-6 bg-[#001f3f] hover:bg-[#001f3f]/90 text-white font-semibold py-6 rounded-lg shadow-lg" disabled={isVerifying || !recipientName}>
           Continue
         </Button>
       </form>

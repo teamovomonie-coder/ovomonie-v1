@@ -18,5 +18,15 @@ CREATE INDEX IF NOT EXISTS idx_pending_payments_user_id ON pending_payments(user
 CREATE INDEX IF NOT EXISTS idx_pending_payments_reference ON pending_payments(reference);
 CREATE INDEX IF NOT EXISTS idx_pending_payments_status ON pending_payments(status);
 
--- Disable RLS for service role access
-ALTER TABLE pending_payments DISABLE ROW LEVEL SECURITY;
+-- Enable RLS for security
+ALTER TABLE pending_payments ENABLE ROW LEVEL SECURITY;
+
+-- Add RLS policies
+CREATE POLICY "Users can view own pending payments" ON pending_payments
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert own pending payments" ON pending_payments
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update own pending payments" ON pending_payments
+  FOR UPDATE USING (auth.uid()::text = user_id);

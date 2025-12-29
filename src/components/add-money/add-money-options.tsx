@@ -687,11 +687,11 @@ export function AddMoneyOptions() {
   return (
     <Tabs defaultValue="bank" className="w-full">
       <TabsList className="grid w-full grid-cols-5 h-auto">
-        <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Bank</TabsTrigger>
-        <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Card</TabsTrigger>
-        <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />USSD</TabsTrigger>
-        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR Code</TabsTrigger>
-        <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Agent</TabsTrigger>
+        <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Bank</span></TabsTrigger>
+        <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Card</span></TabsTrigger>
+        <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">USSD</span></TabsTrigger>
+        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">QR Code</span></TabsTrigger>
+        <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Agent</span></TabsTrigger>
       </TabsList>
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
       <TabsContent value="card" className="pt-6"><VFDCardPayment /></TabsContent>

@@ -5,8 +5,10 @@
  * Replaces localStorage-based receipt storage with database persistence.
  */
 
+export type TransactionType = 'AIRTIME' | 'DATA' | 'BILL_PAYMENT' | 'INTERNAL_TRANSFER' | 'EXTERNAL_TRANSFER' | 'CARD_FUNDING' | 'BANK_FUNDING' | 'AGENT_FUNDING' | 'VIRTUAL_CARD' | 'WITHDRAWAL' | 'BETTING';
+
 export interface ReceiptData {
-  type: 'transfer' | 'card_funding' | 'bank_funding' | 'agent_funding' | 'virtual_card' | 'bill_payment' | 'airtime' | 'memo-transfer' | 'internal-transfer' | 'external-transfer' | 'withdrawal' | 'betting' | string;
+  type: TransactionType;
   reference: string;
   amount?: number;
   recipientName?: string;
@@ -125,11 +127,40 @@ class PendingTransactionService {
   }
 
   /**
-   * Get a specific transaction by reference
+   * Get a specific transaction by reference and type (strict matching)
+   */
+  async getByReferenceAndType(reference: string, type: TransactionType): Promise<ReceiptData | null> {
+    try {
+      const response = await this.fetchWithAuth(
+        `${this.baseUrl}?reference=${encodeURIComponent(reference)}&type=${encodeURIComponent(type)}`,
+        { cache: 'no-store' }
+      );
+      const result = await response.json();
+      
+      if (result.ok && result.data && result.data.length > 0) {
+        const receipt = result.data[0].data as ReceiptData;
+        // Double-check type matches to prevent wrong receipt display
+        if (receipt.type === type) {
+          return receipt;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[PendingTransactionService] Get by reference and type error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get a specific transaction by reference (for backward compatibility)
    */
   async getByReference(reference: string): Promise<ReceiptData | null> {
     try {
-      const response = await this.fetchWithAuth(`${this.baseUrl}?reference=${encodeURIComponent(reference)}`);
+      const response = await this.fetchWithAuth(
+        `${this.baseUrl}?reference=${encodeURIComponent(reference)}`,
+        { cache: 'no-store' }
+      );
       const result = await response.json();
       
       if (result.ok && result.data && result.data.length > 0) {

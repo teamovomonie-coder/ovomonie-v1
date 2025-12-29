@@ -85,8 +85,20 @@ export function InternalTransferForm() {
         setIsVerifying(true);
         debounceRef.current = setTimeout(async () => {
             try {
+              const token = localStorage.getItem('ovo-auth-token');
+              if (!token) {
+                setError('accountNumber', { type: 'manual', message: 'Please log in again.' });
+                setRecipientName(null);
+                return;
+              }
+              
               const normalAccountNumber = displayToAccountNumber(watchedAccountNumber);
-              const res = await fetch(`/api/user/${normalAccountNumber}`);
+              const res = await fetch(`/api/user/${normalAccountNumber}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
               if (res.status === 404) {
                  setError('accountNumber', { type: 'manual', message: 'Ovomonie account not found.' });
                  setRecipientName(null);
@@ -290,54 +302,58 @@ export function InternalTransferForm() {
   if (step === 'summary' && submittedData && recipientName) {
     return (
       <>
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Transfer Summary</CardTitle>
-            <CardDescription>Please review the details before confirming.</CardDescription>
+        <Card className="w-full max-w-md mx-auto shadow-xl border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-[#001f3f] to-[#003366] text-white pb-8">
+            <CardTitle className="text-xl">Confirm Transfer</CardTitle>
+            <CardDescription className="text-white/80">Review details before proceeding</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Recipient</span>
-              <span className="font-semibold">{recipientName}</span>
+          <CardContent className="space-y-4 pt-6 pb-6">
+            <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Recipient</span>
+                <span className="font-semibold text-gray-900">{recipientName}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Bank</span>
+                <span className="font-semibold text-gray-900">Ovomonie</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-600">Account Number</span>
+                <span className="font-mono font-semibold text-gray-900">{submittedData.accountNumber}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm text-gray-600">Amount</span>
+                <span className="font-bold text-2xl text-[#001f3f]">₦{submittedData.amount.toLocaleString()}</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Bank</span>
-              <span className="font-semibold">Ovomonie</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Account Number</span>
-              <span className="font-semibold">{submittedData.accountNumber}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="font-bold text-lg text-primary">₦{submittedData.amount.toLocaleString()}</span>
-            </div>
+            
             {submittedData.narration && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Narration</span>
-                <span className="font-semibold">{submittedData.narration}</span>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <span className="text-xs text-gray-600 block mb-1">Narration</span>
+                <span className="font-medium text-gray-900">{submittedData.narration}</span>
               </div>
             )}
+            
             {isMemoTransfer && submittedData.photo && (
               <div className="space-y-2">
-                <span className="text-muted-foreground">Attached Photo</span>
-                <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                <span className="text-sm text-gray-600">Attached Photo</span>
+                <div className="relative w-full h-32 rounded-lg overflow-hidden border-2 border-gray-200">
                   <Image src={submittedData.photo as string} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="person" />
                 </div>
               </div>
             )}
             {isMemoTransfer && submittedData.message && (
-              <div className="space-y-2">
-                <span className="text-muted-foreground">Message</span>
-                <blockquote className="border-l-2 pl-2 italic">"{submittedData.message}"</blockquote>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <span className="text-xs text-gray-600 block mb-2">Message</span>
+                <blockquote className="border-l-4 border-purple-400 pl-3 italic text-gray-700">"{submittedData.message}"</blockquote>
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex gap-2">
-            <Button variant="outline" className="w-full" onClick={() => setStep('form')} disabled={isProcessing}>
+          <CardFooter className="flex gap-3 px-6 pb-6">
+            <Button variant="outline" className="w-full py-6 border-2" onClick={() => setStep('form')} disabled={isProcessing}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button className="w-full" onClick={async () => {
+            <Button className="w-full py-6 bg-[#001f3f] hover:bg-[#001f3f]/90 text-white font-semibold shadow-lg" onClick={async () => {
                 try {
                   if (submittedData && recipientName) {
                     const receipt: any = { 
@@ -371,126 +387,219 @@ export function InternalTransferForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-     
-          
->>>>>>> origin/supabase/remove-firebase
-=======
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
-        <div className="flex items-center space-x-2 justify-end">
-          <Label htmlFor="memo-switch">Use MemoTransfer</Label>
-          <Switch id="memo-switch" checked={isMemoTransfer} onCheckedChange={setIsMemoTransfer} />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-2xl border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Transfer Details</h2>
+              <p className="text-sm text-slate-600">Send money securely to any Ovomonie account</p>
+            </div>
+            <div className="bg-white p-3 rounded-xl shadow-sm">
+              <Wallet className="h-6 w-6 text-slate-600" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 p-4 rounded-xl border-2 border-slate-300 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-slate-200 p-2 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-slate-700" />
+                </div>
+                <div>
+                  <Label htmlFor="memo-switch" className="text-sm font-semibold text-slate-700">Enable MemoTransfer</Label>
+                  <p className="text-xs text-slate-500">Add photos and messages to your transfer</p>
+                </div>
+              </div>
+              <Switch 
+                id="memo-switch" 
+                checked={isMemoTransfer} 
+                onCheckedChange={setIsMemoTransfer}
+                className="data-[state=checked]:bg-slate-700 data-[state=unchecked]:bg-slate-300"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-6">
+            <FormField
+              control={form.control}
+              name="accountNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-slate-600 rounded-full"></div>
+                    Recipient Account Number
+                  </FormLabel>
+                  <div className="relative">
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter 10-digit account number" 
+                        {...field} 
+                        className="h-12 pl-4 pr-12 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white"
+                      />
+                    </FormControl>
+                    {isVerifying && (
+                      <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-slate-600" />
+                    )}
+                  </div>
+                  {recipientName && !isVerifying && (
+                    <div className="bg-green-50 border border-green-200 p-3 rounded-xl mt-2">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <Check className="h-4 w-4" /> 
+                        <span className="font-semibold">{recipientName}</span>
+                      </div>
+                    </div>
+                  )}
+                  <FormMessage className="text-red-500 text-sm" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-slate-600 rounded-full"></div>
+                    Amount
+                  </FormLabel>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-semibold">₦</div>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0.00" 
+                        {...field} 
+                        value={field.value === 0 ? '' : field.value} 
+                        onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} 
+                        className="h-12 pl-8 pr-4 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white"
+                      />
+                    </FormControl>
+                  </div>
+                  <FormMessage className="text-red-500 text-sm" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="narration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-slate-700">Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="What's this transfer for?" 
+                      {...field} 
+                      className="h-12 px-4 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-500 text-sm" />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        <FormField
-          control={form.control}
-          name="accountNumber"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Recipient's Account Number</FormLabel>
-              <div className="relative">
-                  <FormControl>
-                      <Input placeholder="10-digit account number" {...field} />
-                  </FormControl>
-                  {isVerifying && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
-                  )}
-              </div>
-              {recipientName && !isVerifying && (
-                  <div className="text-green-600 bg-green-500/10 p-2 rounded-md text-sm font-semibold mt-1 flex items-center gap-2">
-                     <Check className="h-4 w-4" /> {recipientName}
-                  </div>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount (₦)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="e.g., 5000" {...field} value={field.value === 0 ? '' : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="narration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Narration (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., For lunch" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         {isMemoTransfer && (
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold text-lg">MemoTransfer Details</h3>
-            <div className="grid md:grid-cols-2 gap-4 items-end">
-                 <FormField control={form.control} name="imageTheme" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Generate Image from Theme</FormLabel>
-                      <div className="flex gap-2">
-                        <FormControl>
-                            <Input placeholder="e.g., Birthday celebration" {...field} />
-                        </FormControl>
-                        <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage}>
-                            {isGeneratingImage ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <div className="relative text-center before:hidden md:before:absolute md:before:content-['OR'] md:before:-left-4 md:before:top-1/2 md:before:-translate-y-1/2 md:before:text-muted-foreground md:before:font-bold">
-                    <FormField control={form.control} name="photo" render={() => (
-                        <FormItem><FormLabel>Upload Your Photo</FormLabel>
-                            <FormControl>
-                                <Input id="photo-upload" type="file" accept="image/*" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-light-bg file:text-primary hover:file:bg-primary/20" onChange={handlePhotoUpload} />
-                            </FormControl>
-                        </FormItem>
-                    )} />
-                </div>
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-2xl border border-slate-300">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-slate-200 p-3 rounded-xl">
+                <Sparkles className="h-6 w-6 text-slate-700" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">MemoTransfer Details</h3>
+                <p className="text-sm text-slate-600">Make your transfer memorable</p>
+              </div>
             </div>
 
-             {photoPreview && (
-                <div className="relative w-full h-32 rounded-lg overflow-hidden border">
-                  <Image src={photoPreview} alt="Generated Preview" layout="fill" objectFit="cover" data-ai-hint="celebration" />
-                </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField control={form.control} name="imageTheme" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-slate-700">Generate Image Theme</FormLabel>
+                  <div className="flex gap-3">
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Birthday celebration" 
+                        {...field} 
+                        className="h-12 px-4 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white"
+                      />
+                    </FormControl>
+                    <Button 
+                      type="button" 
+                      onClick={handleGenerateImage} 
+                      disabled={isGeneratingImage}
+                      className="h-12 px-6 bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-semibold transition-all"
+                    >
+                      {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                    </Button>
+                  </div>
+                  <FormMessage className="text-red-500 text-sm" />
+                </FormItem>
+              )}
+              />
+
+              <FormField control={form.control} name="photo" render={() => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-slate-700">Upload Photo</FormLabel>
+                  <FormControl>
+                    <Input 
+                      id="photo-upload" 
+                      type="file" 
+                      accept="image/*" 
+                      className="h-12 px-4 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-200 file:text-slate-700 file:font-semibold hover:file:bg-slate-300" 
+                      onChange={handlePhotoUpload} 
+                    />
+                  </FormControl>
+                </FormItem>
+              )} />
+            </div>
+
+            {photoPreview && (
+              <div className="mt-6 relative w-full h-40 rounded-xl overflow-hidden border-2 border-slate-300">
+                <Image src={photoPreview} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="celebration" />
+              </div>
             )}
+
             <FormField
               control={form.control}
               name="message"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Custom Message (Optional)</FormLabel>
+                <FormItem className="mt-6">
+                  <FormLabel className="text-sm font-semibold text-slate-700">Personal Message</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="e.g., Happy Birthday! Enjoy." {...field} />
+                    <Textarea 
+                      placeholder="Add a personal message to your transfer..." 
+                      {...field} 
+                      className="min-h-[100px] px-4 py-3 text-base border-2 border-slate-200 focus:border-slate-600 focus:ring-4 focus:ring-slate-200 rounded-xl transition-all bg-white resize-none"
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-red-500 text-sm" />
                 </FormItem>
               )}
             />
           </div>
         )}
 
-        <Button type="submit" className="w-full !mt-6" disabled={isVerifying || !recipientName}>
-          Continue
-        </Button>
+        <div className="pt-6">
+          <Button 
+            type="submit" 
+            className="w-full h-14 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+            disabled={isVerifying || !recipientName}
+          >
+            {isVerifying ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin h-5 w-5" />
+                <span>Verifying Account...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span>Continue Transfer</span>
+                <ArrowLeft className="h-5 w-5 rotate-180" />
+              </div>
+            )}
+          </Button>
+        </div>
       </form>
     </Form>
   );

@@ -11,15 +11,15 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create bank_cards table
+-- Create bank_cards table (PCI DSS compliant - no sensitive data stored)
 CREATE TABLE IF NOT EXISTS bank_cards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
-  card_number TEXT NOT NULL,
-  card_type TEXT NOT NULL,
-  expiry_date TEXT NOT NULL,
+  card_token TEXT NOT NULL, -- Only store tokenized card reference
+  last_four VARCHAR(4) NOT NULL, -- Only last 4 digits for display
+  card_brand VARCHAR(20) NOT NULL, -- visa, mastercard, etc
+  expiry_display VARCHAR(7), -- MM/YYYY format for display only
   cardholder_name TEXT NOT NULL,
-  card_token TEXT,
   is_active BOOLEAN DEFAULT true,
   verified_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

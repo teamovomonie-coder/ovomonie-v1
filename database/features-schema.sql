@@ -1,7 +1,7 @@
 -- Savings Goals Table
 CREATE TABLE IF NOT EXISTS savings_goals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
   name TEXT NOT NULL,
   target_amount DECIMAL(15,2) NOT NULL,
   current_amount DECIMAL(15,2) DEFAULT 0,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS savings_goals (
 -- Budgets Table
 CREATE TABLE IF NOT EXISTS budgets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
   category TEXT NOT NULL,
   limit_amount DECIMAL(15,2) NOT NULL,
   spent_amount DECIMAL(15,2) DEFAULT 0,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 -- Crypto Assets Table
 CREATE TABLE IF NOT EXISTS crypto_assets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
   symbol TEXT NOT NULL,
   name TEXT NOT NULL,
   amount DECIMAL(20,8) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS crypto_assets (
 -- Insurance Table
 CREATE TABLE IF NOT EXISTS insurance (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
   type TEXT CHECK (type IN ('life', 'health', 'auto', 'home')) NOT NULL,
   provider TEXT NOT NULL,
   premium DECIMAL(15,2) NOT NULL,
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS insurance (
 -- Referrals Table
 CREATE TABLE IF NOT EXISTS referrals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  referrer_id TEXT NOT NULL,
-  referee_id TEXT NOT NULL,
+  referrer_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
+  referee_id UUID NOT NULL, -- Changed from TEXT to UUID for consistency
   code TEXT NOT NULL UNIQUE,
   status TEXT CHECK (status IN ('pending', 'completed')) DEFAULT 'pending',
   reward_amount DECIMAL(15,2) NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS referrals (
 -- Loyalty Points Table
 CREATE TABLE IF NOT EXISTS loyalty_points (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL UNIQUE,
+  user_id UUID NOT NULL UNIQUE, -- Changed from TEXT to UUID for consistency
   points INTEGER DEFAULT 0,
   tier TEXT CHECK (tier IN ('bronze', 'silver', 'gold', 'platinum')) DEFAULT 'bronze',
   lifetime_points INTEGER DEFAULT 0,
@@ -73,11 +73,12 @@ CREATE TABLE IF NOT EXISTS loyalty_points (
 
 -- Currency Rates Table
 CREATE TABLE IF NOT EXISTS currency_rates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY, -- Added surrogate key
   from_currency TEXT NOT NULL,
   to_currency TEXT NOT NULL,
   rate DECIMAL(15,6) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (from_currency, to_currency)
+  UNIQUE(from_currency, to_currency) -- Ensure only one rate per currency pair
 );
 
 -- Indexes for better performance

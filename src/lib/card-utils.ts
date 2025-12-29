@@ -174,25 +174,13 @@ export function validateExpiry(expiry: string): { isValid: boolean; isExpired: b
   if (year < currentYear || (year === currentYear && month < currentMonth)) {
     return { isValid: false, isExpired: true, message: 'Card has expired' };
   }
-<<<<<<< HEAD
-  
-<<<<<<< HEAD
-  // Card valid for max 50 years from now (to support test cards)
-  if (year > currentYear + 50) {
-=======
-  // Card valid for max 20 years from now (or 50 years in dev mode)
-  const maxYears = isDev ? 50 : 20;
-  if (year > currentYear + maxYears) {
->>>>>>> origin/supabase/remove-firebase
-=======
 
   // Card valid for max 20 years from now (or 50 years in dev mode)
   const maxYears = isDev ? 50 : 20;
   if (year > currentYear + maxYears) {
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
     return { isValid: false, isExpired: false, message: 'Invalid expiry year' };
   }
-  
+
   return { isValid: true, isExpired: false, message: '' };
 }
 

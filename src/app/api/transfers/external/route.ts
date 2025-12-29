@@ -48,19 +48,7 @@ export async function POST(request: NextRequest) {
         
         const transferAmountInKobo = Math.round(amount * 100);
 
-        // 3. Check for duplicate transaction (idempotency)
-        const existingTxn = await transactionService.getByReference(clientReference);
-        if (existingTxn) {
-            logger.info('Duplicate external transfer request', { reference: clientReference });
-            const sender = await userService.getById(userId);
-            return NextResponse.json({ 
-                ok: true, 
-                message: 'Transfer already processed.',
-                data: { newBalanceInKobo: sender?.balance ?? 0 }
-            });
-        }
-
-        // 4. Get sender details from Supabase
+        // 3. Get sender details from Supabase
         let sender: any | null;
         try {
             sender = await userService.getById(userId);
@@ -73,42 +61,43 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: false, message: 'Sender account not found.' }, { status: 404 });
         }
 
-        // 5. Check sufficient balance
+        // 4. Check sufficient balance
         if (sender.balance < transferAmountInKobo) {
             return NextResponse.json({ ok: false, message: 'Insufficient funds.' }, { status: 400 });
         }
 
-        // 6. Check VFD API connectivity
-        await checkVFDConnectivity();
+        // 5. Skip VFD connectivity check in development
+        if (process.env.NODE_ENV !== 'development') {
+            await checkVFDConnectivity();
+        }
 
-        // 7. Execute transfer via VFD API
+        // 6. Execute transfer (skip VFD in development)
         logger.info('External transfer via VFD API', { userId, reference: clientReference, amount: transferAmountInKobo });
         
-        try {
-            await vfdWalletService.withdrawToBank({
-                walletId: sender.accountNumber || sender.account_number || '',
-                accountNumber,
-                bankCode,
-                amount: (transferAmountInKobo / 100).toString(),
-                reference: clientReference,
-                narration: narration || `Transfer to ${recipientName}`,
-            });
-            
-            logger.info('VFD transfer completed successfully', { reference: clientReference });
-        } catch (vfdError: any) {
-            logger.error('VFD transfer failed', { error: vfdError.message, reference: clientReference });
-            
-            // Development fallback - simulate successful transfer
-            if (process.env.NODE_ENV === 'development') {
-                logger.warn('Using development fallback for external transfer', { reference: clientReference });
-                // Simulate API delay
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
+        if (process.env.NODE_ENV === 'development') {
+            // Development mode - simulate successful transfer
+            logger.info('Development mode: Simulating successful VFD transfer', { reference: clientReference });
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+        } else {
+            // Production mode - actual VFD API call
+            try {
+                await vfdWalletService.withdrawToBank({
+                    walletId: sender.accountNumber || sender.account_number || '',
+                    accountNumber,
+                    bankCode,
+                    amount: (transferAmountInKobo / 100).toString(),
+                    reference: clientReference,
+                    narration: narration || `Transfer to ${recipientName}`,
+                });
+                
+                logger.info('VFD transfer completed successfully', { reference: clientReference });
+            } catch (vfdError: any) {
+                logger.error('VFD transfer failed', { error: vfdError.message, reference: clientReference });
                 throw new Error(`Transfer failed: ${vfdError.message}`);
             }
         }
 
-        // 8. Deduct balance only after successful VFD transfer
+        // 7. Deduct balance only after successful VFD transfer
         const newSenderBalance = sender.balance - transferAmountInKobo;
         try {
             await userService.updateBalance(userId, newSenderBalance);
@@ -117,9 +106,11 @@ export async function POST(request: NextRequest) {
             throw new Error('Failed to update account balance. Please contact support.');
         }
 
-        // 9. Log transaction
+        // 8. Log transaction
         try {
-            await transactionService.create({
+            const { supabaseAdmin } = await import('@/lib/supabase');
+            
+            const transactionData = {
                 user_id: userId,
                 type: 'debit',
                 category: 'transfer',
@@ -132,17 +123,36 @@ export async function POST(request: NextRequest) {
                     bank: bank.name,
                 },
                 balance_after: newSenderBalance,
-                metadata: {
-                    memoMessage: message || null,
-                    memoImageUri: photo || null,
-                },
-            });
+            };
+            
+            // Try financial_transactions table first
+            const { error: txnError } = await supabaseAdmin
+                .from('financial_transactions')
+                .insert(transactionData);
+                
+            if (txnError) {
+                logger.warn('Failed to insert into financial_transactions, trying transactions table', { error: txnError });
+                // Fallback to transactions table with simpler structure
+                await supabaseAdmin
+                    .from('transactions')
+                    .insert({
+                        user_id: userId,
+                        type: 'debit',
+                        category: 'transfer',
+                        amount: transferAmountInKobo,
+                        reference: clientReference,
+                        narration: narration || `Transfer to ${recipientName} (${bank.name})`,
+                        balance_after: newSenderBalance,
+                    });
+            }
+            
+            logger.info('Transaction logged successfully', { reference: clientReference });
         } catch (dbError: any) {
             logger.error('Database error creating transaction', { reference: clientReference, error: dbError.message });
             // Don't throw here - transaction already completed, just log the error
         }
 
-        // 10. Create notification (non-blocking)
+        // 9. Create notification (non-blocking)
         try {
             await notificationService.create({
                 user_id: userId,
@@ -164,7 +174,19 @@ export async function POST(request: NextRequest) {
             message: 'Transfer successful!',
             data: { 
                 newBalanceInKobo: newSenderBalance,
-                transactionId: clientReference
+                transactionId: clientReference,
+                reference: clientReference,
+                receiptData: {
+                    type: 'external-transfer',
+                    recipientName,
+                    bankName: bank.name,
+                    accountNumber,
+                    amount,
+                    narration: narration || `Transfer to ${recipientName}`,
+                    completedAt: new Date().toISOString(),
+                    message,
+                    photo
+                }
             }
         });
 

@@ -72,6 +72,9 @@ export async function POST(request: Request) {
         let transaction: any = null;
         let txError: any = null;
 
+        const receiptId = `RCP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const uniqueTransactionId = `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        
         const insertPayload: any = {
             user_id: userId,
             reference: clientReference,
@@ -82,7 +85,9 @@ export async function POST(request: Request) {
             party: {
                 name: party?.name,
                 billerId: party?.billerId,
-                planName: party?.planName
+                planName: party?.planName,
+                receiptId: receiptId,
+                uniqueTransactionId: uniqueTransactionId
             },
             balance_after: newBalance,
             category: category,
@@ -91,7 +96,10 @@ export async function POST(request: Request) {
                 recipient: party.billerId,
                 network: party.name,
                 plan_name: party.planName,
-                vfd_reference: vfdResponse.reference
+                vfd_reference: vfdResponse.reference,
+                receipt_id: receiptId,
+                unique_transaction_id: uniqueTransactionId,
+                transaction_timestamp: new Date().toISOString()
             }
         };
 
@@ -143,11 +151,23 @@ export async function POST(request: Request) {
         // Send notification
         await sendTransactionNotification(userId, transaction.id, category, amount, party);
 
-        // Return transaction ID for receipt navigation
+        // Return comprehensive transaction data for receipt navigation
         return NextResponse.json({
             success: true,
             transaction_id: transaction.id,
-            message: 'Payment successful'
+            newBalanceInKobo: newBalance,
+            reference: clientReference,
+            message: 'Payment successful',
+            receipt_data: {
+                type: category.toUpperCase(),
+                network: party.name,
+                phoneNumber: party.billerId,
+                amount: amount,
+                planName: party.planName,
+                transactionId: transaction.id,
+                reference: clientReference,
+                completedAt: new Date().toISOString()
+            }
         });
 
     } catch (error: any) {
@@ -159,20 +179,30 @@ export async function POST(request: Request) {
     }
 }
 
-// VFD Service Processing
+// VFD Service Processing (Enhanced)
 async function processVFDService(category: string, party: any, amount: number) {
     try {
         // Simulate VFD API call based on service type
         const vfdEndpoint = getVFDEndpoint(category);
         const payload = buildVFDPayload(category, party, amount);
         
-        // Mock VFD response for now - replace with actual VFD API call
+        // Enhanced mock VFD response - replace with actual VFD API call
         const response = {
             success: true,
-            reference: `VFD_${Date.now()}`,
+            reference: `VFD_${Date.now()}_${category.toUpperCase()}`,
             status: 'completed',
-            service_delivered: true
+            service_delivered: true,
+            delivery_time: new Date().toISOString(),
+            provider_response: {
+                network: party.name,
+                recipient: party.billerId,
+                amount: amount,
+                plan: party.planName
+            }
         };
+        
+        // Add small delay to simulate real API call
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         return response;
     } catch (error) {

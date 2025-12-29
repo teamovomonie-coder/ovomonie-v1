@@ -1,39 +1,6 @@
 "use client";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-
-interface VFDCardPaymentProps {
-  onSuccess?: (amount: number) => void;
-  onError?: (err: string) => void;
-}
-
-// Temporary simplified placeholder for VFD card payment component
-// Purpose: unblock production builds. Replace with full implementation later.
-export function VFDCardPayment(_props: VFDCardPaymentProps) {
-  return (
-    <div className="p-4">
-      <p className="mb-2 text-sm text-muted-foreground">Card payment temporarily disabled for build.</p>
-      <Button onClick={() => alert('Card payment temporarily unavailable')} className="w-full">
-        Fund Wallet (disabled)
-      </Button>
-    </div>
-  );
-}
-
-export default VFDCardPayment;
-/**
- * Enhanced VFD Card Payment Component
- * Features:
- * 1. Card Tokenization & Saved Cards
- * 2. Smart Card Detection (auto-detect Visa/Mastercard/Verve)
- * 3. Real-time Card Validation (Luhn, expiry, CVV)
- */
-
-'use client';
-<<<<<<< HEAD
-
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -61,6 +28,77 @@ import {
   formatExpiryDisplay,
   type CardBrand,
 } from '@/lib/card-utils';
+
+
+
+const VFDCardPayment: React.FC<VFDCardPaymentProps> = ({ onSuccess, onError }) => {
+  const { toast } = useToast();
+  const { user, updateBalance } = useAuth();
+  const { addNotification } = useNotifications();
+  const vfdPayment = useVFDPayment();
+  const router = useRouter();
+
+  // State
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [selectedSavedCard, setSelectedSavedCard] = useState<SavedCard | null>(null);
+  const [showSavedCardsDropdown, setShowSavedCardsDropdown] = useState(false);
+  const [isDeletingCard, setIsDeletingCard] = useState<string | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isOTPModalOpen, setIsOTPModalOpen] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [cardData, setCardData] = useState<CardFormData | null>(null);
+  const [cardNumberValue, setCardNumberValue] = useState('');
+  const [expiryValue, setExpiryValue] = useState('');
+  const [cvvValue, setCvvValue] = useState('');
+
+  // Form
+  const form = useForm<CardFormData>({
+    resolver: zodResolver(cardSchema),
+    defaultValues: {
+      amount: 0,
+      cardNumber: '',
+      expiry: '',
+      cvv: '',
+      pin: '',
+      saveCard: false,
+    },
+    mode: 'onChange',
+  });
+
+  // Card info/validation
+  const cardInfo = useMemo(() => getCardInfo(cardNumberValue), [cardNumberValue]);
+  const expiryValidation = useMemo(() => validateExpiry(expiryValue), [expiryValue]);
+  const cvvValidation = useMemo(() => validateCVV(cvvValue, cardInfo.brand), [cvvValue, cardInfo.brand]);
+
+  // Fetch saved cards on mount
+  useEffect(() => {
+    fetchSavedCards();
+  }, []);
+
+  const fetchSavedCards = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) return;
+      const res = await fetch('/api/cards/saved', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.cards)) {
+        setSavedCards(data.cards);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, []);
+
+  // ...existing code inside the main VFDCardPayment function...
+  // (The rest of the file, including all handlers, logic, and return statement, is already present below)
+
+// ...rest of the file remains unchanged...
 
 // Validation schema with real-time validation
 const cardSchema = z.object({
@@ -108,86 +146,11 @@ const BRAND_CONFIG: Record<CardBrand, { bg: string; text: string; label: string 
   unknown: { bg: 'bg-gray-400', text: 'text-white', label: 'CARD' },
 };
 
-export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
-  const { toast } = useToast();
-  const { updateBalance } = useAuth();
-  const { addNotification } = useNotifications();
-  const vfdPayment = useVFDPayment();
-  const router = useRouter();
 
-  // State
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isOTPModalOpen, setIsOTPModalOpen] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [cardData, setCardData] = useState<CardFormData | null>(null);
-  const [paymentReference, setPaymentReference] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingError, setProcessingError] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
-
-  // Saved cards state
-  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
-  const [isLoadingSavedCards, setIsLoadingSavedCards] = useState(false);
-  const [selectedSavedCard, setSelectedSavedCard] = useState<SavedCard | null>(null);
-  const [showSavedCardsDropdown, setShowSavedCardsDropdown] = useState(false);
-  const [isDeletingCard, setIsDeletingCard] = useState<string | null>(null);
-
-  // Real-time validation state
-  const [cardNumberValue, setCardNumberValue] = useState('');
-  const [expiryValue, setExpiryValue] = useState('');
-  const [cvvValue, setCvvValue] = useState('');
-
-  // Card detection
-  const cardInfo = useMemo(() => getCardInfo(cardNumberValue), [cardNumberValue]);
-  const expiryValidation = useMemo(() => validateExpiry(expiryValue), [expiryValue]);
-  const cvvValidation = useMemo(() => validateCVV(cvvValue, cardNumberValue), [cvvValue, cardNumberValue]);
-
-  const form = useForm<CardFormData>({
-    resolver: zodResolver(cardSchema),
-    defaultValues: {
-      amount: 0,
-      cardNumber: '',
-      expiry: '',
-      cvv: '',
-      pin: '',
-      saveCard: false,
-    },
-  });
-
-  // Fetch saved cards on mount
-  useEffect(() => {
-    fetchSavedCards();
-  }, []);
-
-  const fetchSavedCards = async () => {
-    try {
-      setIsLoadingSavedCards(true);
-      const token = localStorage.getItem('ovo-auth-token');
-      if (!token) return;
-
-      const res = await fetch('/api/cards/saved', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        setSavedCards(data.data || []);
-        // Auto-select default card
-        const defaultCard = data.data?.find((c: SavedCard) => c.is_default);
-        if (defaultCard) {
-          setSelectedSavedCard(defaultCard);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch saved cards:', error);
-    } finally {
-      setIsLoadingSavedCards(false);
-    }
-  };
-
+  // Delete a saved card
   const deleteSavedCard = async (cardId: string) => {
+    setIsDeletingCard(cardId);
     try {
-      setIsDeletingCard(cardId);
       const token = localStorage.getItem('ovo-auth-token');
       if (!token) return;
 
@@ -250,7 +213,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
   };
 
     const handlePaymentSuccess = useCallback(async (amount: number, shouldSaveCard?: boolean) => {
-<<<<<<< HEAD
       // Force fetch updated balance from server
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -270,7 +232,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
             return false;
           }
         };
-        
         await fetchBalance();
         setTimeout(fetchBalance, 2000);
         setTimeout(fetchBalance, 5000);
@@ -282,8 +243,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         category: 'transaction',
       });
 
-=======
->>>>>>> origin/supabase/remove-firebase
       toast({ title: 'Success', description: 'Payment completed successfully' });
 
       onSuccess?.(amount);
@@ -296,16 +255,12 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setExpiryValue('');
       setCvvValue('');
       setSelectedSavedCard(null);
-<<<<<<< HEAD
-    }, [addNotification, toast, onSuccess, vfdPayment, form, updateBalance]);
-=======
-      
+
       // Refresh notifications to show the new one from backend
       setTimeout(() => {
         window.dispatchEvent(new Event('ovo-refresh-notifications'));
       }, 500);
-    }, [toast, onSuccess, vfdPayment, form]);
->>>>>>> origin/supabase/remove-firebase
+    }, [addNotification, toast, onSuccess, vfdPayment, form, updateBalance]);
 
     // Poll payment status after 3D Secure redirect
   const pollPaymentStatus = useCallback(async (reference: string, amount: number) => {
@@ -596,29 +551,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setIsProcessing(true);
       setProcessingError(null);
 
-<<<<<<< HEAD
-      // Call both VFD and complete-payment in parallel
-      const [vfdRes, completeRes] = await Promise.all([
-        fetch('/api/vfd/cards/validate-otp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ reference: paymentReference, otp }),
-        }),
-        fetch('/api/vfd/cards/complete-payment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ reference: paymentReference }),
-        })
-      ]);
-      
-      const completeData = await completeRes.json();
-=======
       const res = await fetch('/api/funding/card/authorize-otp', {
         method: 'POST',
         headers: {
@@ -629,24 +561,20 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       });
 
       const data = await res.json();
->>>>>>> origin/supabase/remove-firebase
       setIsProcessing(false);
       
-      if (completeData.ok) {
+      if (data.ok) {
         setIsOTPModalOpen(false);
-        if (completeData.newBalanceInKobo) {
-          updateBalance(completeData.newBalanceInKobo);
+        if (data.newBalanceInKobo) {
+          updateBalance(data.newBalanceInKobo);
         }
-        if (cardData) {
-          handlePaymentSuccess(cardData.amount, false);
-        }
+        if (cardData) handlePaymentSuccess(cardData.amount, false);
         return;
       }
       
-      if (!completeData.ok) {
-        
+      if (!data.ok) {
         // If timeout or processing, payment likely succeeded - refresh balance
-        if ((completeData.message?.includes('timed out') || completeData.message?.includes('processing')) && cardData) {
+        if ((data.message?.includes('timed out') || data.message?.includes('processing')) && cardData) {
           setIsOTPModalOpen(false);
           setIsProcessing(false);
           
@@ -690,7 +618,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           });
           
           return;
-        } else if (completeData.message?.includes('being processed')) {
+        } else if (data.message?.includes('being processed')) {
           // Payment is processing, treat as success
           setIsOTPModalOpen(false);
           setIsProcessing(false);
@@ -719,8 +647,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
             handlePaymentSuccess(cardData.amount, false);
           }
           return;
-          } else {
-          toast({ title: 'Error', description: completeData.message || 'OTP validation failed', variant: 'destructive' });
+        } else {
+          toast({ title: 'Error', description: data.message || 'OTP validation failed', variant: 'destructive' });
         }
         return;
       }
@@ -747,9 +675,9 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       };
       
       // Update balance immediately if provided
-      if (completeData.newBalanceInKobo) {
-        console.log('Updating balance from response:', completeData.newBalanceInKobo);
-        updateBalance(completeData.newBalanceInKobo);
+      if (data.newBalanceInKobo) {
+        console.log('Updating balance from response:', data.newBalanceInKobo);
+        updateBalance(data.newBalanceInKobo);
       }
       
       // Always force refresh from server as backup
@@ -758,8 +686,8 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
       setTimeout(forceRefreshBalance, 5000);
       
       // Save card if tokenization was requested
-      if (cardData?.saveCard && completeData.data?.cardToken) {
-        await saveCard(completeData.data.cardToken);
+      if (cardData?.saveCard && data.data?.cardToken) {
+        await saveCard(data.data.cardToken);
       }
       
       if (cardData) {
@@ -833,11 +761,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
           {/* Saved Cards Dropdown */}
           {savedCards.length > 0 && (
             <div className="space-y-2">
-<<<<<<< HEAD
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Payment Method</label>
-=======
               <Label>Payment Method</Label>
->>>>>>> origin/supabase/remove-firebase
               <div className="relative">
                 <button
                   type="button"
@@ -1196,11 +1120,7 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
 
           <div className="space-y-4">
             <div>
-<<<<<<< HEAD
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">One-Time Password</label>
-=======
               <Label>One-Time Password</Label>
->>>>>>> origin/supabase/remove-firebase
               <Input
                 placeholder="000000"
                 maxLength={6}
@@ -1238,21 +1158,6 @@ export function VFDCardPayment({ onSuccess, onError }: VFDCardPaymentProps) {
         </DialogContent>
       </Dialog>
     </>
-=======
-// Keep the simplified placeholder only to avoid previous large broken component causing parse errors
-export function VFDCardPayment(_props: VFDCardPaymentProps) {
-  return (
-    <div className="p-4">
-      <p className="mb-2 text-sm text-muted-foreground">Card payment temporarily disabled for build.</p>
-      <Button onClick={() => alert('Card payment temporarily unavailable')} className="w-full">
-        Fund Wallet (disabled)
-      </Button>
-    </div>
->>>>>>> 8e5f21f5b08d51d9bd1771aad0f7e479bf12c9aa
   );
-}
-
+};
 export default VFDCardPayment;
-import { useNotifications } from '@/context/notification-context';
-
-import { useVFDPayment } from '@/hooks/use-vfd-payment';

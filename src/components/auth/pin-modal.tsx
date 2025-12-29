@@ -172,13 +172,12 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-xs relative z-50 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
-        {/* Loading overlay - only show during transaction processing, not PIN verification */}
+      <DialogContent className="sm:max-w-md relative z-50 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] bg-gradient-to-br from-[#001f3f] to-[#003366] text-white border-0">
         {isProcessing && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+              <p className="text-sm text-white">
                 Processing transaction...
               </p>
             </div>
@@ -186,18 +185,18 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
         )}
         
         <DialogHeader>
-          <DialogTitle>{title || 'Enter Transaction PIN'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white text-xl">{title || 'Enter Transaction PIN'}</DialogTitle>
+          <DialogDescription className="text-white/80">
             {description || 'For your security, please enter your 4-digit PIN to authorize this transaction.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
              {(error || verificationError) && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="bg-red-500/20 border-red-400 text-white">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Authorization Failed</AlertTitle>
-                    <AlertDescription>{error || verificationError}</AlertDescription>
+                    <AlertTitle className="text-white">Authorization Failed</AlertTitle>
+                    <AlertDescription className="text-white/90">{error || verificationError}</AlertDescription>
                 </Alert>
             )}
             <FormField
@@ -209,16 +208,17 @@ export function PinModal({ open, onOpenChange, onConfirm, successUrl, title, des
                     <Input
                       type="password"
                       maxLength={4}
-                      className="text-center text-2xl tracking-[0.5em]"
+                      className="text-center text-2xl tracking-[0.5em] bg-white/10 border-white/30 text-white placeholder:text-white/50 focus:bg-white/20 focus:border-white"
+                      placeholder="••••"
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-red-300" />
                 </FormItem>
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={isVerifying}>
+              <Button type="submit" className="w-full bg-white text-[#001f3f] hover:bg-white/90 font-semibold py-6" disabled={isVerifying}>
                 {isVerifying && <Loader2 className="animate-spin mr-2" />}
                 {isVerifying ? 'Verifying PIN...' : 'Authorize'}
               </Button>

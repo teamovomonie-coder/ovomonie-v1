@@ -36,49 +36,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Share2, Smartphone, Wifi, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useNotifications } from '@/context/notification-context';
+import { generateUUID, generateTransactionReference } from '@/lib/uuid';
 import { PinModal } from '@/components/auth/pin-modal';
-import { pendingTransactionService } from '@/lib/pending-transaction-service';
+import networks from '@/components/airtime/network-logos';
 
-// UUID polyfill for environments without crypto.randomUUID
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
-
-// --- Mock Data & Logos ---
-
-const MtnLogo = ({ className }: { className?: string }) => (
-  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
-    <img src="/mtn.jpg" alt="MTN" className="w-full h-full object-contain" />
-  </div>
-);
-const AirtelLogo = ({ className }: { className?: string }) => (
-  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
-    <img src="/airtel.png" alt="Airtel" className="w-full h-full object-contain" />
-  </div>
-);
-const GloLogo = ({ className }: { className?: string }) => (
-  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
-    <img src="/glo.png" alt="Glo" className="w-full h-full object-contain" />
-  </div>
-);
-const T2Logo = ({ className }: { className?: string }) => (
-  <div className={cn("w-6 h-6 rounded-md bg-white flex items-center justify-center p-0.5", className)}>
-    <img src="/t2.png" alt="T2" className="w-full h-full object-contain" />
-  </div>
-);
-
-const networks = [
-  { id: 'mtn', name: 'MTN', Logo: MtnLogo },
-  { id: 'airtel', name: 'Airtel', Logo: AirtelLogo },
-  { id: 'glo', name: 'Glo', Logo: GloLogo },
-  { id: '9mobile', name: 'T2', Logo: T2Logo },
+const networksList = [
+  { id: 'mtn', name: 'MTN', Logo: networks.mtn.Logo },
+  { id: 'airtel', name: 'Airtel', Logo: networks.airtel.Logo },
+  { id: 'glo', name: 'Glo', Logo: networks.glo.Logo },
+  { id: '9mobile', name: '9mobile', Logo: networks['9mobile'].Logo },
 ];
 
 const dataPlans: Record<string, { id: string, name: string, price: number }[]> = {
@@ -165,7 +131,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         const token = localStorage.getItem('ovo-auth-token');
         if (!token) throw new Error('Authentication token not found.');
         
-        const clientReference = `airtime-${generateUUID()}`;
+        const clientReference = generateTransactionReference('airtime');
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -175,7 +141,7 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
                 category: 'airtime',
                 narration: `Airtime purchase for ${purchaseData.phoneNumber}`,
                 party: {
-                    name: networks.find(n => n.id === purchaseData.network)?.name || 'Airtime',
+                    name: networksList.find(n => n.id === purchaseData.network)?.name || 'Airtime',
                     billerId: purchaseData.phoneNumber
                 }
             })
@@ -194,8 +160,10 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         form.reset();
         setPurchaseData(null);
         
-        // Navigate to receipt page with transaction reference
-        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
+        // Navigate to unified receipt page with transaction ID
+        const transactionId = result.transaction_id || clientReference;
+        const receiptReference = result.reference || clientReference;
+        router.push(`/receipt/${encodeURIComponent(receiptReference)}?txId=${encodeURIComponent(transactionId)}&type=airtime&ref=${encodeURIComponent(receiptReference)}`);
 
     } catch(error: any) {
         let description = "An unknown error occurred.";
@@ -217,38 +185,91 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField control={form.control} name="network" render={({ field }) => (
-            <FormItem><FormLabel>Network</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <div className="grid gap-6">
+            <FormField control={form.control} name="network" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  Select Network
+                </FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="h-12 px-4 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl transition-all bg-white">
+                      <SelectValue placeholder="Choose your network provider" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="bg-white border border-slate-200 rounded-xl shadow-lg">
+                    {networksList.map(net => (
+                      <SelectItem key={net.id} value={net.id} className="py-3 px-4 hover:bg-slate-50 rounded-lg mx-1">
+                        <div className="flex items-center gap-3">
+                          <net.Logo className="h-5 w-5" />
+                          <span className="font-medium">{net.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage className="text-red-500 text-sm" />
+              </FormItem>
+            )}/>
+            
+            <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  Phone Number
+                </FormLabel>
                 <FormControl>
-                  <SelectTrigger><SelectValue placeholder="Select a network" /></SelectTrigger>
+                  <Input 
+                    placeholder="08012345678" 
+                    {...field} 
+                    className="h-12 px-4 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl transition-all bg-white"
+                  />
                 </FormControl>
-                <SelectContent>
-                  {networks.map(net => (
-                    <SelectItem key={net.id} value={net.id}>
-                      <div className="flex items-center gap-2">
-                          <net.Logo /> {net.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select><FormMessage />
-            </FormItem>
-          )}/>
-          <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-            <FormItem><FormLabel>Phone Number</FormLabel>
-              <FormControl><Input placeholder="08012345678" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <FormField control={form.control} name="amount" render={({ field }) => (
-            <FormItem><FormLabel>Amount (₦)</FormLabel>
-              <FormControl><Input type="number" placeholder="e.g., 500" {...field} value={field.value === 0 ? '' : field.value} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            Buy Airtime
+                <FormMessage className="text-red-500 text-sm" />
+              </FormItem>
+            )}/>
+            
+            <FormField control={form.control} name="amount" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  Amount
+                </FormLabel>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-semibold">₦</div>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      {...field} 
+                      value={field.value === 0 ? '' : field.value} 
+                      onChange={e => field.onChange(e.target.valueAsNumber || 0)} 
+                      className="h-12 pl-8 pr-4 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl transition-all bg-white"
+                    />
+                  </FormControl>
+                </div>
+                <FormMessage className="text-red-500 text-sm" />
+              </FormItem>
+            )}/>
+          </div>
+          
+          <Button 
+            type="submit" 
+            className="w-full h-14 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50" 
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin h-5 w-5" />
+                <span>Processing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                <span>Buy Airtime</span>
+              </div>
+            )}
           </Button>
         </form>
       </Form>
@@ -304,18 +325,19 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         const token = localStorage.getItem('ovo-auth-token');
         if (!token) throw new Error('Authentication token not found.');
 
-        const clientReference = `data-${crypto.randomUUID()}`;
+        const clientReference = generateTransactionReference('data');
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 clientReference,
                 amount: purchaseData.plan.price,
-                category: 'airtime', // API treats data as airtime category
+                category: 'data',
                 narration: `Data purchase: ${purchaseData.plan.name} for ${purchaseData.values.phoneNumber}`,
                 party: {
-                    name: networks.find(n => n.id === purchaseData.values.network)?.name || 'Data',
+                    name: networksList.find(n => n.id === purchaseData.values.network)?.name || 'Data',
                     billerId: purchaseData.values.phoneNumber,
+                    planName: purchaseData.plan.name
                 }
             })
         });
@@ -333,8 +355,10 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         form.reset();
         setPurchaseData(null);
         
-        // Navigate to receipt page with transaction reference
-        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
+        // Navigate to unified receipt page with transaction ID
+        const transactionId = result.transaction_id || clientReference;
+        const receiptReference = result.reference || clientReference;
+        router.push(`/receipt/${encodeURIComponent(receiptReference)}?txId=${encodeURIComponent(transactionId)}&type=data&ref=${encodeURIComponent(receiptReference)}`);
     } catch (error: any) {
         let description = "An unknown error occurred.";
         if (error.response?.status === 401) {
@@ -354,32 +378,104 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
     <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField control={form.control} name="network" render={({ field }) => (
-          <FormItem><FormLabel>Network</FormLabel>
-            <Select onValueChange={(value) => { field.onChange(value); form.setValue('planId', ''); }} defaultValue={field.value}>
-              <FormControl><SelectTrigger><SelectValue placeholder="Select a network" /></SelectTrigger></FormControl>
-              <SelectContent>{networks.map(net => <SelectItem key={net.id} value={net.id}><div className="flex items-center gap-2"><net.Logo /> {net.name}</div></SelectItem>)}</SelectContent>
-            </Select><FormMessage />
-          </FormItem>
-        )}/>
-        <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-            <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem>
-        )}/>
-        <FormField control={form.control} name="planId" render={({ field }) => (
-          <FormItem><FormLabel>Data Plan</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedNetwork}>
-              <FormControl><SelectTrigger><SelectValue placeholder={selectedNetwork ? "Select a data plan" : "Select network first"} /></SelectTrigger></FormControl>
-              <SelectContent>{availablePlans.map(plan => <SelectItem key={plan.id} value={plan.id}>{plan.name} - ₦{plan.price.toLocaleString()}</SelectItem>)}</SelectContent>
-            </Select><FormMessage />
-          </FormItem>
-        )}/>
+        <div className="grid gap-6">
+          <FormField control={form.control} name="network" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                Select Network
+              </FormLabel>
+              <Select onValueChange={(value) => { field.onChange(value); form.setValue('planId', ''); }} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="h-12 px-4 text-base border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 rounded-xl transition-all bg-white">
+                    <SelectValue placeholder="Choose your network provider" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-white border border-slate-200 rounded-xl shadow-lg">
+                  {networksList.map(net => (
+                    <SelectItem key={net.id} value={net.id} className="py-3 px-4 hover:bg-slate-50 rounded-lg mx-1">
+                      <div className="flex items-center gap-3">
+                        <net.Logo className="h-5 w-5" />
+                        <span className="font-medium">{net.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage className="text-red-500 text-sm" />
+            </FormItem>
+          )}/>
+          
+          <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                Phone Number
+              </FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="08012345678" 
+                  {...field} 
+                  className="h-12 px-4 text-base border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 rounded-xl transition-all bg-white"
+                />
+              </FormControl>
+              <FormMessage className="text-red-500 text-sm" />
+            </FormItem>
+          )}/>
+          
+          <FormField control={form.control} name="planId" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                Data Plan
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedNetwork}>
+                <FormControl>
+                  <SelectTrigger className="h-12 px-4 text-base border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 rounded-xl transition-all bg-white disabled:bg-slate-50 disabled:text-slate-400">
+                    <SelectValue placeholder={selectedNetwork ? "Select a data plan" : "Select network first"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-white border border-slate-200 rounded-xl shadow-lg">
+                  {availablePlans.map(plan => (
+                    <SelectItem key={plan.id} value={plan.id} className="py-3 px-4 hover:bg-slate-50 rounded-lg mx-1">
+                      <div className="flex justify-between items-center w-full">
+                        <span className="font-medium">{plan.name}</span>
+                        <span className="text-purple-600 font-bold">₦{plan.price.toLocaleString()}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage className="text-red-500 text-sm" />
+            </FormItem>
+          )}/>
+        </div>
+        
         {selectedPlan && (
-            <div className="text-right font-bold text-lg">
-                Total: ₦{selectedPlan.price.toLocaleString()}
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-600 font-medium">Total Amount:</span>
+              <span className="text-2xl font-bold text-purple-600">₦{selectedPlan.price.toLocaleString()}</span>
             </div>
+          </div>
         )}
-        <Button type="submit" className="w-full" disabled={!selectedPlan || isSubmitting}>
-          Buy Data
+        
+        <Button 
+          type="submit" 
+          className="w-full h-14 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50" 
+          disabled={!selectedPlan || isSubmitting}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-5 w-5" />
+              <span>Processing...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Wifi className="h-5 w-5" />
+              <span>Buy Data</span>
+            </div>
+          )}
         </Button>
       </form>
     </Form>
@@ -400,7 +496,7 @@ function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | nul
     
     if (!data) return null;
 
-    const networkInfo = networks.find(n => n.id === data.network);
+    const networkInfo = networksList.find(n => n.id === data.network);
     const NetworkLogo = networkInfo?.Logo || Wallet;
 
     const handleShare = () => {
@@ -466,19 +562,47 @@ function PurchaseReceipt({ data, open, onOpenChange }: { data: ReceiptData | nul
 // --- Main Component ---
 
 export function AirtimeForm() {
-  
     return (
         <>
-            <Tabs defaultValue="airtime" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="airtime"><Smartphone className="h-4 w-4 mr-2" />Buy Airtime</TabsTrigger>
-                    <TabsTrigger value="data"><Wifi className="h-4 w-4 mr-2" />Buy Data</TabsTrigger>
-                </TabsList>
-                <TabsContent value="airtime" className="pt-6">
-                    <AirtimePurchaseForm onPurchase={() => {}} />
+            <Tabs defaultValue="airtime" className="w-full max-w-2xl mx-auto">
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-2xl border border-blue-200 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-blue-100 p-3 rounded-xl">
+                            <Smartphone className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">Mobile Services</h2>
+                            <p className="text-sm text-slate-600">Purchase airtime and data bundles instantly</p>
+                        </div>
+                    </div>
+                    
+                    <TabsList className="grid w-full grid-cols-2 bg-white rounded-xl p-1 shadow-sm">
+                        <TabsTrigger 
+                            value="airtime" 
+                            className="flex items-center gap-2 py-3 px-4 rounded-lg font-semibold transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+                        >
+                            <Smartphone className="h-4 w-4" />
+                            Airtime
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="data" 
+                            className="flex items-center gap-2 py-3 px-4 rounded-lg font-semibold transition-all data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+                        >
+                            <Wifi className="h-4 w-4" />
+                            Data
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+                
+                <TabsContent value="airtime" className="mt-0">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <AirtimePurchaseForm onPurchase={() => {}} />
+                    </div>
                 </TabsContent>
-                <TabsContent value="data" className="pt-6">
-                    <DataPurchaseForm onPurchase={() => {}} />
+                <TabsContent value="data" className="mt-0">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <DataPurchaseForm onPurchase={() => {}} />
+                    </div>
                 </TabsContent>
             </Tabs>
         </>

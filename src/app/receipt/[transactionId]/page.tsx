@@ -1,150 +1,136 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Share2, ArrowLeft, RotateCcw, CheckCircle } from 'lucide-react';
-import ShareModal from '@/components/transaction/share-modal';
+import { AirtimeReceipt } from '@/components/airtime/airtime-receipt';
 
-interface Transaction {
-  id: string;
+interface ReceiptData {
+  type: 'AIRTIME' | 'DATA';
   reference: string;
-  type: string;
   amount: number;
-  narration: string;
-  party_name: string;
-  balance_after: number;
-  status: string;
-  category: string;
-  metadata: {
-    service_type: string;
-    recipient: string;
-    network: string;
-    plan_name?: string;
-    vfd_reference?: string;
-  };
-  created_at: string;
+  phoneNumber: string;
+  network: string;
+  planName?: string;
+  transactionId: string;
+  completedAt: string;
+  isDataPlan?: boolean;
 }
 
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const receiptRef = useRef<HTMLDivElement>(null);
-  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-
-  const transactionId = params.transactionId as string;
-  const timestamp = searchParams.get('t');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!transactionId) return;
-
-    const fetchTransaction = async () => {
-      setLoading(true);
+    const fetchReceipt = async (retryCount = 0) => {
       try {
         const token = localStorage.getItem('ovo-auth-token');
-        const cacheBuster = timestamp || Date.now();
-        const response = await fetch(`/api/transactions/${transactionId}?_=${cacheBuster}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+        if (!token) {
+          router.replace('/login');
+          return;
+        }
+
+        const transactionId = params.transactionId as string;
+        const txId = searchParams.get('txId') || transactionId;
+        const ref = searchParams.get('ref') || transactionId;
+        const cacheBuster = Date.now() + Math.random(); // Enhanced cache busting
+        
+        // Use the reference parameter for better lookup
+        const url = `/api/transactions/receipt/${encodeURIComponent(ref)}?txId=${encodeURIComponent(txId)}&_=${cacheBuster}`;
+        
+        const response = await fetch(url, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           },
-          cache: 'no-store',
+          cache: 'no-store'
         });
 
-        if (!response.ok) throw new Error('Transaction not found');
+        if (!response.ok) {
+          // Retry up to 3 times with exponential backoff
+          if (retryCount < 3) {
+            const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return fetchReceipt(retryCount + 1);
+          }
+          throw new Error(`Receipt not found (${response.status})`);
+        }
 
         const data = await response.json();
-        setTransaction(data.transaction || data);
-      } catch (error) {
-        console.error('Failed to load receipt', error);
-        router.push('/dashboard');
+        if (data.ok && data.receipt) {
+          setReceipt(data.receipt);
+        } else {
+          throw new Error('Invalid receipt data');
+        }
+      } catch (err) {
+        console.error('Receipt fetch error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load receipt');
+        // Redirect to dashboard after 3 seconds
+        setTimeout(() => router.replace('/dashboard'), 3000);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTransaction();
-  }, [transactionId, timestamp, router]);
+    if (params.transactionId) {
+      // Clear any existing receipt data before fetching new one
+      setReceipt(null);
+      setError(null);
+      setLoading(true);
+      fetchReceipt();
+    }
+  }, [params.transactionId, searchParams, router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <div className="text-center">
+            <h2 className="text-lg font-semibold">Loading Receipt</h2>
+            <p className="text-sm text-muted-foreground">Please wait...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!transaction) {
+  if (error || !receipt) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md mx-4">
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-600">Receipt not found</p>
-            <Button onClick={() => router.push('/dashboard')} className="mt-4">
-              Go to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const amountInNaira = transaction.amount / 100;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      <div className="max-w-md mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <h2 className="text-lg font-semibold text-destructive">Receipt Not Found</h2>
+          <p className="text-sm text-muted-foreground">{error || 'Transaction not found'}</p>
+          <p className="text-xs text-muted-foreground">Redirecting to dashboard in 3 seconds...</p>
+          <Button onClick={() => router.replace('/dashboard')} variant="outline">
+            Go to Dashboard Now
           </Button>
         </div>
-
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Payment Successful!</h1>
-          <p className="text-gray-600">Your {transaction.category === 'transfer' ? 'transfer' : transaction.category} was completed</p>
-        </div>
-
-        <div ref={receiptRef}>
-          <Card className="w-full shadow-lg border-2 border-green-200">
-            <CardHeader className="bg-green-600 text-white p-4 rounded-t-lg">
-              <CardTitle className="text-lg font-bold">{transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)} Receipt</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="text-center space-y-2 mb-6">
-                <p className="text-sm text-muted-foreground">{transaction.metadata.network}</p>
-                <p className="text-4xl font-bold text-green-600">₦{amountInNaira.toLocaleString()}</p>
-              </div>
-
-              <Separator className="my-4" />
-
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span>Reference</span>
-                  <span className="font-mono">{transaction.reference}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Paid To</span>
-                  <span>{transaction.party_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Balance After</span>
-                  <span>₦{(transaction.balance_after / 100).toLocaleString()}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <AirtimeReceipt 
+        key={`${receipt.transactionId}-${receipt.completedAt}`} // Force re-render for each unique transaction
+        data={{
+          type: 'airtime',
+          network: receipt.network,
+          phoneNumber: receipt.phoneNumber,
+          amount: receipt.amount,
+          planName: receipt.planName,
+          isDataPlan: receipt.type === 'DATA' || receipt.isDataPlan,
+          transactionId: receipt.transactionId,
+          completedAt: receipt.completedAt
+        }} />
     </div>
   );
 }
