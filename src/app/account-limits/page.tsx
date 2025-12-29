@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ const tiers = [
     color: 'from-[#0b1b3a] to-[#0f2552]',
     walletLimit: 'Unlimited',
     dailyLimit: 5000000,
-    requirements: ['NIN Verification', 'Selfie Upload', 'Utility Bill'],
+    requirements: ['NIN Verification', 'Utility Bill'],
     completed: false
   },
   {
@@ -59,11 +59,18 @@ const tiers = [
 
 export default function AccountLimitsPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [currentTier] = useState(user?.kycTier || 1);
+  const { user, fetchUserData } = useAuth();
+  const [currentTier, setCurrentTier] = useState(user?.kycTier || 1);
   const [dailyUsage] = useState(0);
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
+
+  // Update current tier when user data changes
+  useEffect(() => {
+    if (user?.kycTier) {
+      setCurrentTier(user.kycTier);
+    }
+  }, [user?.kycTier]);
 
   const activeTier = tiers.find(t => t.tier === currentTier) || tiers[0];
   const dailyLimit = typeof activeTier.dailyLimit === 'number' ? activeTier.dailyLimit : 5000000;
@@ -215,14 +222,120 @@ export default function AccountLimitsPage() {
 
 function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boolean; onOpenChange: (open: boolean) => void; tier: number | null; requirements: string[] }) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, fetchUserData } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [otpSent, setOtpSent] = useState(false);
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [bvnData, setBvnData] = useState<any>(null);
+  const [ninData, setNinData] = useState<any>(null);
+  const [step, setStep] = useState(1); // 1: BVN, 2: Selfie, 3: OTP, 4: Submit
 
   if (!tier) return null;
+
+  const verifyNin = async () => {
+    if (!formData.nin || formData.nin.length !== 11) {
+      toast({ title: 'Error', description: 'Please enter a valid 11-digit NIN', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const res = await fetch('/api/kyc/nin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ nin: formData.nin }),
+      });
+      const result = await res.json();
+      if (!result.ok) throw new Error(result.message);
+      
+      setNinData(result.data);
+      toast({ title: 'NIN Verified', description: 'NIN verification successful. Please continue with liveness check.' });
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'NIN verification failed', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyImageMatch = async () => {
+    if (!selfieImage || !bvnData?.bvn) {
+      toast({ title: 'Error', description: 'Please capture selfie and verify BVN first', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const res = await fetch('/api/kyc/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          tier: 2,
+          bvn: bvnData.bvn,
+          selfie: selfieImage,
+          imageMatch: true
+        }),
+      });
+      const result = await res.json();
+      if (!result.ok) throw new Error(result.message);
+      
+      if (result.data?.imageMatch?.match) {
+        toast({ 
+          title: 'Image Match Successful', 
+          description: `Similarity: ${result.data.imageMatch.confidence.toFixed(1)}%` 
+        });
+        setStep(3);
+      } else {
+        toast({ 
+          title: 'Image Match Failed', 
+          description: 'Your selfie does not match your BVN photo. Please retake.', 
+          variant: 'destructive' 
+        });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Image verification failed', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyBvn = async () => {
+    if (!formData.bvn || formData.bvn.length !== 11) {
+      toast({ title: 'Error', description: 'Please enter a valid 11-digit BVN', variant: 'destructive' });
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast({ title: 'Error', description: 'Please enter your date of birth', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const res = await fetch('/api/kyc/bvn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          bvn: formData.bvn,
+          dateOfBirth: formData.dateOfBirth 
+        }),
+      });
+      const result = await res.json();
+      if (!result.ok) throw new Error(result.message);
+      
+      setBvnData(result.data);
+      setStep(2);
+      toast({ title: 'BVN Verified', description: 'BVN and date of birth verified successfully. Please capture your selfie.' });
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'BVN verification failed', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const sendOtp = async () => {
     try {
@@ -243,28 +356,94 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
   const captureSelfie = async () => {
     setIsCapturing(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user'
+        } 
+      });
+      
+      // Create video element for preview
       const video = document.createElement('video');
       video.srcObject = stream;
+      video.autoplay = true;
+      video.playsInline = true;
+      
+      // Create modal for camera preview
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+        justify-content: center; z-index: 9999;
+      `;
+      
+      const container = document.createElement('div');
+      container.style.cssText = `
+        background: white; padding: 20px; border-radius: 10px; 
+        text-align: center; max-width: 90%; max-height: 90%;
+      `;
+      
+      const title = document.createElement('h3');
+      title.textContent = 'Position your face in the center';
+      title.style.marginBottom = '10px';
+      
+      video.style.cssText = `
+        width: 320px; height: 240px; border-radius: 10px; 
+        border: 2px solid #007bff; margin: 10px 0;
+      `;
+      
+      const captureBtn = document.createElement('button');
+      captureBtn.textContent = 'Capture Photo';
+      captureBtn.style.cssText = `
+        background: #007bff; color: white; border: none; 
+        padding: 10px 20px; border-radius: 5px; margin: 5px;
+      `;
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.style.cssText = `
+        background: #6c757d; color: white; border: none; 
+        padding: 10px 20px; border-radius: 5px; margin: 5px;
+      `;
+      
+      container.appendChild(title);
+      container.appendChild(video);
+      container.appendChild(captureBtn);
+      container.appendChild(cancelBtn);
+      modal.appendChild(container);
+      document.body.appendChild(modal);
+      
       await video.play();
       
-      await new Promise(r => setTimeout(r, 2000));
+      const cleanup = () => {
+        stream.getTracks().forEach(track => track.stop());
+        document.body.removeChild(modal);
+        setIsCapturing(false);
+      };
       
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) ctx.drawImage(video, 0, 0);
+      captureBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        setSelfieImage(imageData);
+        setFormData(prev => ({ ...prev, selfie: imageData }));
+        
+        cleanup();
+        toast({ title: 'Selfie Captured', description: 'Your live photo has been captured successfully.' });
+      };
       
-      const imageData = canvas.toDataURL('image/jpeg', 0.8);
-      setSelfieImage(imageData);
-      setFormData({ ...formData, selfie: imageData });
+      cancelBtn.onclick = cleanup;
       
-      stream.getTracks().forEach(track => track.stop());
-      toast({ title: 'Selfie Captured', description: 'Your photo has been captured successfully.' });
     } catch (error) {
-      toast({ title: 'Camera Error', description: 'Unable to access camera.', variant: 'destructive' });
-    } finally {
+      toast({ title: 'Camera Error', description: 'Unable to access camera. Please allow camera permissions.', variant: 'destructive' });
       setIsCapturing(false);
     }
   };
@@ -281,9 +460,13 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
         body: JSON.stringify({ 
           tier: tier,
           bvn: formData.bvn,
+          dateOfBirth: formData.dateOfBirth,
           nin: formData.nin,
           documentType: formData.cacNumber ? 'CAC' : undefined,
           documentNumber: formData.cacNumber,
+          selfie: selfieImage,
+          otp: formData.otp,
+          imageMatch: tier === 2 ? true : undefined,
           ...formData
         }),
       });
@@ -293,7 +476,12 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
       
       toast({ title: 'Upgrade Successful', description: result.message });
       onOpenChange(false);
-      window.location.reload(); // Refresh to show new tier
+      // Refresh user data to get updated tier
+      await fetchUserData();
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to submit upgrade request.' });
     } finally {
@@ -306,13 +494,13 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
       case 2:
         return [
           { name: 'bvn', label: 'Bank Verification Number (BVN)', type: 'text', placeholder: '11-digit BVN' },
+          { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', placeholder: 'YYYY-MM-DD' },
           { name: 'selfie', label: 'Live Selfie Capture', type: 'custom', component: 'selfie' },
           { name: 'phone', label: 'Phone Number Verification', type: 'custom', component: 'otp' }
         ];
       case 3:
         return [
           { name: 'nin', label: 'National Identity Number (NIN)', type: 'text', placeholder: '11-digit NIN' },
-          { name: 'selfie', label: 'Selfie Upload', type: 'file', accept: 'image/*' },
           { name: 'utilityBill', label: 'Utility Bill', type: 'file', accept: 'image/*,application/pdf' }
         ];
       case 4:
@@ -329,6 +517,103 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
     }
   };
 
+  const renderTier2Flow = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bvn">Bank Verification Number (BVN)</Label>
+              <Input
+                id="bvn"
+                name="bvn"
+                type="text"
+                placeholder="Test BVNs: 12345678901 or 11111111111"
+                maxLength={11}
+                value={formData.bvn || ''}
+                onChange={(e) => setFormData({ ...formData, bvn: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth || ''}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Must match your BVN records exactly
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use test BVNs: <code>12345678901</code> (DOB: 1990-01-01) or <code>11111111111</code> (DOB: 1985-05-15)
+            </p>
+            <Button type="button" onClick={verifyBvn} disabled={isLoading} className="w-full">
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Verify BVN & DOB
+            </Button>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              BVN verified for: {bvnData?.firstName} {bvnData?.lastName}
+            </div>
+            {!selfieImage ? (
+              <Button type="button" onClick={captureSelfie} disabled={isCapturing} className="w-full">
+                {isCapturing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening Camera...</> : <><Camera className="mr-2 h-4 w-4" /> Capture Live Selfie</>}
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <img src={selfieImage} alt="Selfie" className="w-32 h-32 rounded-lg object-cover mx-auto" />
+                <Button type="button" variant="outline" size="sm" onClick={captureSelfie} className="w-full">Retake</Button>
+                <Button type="button" onClick={verifyImageMatch} disabled={isLoading} className="w-full">
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Verify Image Match
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input value={user?.phone || ''} disabled />
+                <Button type="button" onClick={sendOtp} disabled={otpSent}>{otpSent ? 'OTP Sent' : 'Send OTP'}</Button>
+              </div>
+              {otpSent && (
+                <Input
+                  placeholder="Enter 6-digit OTP (Use: 123456)"
+                  maxLength={6}
+                  value={formData.otp || ''}
+                  onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                  required
+                />
+              )}
+            </div>
+            <Button 
+              type="submit" 
+              disabled={isLoading || !otpSent || !formData.otp || formData.otp.length !== 6} 
+              className="w-full"
+              onClick={handleSubmit}
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Complete Upgrade
+            </Button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   const fields = getFieldsForTier();
 
   return (
@@ -336,64 +621,79 @@ function UpgradeDialog({ open, onOpenChange, tier, requirements }: { open: boole
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Upgrade to Tier {tier}</DialogTitle>
-          <DialogDescription>Complete the following requirements to upgrade your account</DialogDescription>
+          <DialogDescription>
+            {tier === 2 ? (
+              step === 1 ? 'Enter your BVN to begin verification' :
+              step === 2 ? 'Capture a live selfie for identity verification' :
+              step === 3 ? 'Verify your phone number with OTP' :
+              'Complete the following requirements to upgrade your account'
+            ) : (
+              'Complete the following requirements to upgrade your account'
+            )}
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {fields.map((field) => (
-            <div key={field.name} className="space-y-2">
-              <Label htmlFor={field.name}>{field.label}</Label>
-              {field.component === 'selfie' ? (
-                <div>
-                  {!selfieImage ? (
-                    <Button type="button" onClick={captureSelfie} disabled={isCapturing} className="w-full">
-                      {isCapturing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Capturing...</> : <><Camera className="mr-2 h-4 w-4" /> Capture Live Selfie</>}
-                    </Button>
+        
+        {tier === 2 ? (
+          renderTier2Flow()
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {fields.map((field) => (
+              <div key={field.name} className="space-y-2">
+                <Label htmlFor={field.name}>{field.label}</Label>
+                {field.name === 'nin' ? (
+                  ninData ? (
+                    <div className="text-sm text-green-600">✓ NIN verified: {ninData.firstName} {ninData.lastName}</div>
                   ) : (
                     <div className="space-y-2">
-                      <img src={selfieImage} alt="Selfie" className="w-32 h-32 rounded-lg object-cover" />
-                      <Button type="button" variant="outline" size="sm" onClick={captureSelfie}>Retake</Button>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        type={field.type}
+                        placeholder={field.placeholder}
+                        maxLength={11}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        required
+                      />
+                      <Button type="button" onClick={verifyNin} disabled={isLoading} className="w-full">
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Verify NIN
+                      </Button>
                     </div>
-                  )}
-                </div>
-              ) : field.component === 'otp' ? (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input value={user?.phone || ''} disabled />
-                    <Button type="button" onClick={sendOtp} disabled={otpSent}>{otpSent ? 'OTP Sent' : 'Send OTP'}</Button>
-                  </div>
-                  {otpSent && (
-                    <Input
-                      placeholder="Enter 6-digit OTP"
-                      maxLength={6}
-                      onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
-                      required
-                    />
-                  )}
-                </div>
-              ) : (
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  accept={field.accept}
-                  value={formData[field.name] || ''}
-                  onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                  required
-                />
-              )}
-            </div>
-          ))}
+                  )
+                ) : (
+                  <Input
+                    id={field.name}
+                    name={field.name}
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    accept={field.accept}
+                    value={formData[field.name] || ''}
+                    onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                    required
+                  />
+                )}
+              </div>
+            ))}}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit for Review
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+        
+        {tier === 2 && step < 3 && (
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit for Review
-            </Button>
           </DialogFooter>
-        </form>
+        )}
       </DialogContent>
     </Dialog>
   );

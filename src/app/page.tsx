@@ -10,10 +10,6 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
-export const revalidate = 0;
-
 export default function WelcomePage() {
     const [showContent, setShowContent] = useState(false);
     const { isAuthenticated } = useAuth();

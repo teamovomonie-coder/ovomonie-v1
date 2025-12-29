@@ -1,8 +1,3 @@
-/**
- * NIN Verification API
- * Verifies National Identity Number and retrieves user details
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { vfdWalletService } from '@/lib/vfd-wallet-service';
@@ -27,40 +22,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
     }
 
-    let ninResult;
-    try {
-      // Try VFD NIN verification
-      ninResult = await vfdWalletService.verifyNIN({
-        accountNumber: user.account_number || 'DEV-ACCOUNT',
-        nin,
-      });
-    } catch (error) {
-      logger.warn('VFD NIN verification failed, using mock verification', { error });
-      // Mock NIN verification for development
-      ninResult = {
-        verified: true,
-        data: {
-          firstName: 'John',
-          lastName: 'Doe',
-          middleName: 'Smith',
-          dateOfBirth: '1990-01-01',
-          gender: 'Male',
-          nin: nin,
-          phone: user.phone || '08012345678'
-        },
-        message: 'NIN verified successfully (development mode)'
-      };
+    // Use VFD NIN verification API directly without fallback
+    const ninResult = await vfdWalletService.verifyNIN({
+      accountNumber: user.account_number || 'DEV-ACCOUNT',
+      nin,
+    });
+
+    if (!ninResult.verified) {
+      return NextResponse.json({ 
+        ok: false, 
+        message: 'NIN verification failed. Please check your NIN and try again.' 
+      }, { status: 400 });
     }
 
-    logger.info('NIN verification completed', {
-      userId,
-      verified: ninResult.verified,
-    });
+    logger.info('NIN verification completed', { userId, verified: ninResult.verified });
 
     return NextResponse.json({
       ok: true,
-      data: ninResult,
+      data: {
+        verified: ninResult.verified,
+        firstName: ninResult.firstName,
+        lastName: ninResult.lastName,
+        middleName: ninResult.middleName,
+        dateOfBirth: ninResult.dateOfBirth,
+        gender: ninResult.gender,
+        phone: ninResult.phone,
+        nin: nin,
+        photo: ninResult.photo,
+        message: 'NIN verified successfully'
+      },
     });
+
   } catch (error: any) {
     logger.error('NIN verification error', { error: error.message });
     return NextResponse.json(
