@@ -17,6 +17,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   fetchUserData: () => Promise<void>;
   updateBalance: (newBalanceInKobo: number) => void;
+  syncBalance: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +33,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser((prev) => (prev ? { ...prev, balance: newBalanceInKobo } : prev));
     }
   }, []);
+
+  const syncBalance = useCallback(async () => {
+    const token = localStorage.getItem('ovo-auth-token');
+    if (!token) return;
+    
+    try {
+      const res = await fetch('/api/wallet/sync-balance', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const newBalance = data.balanceInKobo || data.balance || 0;
+        updateBalance(newBalance);
+      }
+    } catch (err) {
+      console.debug('[AuthContext] Balance sync failed:', err);
+    }
+  }, [updateBalance]);
 
   const performLogout = useCallback(() => {
     localStorage.removeItem("ovo-auth-token");
@@ -108,7 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     window.addEventListener('balance-updated', handleBalanceUpdate);
     
-    // Refresh token every 7 days to keep session alive
+    // Refresh token every 24 hours
     const tokenRefreshInterval = setInterval(async () => {
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -127,8 +148,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.debug('[AuthContext] Token refresh skipped:', err);
         }
       }
-    }, 7 * 24 * 60 * 60 * 1000); // 7 days
+    }, 24 * 60 * 60 * 1000); // 24 hours
     
+    // Poll balance every 60 seconds
     const intervalId = setInterval(async () => {
       const token = localStorage.getItem('ovo-auth-token');
       if (token) {
@@ -138,7 +160,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             cache: 'no-store'
           });
           
-          // Only update balance if request succeeds
           if (res.ok) {
             const data = await res.json();
             const newBal = data.balanceInKobo || data.data?.balance || 0;
@@ -149,11 +170,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         } catch (err) {
-          // Silently fail - don't logout user on network errors
           console.debug('[AuthContext] Balance refresh skipped:', err);
         }
       }
-    }, 30000);
+    }, 60000); // 60 seconds
     
     return () => {
       window.removeEventListener('balance-updated', handleBalanceUpdate);
@@ -215,7 +235,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [performLogout]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, balance, login, logout, fetchUserData, updateBalance, syncBalance }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,153 +1,165 @@
-interface BiometricCapabilities {
-  fingerprint: boolean;
-  faceId: boolean;
-  voiceId: boolean;
+/**
+ * Biometric Authentication Service
+ * Uses WebAuthn API for device biometric authentication (Face ID, Touch ID, Fingerprint)
+ */
+
+export interface BiometricCredential {
+  id: string;
+  publicKey: string;
+  counter: number;
 }
 
-interface BiometricAuthResult {
-  success: boolean;
-  type: 'fingerprint' | 'faceId' | 'voiceId' | null;
-  error?: string;
-}
+export class BiometricAuth {
+  private static readonly RP_NAME = 'Ovo Thrive';
+  private static readonly RP_ID = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-class BiometricService {
-  private isSupported = false;
-  private capabilities: BiometricCapabilities = {
-    fingerprint: false,
-    faceId: false,
-    voiceId: false
-  };
-
-  async initialize(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
-    // Check for WebAuthn support
-    this.isSupported = !!(navigator.credentials && window.PublicKeyCredential);
-    
-    if (this.isSupported) {
-      // Check specific biometric capabilities
-      try {
-        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (available) {
-          this.capabilities.fingerprint = true;
-          this.capabilities.faceId = true; // Modern devices support both
-        }
-      } catch (error) {
-        console.warn('Biometric capability check failed:', error);
-      }
-    }
-  }
-
-  getCapabilities(): BiometricCapabilities {
-    return { ...this.capabilities };
-  }
-
-  isAvailable(): boolean {
-    return this.isSupported && (this.capabilities.fingerprint || this.capabilities.faceId);
-  }
-
-  async registerBiometric(userId: string): Promise<BiometricAuthResult> {
-    if (!this.isSupported) {
-      return { success: false, type: null, error: 'Biometric authentication not supported' };
+  /**
+   * Check if biometric authentication is available
+   */
+  static async isAvailable(): Promise<boolean> {
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+      return false;
     }
 
     try {
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: new Uint8Array(32),
-          rp: {
-            name: "Ovo Thrive",
-            id: window.location.hostname,
-          },
-          user: {
-            id: new TextEncoder().encode(userId),
-            name: userId,
-            displayName: "Ovo User",
-          },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            userVerification: "required",
-          },
-          timeout: 60000,
-          attestation: "direct"
-        }
-      }) as PublicKeyCredential;
-
-      if (credential) {
-        // Store credential ID for future authentication
-        localStorage.setItem(`biometric_${userId}`, credential.id);
-        return { 
-          success: true, 
-          type: this.capabilities.faceId ? 'faceId' : 'fingerprint' 
-        };
-      }
-
-      return { success: false, type: null, error: 'Failed to register biometric' };
-    } catch (error: any) {
-      return { 
-        success: false, 
-        type: null, 
-        error: error.message || 'Biometric registration failed' 
-      };
-    }
-  }
-
-  async authenticateWithBiometric(userId: string): Promise<BiometricAuthResult> {
-    if (!this.isSupported) {
-      return { success: false, type: null, error: 'Biometric authentication not supported' };
-    }
-
-    const credentialId = localStorage.getItem(`biometric_${userId}`);
-    if (!credentialId) {
-      return { success: false, type: null, error: 'No biometric registered for this user' };
-    }
-
-    try {
-      const credential = await navigator.credentials.get({
-        publicKey: {
-          challenge: new Uint8Array(32),
-          allowCredentials: [{
-            id: new TextEncoder().encode(credentialId),
-            type: 'public-key',
-          }],
-          userVerification: 'required',
-          timeout: 60000,
-        }
-      });
-
-      if (credential) {
-        return { 
-          success: true, 
-          type: this.capabilities.faceId ? 'faceId' : 'fingerprint' 
-        };
-      }
-
-      return { success: false, type: null, error: 'Biometric authentication failed' };
-    } catch (error: any) {
-      if (error.name === 'NotAllowedError') {
-        return { success: false, type: null, error: 'Biometric authentication cancelled' };
-      }
-      return { 
-        success: false, 
-        type: null, 
-        error: error.message || 'Biometric authentication failed' 
-      };
-    }
-  }
-
-  async removeBiometric(userId: string): Promise<boolean> {
-    try {
-      localStorage.removeItem(`biometric_${userId}`);
-      return true;
-    } catch (error) {
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return available;
+    } catch {
       return false;
     }
   }
 
-  hasBiometricRegistered(userId: string): boolean {
+  /**
+   * Register biometric credential for user
+   */
+  static async register(userId: string, userName: string): Promise<string> {
+    if (!await this.isAvailable()) {
+      throw new Error('Biometric authentication not available');
+    }
+
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: {
+          name: this.RP_NAME,
+          id: this.RP_ID,
+        },
+        user: {
+          id: new TextEncoder().encode(userId),
+          name: userName,
+          displayName: userName,
+        },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+        },
+        timeout: 60000,
+      },
+    }) as PublicKeyCredential;
+
+    if (!credential) {
+      throw new Error('Failed to create biometric credential');
+    }
+
+    // Store credential ID locally
+    localStorage.setItem(`biometric_${userId}`, credential.id);
+    return credential.id;
+  }
+
+  /**
+   * Authenticate using biometric
+   */
+  static async authenticate(userId: string): Promise<boolean> {
+    if (!await this.isAvailable()) {
+      throw new Error('Biometric authentication not available');
+    }
+
+    const credentialId = localStorage.getItem(`biometric_${userId}`);
+    if (!credentialId) {
+      throw new Error('No biometric registered for this user');
+    }
+
+    try {
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{
+            id: new Uint8Array(atob(credentialId).split('').map(c => c.charCodeAt(0))),
+            type: 'public-key',
+          }],
+          userVerification: 'required',
+          timeout: 60000,
+        },
+      }) as PublicKeyCredential;
+
+      return !!credential;
+    } catch (error) {
+      console.error('Biometric authentication failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has biometric registered
+   */
+  static hasRegistered(userId: string): boolean {
     return !!localStorage.getItem(`biometric_${userId}`);
+  }
+
+  /**
+   * Remove biometric registration
+   */
+  static remove(userId: string): void {
+    localStorage.removeItem(`biometric_${userId}`);
+  }
+
+  /**
+   * Get biometric type description
+   */
+  static getBiometricType(): string {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+      return 'Face ID or Touch ID';
+    } else if (userAgent.includes('android')) {
+      return 'Fingerprint or Face Unlock';
+    } else {
+      return 'Device Biometric';
+    }
   }
 }
 
-export const biometricService = new BiometricService();
+// Legacy export for backward compatibility
+export const biometricService = {
+  initialize: async () => {},
+  getCapabilities: () => ({ fingerprint: true, faceId: true, voiceId: false }),
+  isAvailable: () => BiometricAuth.isAvailable(),
+  registerBiometric: async (userId: string) => {
+    try {
+      await BiometricAuth.register(userId, 'User');
+      return { success: true, type: 'faceId' as const };
+    } catch (error: any) {
+      return { success: false, type: null, error: error.message };
+    }
+  },
+  authenticateWithBiometric: async (userId: string) => {
+    try {
+      const success = await BiometricAuth.authenticate(userId);
+      return { success, type: success ? 'faceId' as const : null };
+    } catch (error: any) {
+      return { success: false, type: null, error: error.message };
+    }
+  },
+  removeBiometric: (userId: string) => {
+    BiometricAuth.remove(userId);
+    return true;
+  },
+  hasBiometricRegistered: (userId: string) => BiometricAuth.hasRegistered(userId),
+};

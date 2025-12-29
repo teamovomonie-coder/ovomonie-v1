@@ -23,7 +23,7 @@ export interface PendingTransaction {
 // GET - Get user's pending transactions or latest one
 export async function GET(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new pending transaction
 export async function POST(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Update a pending transaction
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -183,7 +183,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a pending transaction (cleanup)
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = getUserIdFromToken(request.headers);
+    const userId = getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }

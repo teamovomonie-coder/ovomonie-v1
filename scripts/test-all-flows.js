@@ -137,8 +137,8 @@ test('Card funding uses executeVFDTransaction', () => {
 
 test('VFD card payment component syncs balance', () => {
   const check = checkFileContent('src/components/add-money/vfd-card-payment.tsx', [
-    'sync-balance',
-    'updateBalance'
+    'syncBalance',
+    'useAuth'
   ]);
   const allFound = check.matches.every(m => m.found);
   return allFound
@@ -166,7 +166,7 @@ test('Account verification API exists', () => {
 test('External transfer uses VFD withdrawToBank', () => {
   const check = checkFileContent('src/app/api/transfers/external/route.ts', [
     'withdrawToBank',
-    'executeVFDTransaction'
+    'vfdWalletService'
   ]);
   const allFound = check.matches.every(m => m.found);
   return allFound

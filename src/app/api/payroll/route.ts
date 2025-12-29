@@ -11,7 +11,7 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

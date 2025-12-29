@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Fingerprint, Scan, Shield, AlertCircle } from 'lucide-react';
-import { biometricService } from '@/lib/biometric';
+import { BiometricAuth } from '@/lib/biometric';
 import { useAuth } from '@/context/auth-context';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface BiometricLoginProps {
   userId?: string;
@@ -16,17 +16,16 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
   const [isLoading, setIsLoading] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const [hasRegistered, setHasRegistered] = useState(false);
-  const [capabilities, setCapabilities] = useState({ fingerprint: false, faceId: false, voiceId: false });
   const { login } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const initBiometric = async () => {
-      await biometricService.initialize();
-      setIsAvailable(biometricService.isAvailable());
-      setCapabilities(biometricService.getCapabilities());
+      const available = await BiometricAuth.isAvailable();
+      setIsAvailable(available);
       
-      if (userId) {
-        setHasRegistered(biometricService.hasBiometricRegistered(userId));
+      if (userId && available) {
+        setHasRegistered(BiometricAuth.hasRegistered(userId));
       }
     };
 
@@ -46,29 +45,29 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     setIsLoading(true);
     
     try {
-      const result = await biometricService.authenticateWithBiometric(userId);
+      const success = await BiometricAuth.authenticate(userId);
       
-      if (result.success) {
+      if (success) {
         // Authenticate user in the app
-        await login(userId, 'biometric');
+        await login(userId, '', 'biometric');
         
         toast({
           title: "Success",
-          description: `Authenticated with ${result.type === 'faceId' ? 'Face ID' : 'Fingerprint'}`,
+          description: `Authenticated with ${BiometricAuth.getBiometricType()}`,
         });
         
         onSuccess();
       } else {
         toast({
           title: "Authentication Failed",
-          description: result.error || "Biometric authentication failed",
+          description: "Biometric authentication failed",
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     } finally {
@@ -82,25 +81,16 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     setIsLoading(true);
     
     try {
-      const result = await biometricService.registerBiometric(userId);
-      
-      if (result.success) {
-        setHasRegistered(true);
-        toast({
-          title: "Success",
-          description: `${result.type === 'faceId' ? 'Face ID' : 'Fingerprint'} registered successfully`,
-        });
-      } else {
-        toast({
-          title: "Registration Failed",
-          description: result.error || "Failed to register biometric",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      await BiometricAuth.register(userId, 'User');
+      setHasRegistered(true);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred",
+        title: "Success",
+        description: `${BiometricAuth.getBiometricType()} registered successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to register biometric",
         variant: "destructive"
       });
     } finally {
@@ -127,23 +117,24 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     );
   }
 
+  const biometricType = BiometricAuth.getBiometricType();
+  const isFaceId = biometricType.includes('Face');
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
-          {capabilities.faceId ? (
+          {isFaceId ? (
             <Scan className="h-16 w-16 text-primary" />
           ) : (
             <Fingerprint className="h-16 w-16 text-primary" />
           )}
         </div>
-        <CardTitle>
-          {capabilities.faceId ? 'Face ID' : 'Fingerprint'} Authentication
-        </CardTitle>
+        <CardTitle>{biometricType}</CardTitle>
         <CardDescription>
           {hasRegistered 
-            ? `Use your ${capabilities.faceId ? 'face' : 'fingerprint'} to sign in securely`
-            : `Register your ${capabilities.faceId ? 'face' : 'fingerprint'} for quick and secure access`
+            ? `Use your ${biometricType.toLowerCase()} to sign in securely`
+            : `Register your ${biometricType.toLowerCase()} for quick and secure access`
           }
         </CardDescription>
       </CardHeader>
@@ -158,7 +149,7 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
               size="lg"
             >
               <Shield className="mr-2 h-4 w-4" />
-              {isLoading ? 'Authenticating...' : `Sign in with ${capabilities.faceId ? 'Face ID' : 'Fingerprint'}`}
+              {isLoading ? 'Authenticating...' : `Sign in with ${biometricType}`}
             </Button>
             
             <Button 
@@ -178,7 +169,7 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
               size="lg"
             >
               <Fingerprint className="mr-2 h-4 w-4" />
-              {isLoading ? 'Registering...' : `Set up ${capabilities.faceId ? 'Face ID' : 'Fingerprint'}`}
+              {isLoading ? 'Registering...' : `Set up ${biometricType}`}
             </Button>
             
             <Button 

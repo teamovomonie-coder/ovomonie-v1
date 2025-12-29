@@ -62,7 +62,7 @@ function generateTOTP(secret: string, time: number): string {
 
 export async function POST(request: Request) {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

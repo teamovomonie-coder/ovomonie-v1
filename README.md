@@ -1,35 +1,40 @@
 # Ovo Thrive App
 
-Next.js + Firebase demo for financial workflows (payments, lending, commerce, mobility). Authentication now standardizes on `getUserIdFromToken(headers())`, validated env variables, and structured JSON logging for APIs.
+Next.js + Supabase fintech application for comprehensive financial workflows (payments, lending, commerce, mobility). Features secure token-based authentication, validated environment variables, and structured JSON logging.
 
 ## Quickstart
 - Node 20+ and npm installed.
-- Copy `.env.example` to `.env.local` (or Firebase hosting env) and fill in your Firebase keys plus a strong `AUTH_SECRET`.
+- Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials plus a strong `AUTH_SECRET`.
 - Install deps: `npm install`
 - Dev server: `npm run dev`
 - Lint/typecheck: `npm run lint` / `npm run typecheck`
 
-## Authentication Hardening
-- A codemod is available to normalize routes: `npm run fix:auth`
-- Routes now call `getUserIdFromToken(headers())` from `src/lib/firestore-helpers.ts`, which validates signed tokens (and falls back to legacy demo tokens).
-- Token signing/verifications live in `src/lib/auth.ts` and use `AUTH_SECRET` from validated env variables.
+## Authentication
+- Token-based authentication with HMAC-SHA256 signing
+- Routes call `getUserIdFromToken(headers())` from `src/lib/auth-helpers.ts`
+- Token signing/verification in `src/lib/auth.ts` using `AUTH_SECRET`
+- PIN rate limiting to prevent brute force attacks
+- Biometric authentication support
 
 ## Environment Validation
-- Server env is validated in `src/lib/env.server.ts` (currently `AUTH_SECRET`).
-- Client env is validated in `src/lib/env.client.ts` for Firebase config.
-- Missing/invalid envs throw during startup with field-specific errors to prevent silent misconfiguration.
+- Server env validated in `src/lib/env.server.ts` (AUTH_SECRET, Supabase keys, VFD credentials)
+- Client env validated in `src/lib/env.client.ts` (Supabase public config)
+- Missing/invalid envs throw during startup with field-specific errors
 
 ## Structured Logging
-- `src/lib/logger.ts` emits JSON logs with timestamp/level/message/meta.
-- API routes use `logger.info/error/warn` instead of `console.*` to keep logs parseable (works in local dev and serverless logs).
+- `src/lib/logger.ts` emits JSON logs with timestamp/level/message/meta
+- API routes use `logger.info/error/warn` for parseable logs
 
 ## Project Layout
-- `src/app/api` and `src/api`: API routes (Next.js app router + legacy).
-- `src/components`: UI components.
-- `src/lib`: shared utilities (auth, Firebase, env validation, logger).
-- `scripts/fix-auth.js`: one-off helper to migrate legacy token parsing.
+- `src/app/api`: API routes (Next.js 15 app router)
+- `src/components`: UI components (React + Tailwind + shadcn/ui)
+- `src/lib`: Shared utilities (auth, Supabase, validation, logger)
+- `src/context`: React contexts (auth, notifications)
+- `supabase/migrations`: Database schema migrations
 
 ## Deployment Notes
-- Ensure all env vars from `.env.example` are set in your deployment environment.
-- Run `npm run build` before deploying to Firebase Hosting/Cloud Functions.
-- Review Firebase indexes referenced by API routes (auth/login mentions index creation when needed).
+- Ensure all env vars from `.env.local.example` are set in deployment environment
+- Run `npm run build` to verify production build
+- Configure Supabase connection pooling for production
+- Set up proper CORS origins (remove wildcard in middleware)
+- Enable database backups and monitoring

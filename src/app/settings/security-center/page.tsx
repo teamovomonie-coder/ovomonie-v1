@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
+import BiometricSettings from "@/components/auth/biometric-settings";
 
 interface Device {
   id: string;
@@ -158,6 +159,8 @@ export default function SecurityCenterPage() {
         </div>
 
         <div className="space-y-4 max-w-4xl">
+          <BiometricSettings />
+          
           <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="text-base font-semibold">Managed Devices</CardTitle>

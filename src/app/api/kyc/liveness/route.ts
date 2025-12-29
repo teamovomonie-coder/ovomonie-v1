@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }

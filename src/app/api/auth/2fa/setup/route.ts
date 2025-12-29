@@ -22,7 +22,7 @@ function generateQRCode(email: string, secret: string): string {
 
 export async function POST() {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }

@@ -1,7 +1,9 @@
 import { verifyAuthToken } from './auth';
+import { headers } from 'next/headers';
 
-export async function getUserIdFromToken(headers: Headers): Promise<string | null> {
-  const authHeader = headers.get('authorization');
+export async function getUserIdFromToken(headersParam?: Headers): Promise<string | null> {
+  const headersList = headersParam || await headers();
+  const authHeader = headersList.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return null;
   }

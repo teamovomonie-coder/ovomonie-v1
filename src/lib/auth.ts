@@ -34,6 +34,9 @@ export function createAuthToken(userId: string, ttlSeconds = TOKEN_TTL_SECONDS):
   return `${TOKEN_PREFIX}.${payloadB64}.${signature}`;
 }
 
+// Alias for backward compatibility
+export const generateAuthToken = createAuthToken;
+
 export function verifyAuthToken(token: string): AuthTokenPayload | null {
     if (!token || !token.startsWith(`${TOKEN_PREFIX}.`)) return null;
     const parts = token.split('.');

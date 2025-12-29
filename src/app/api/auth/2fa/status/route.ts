@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
-    const userId = await getUserIdFromToken(headers());
+    const userId = await getUserIdFromToken();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
