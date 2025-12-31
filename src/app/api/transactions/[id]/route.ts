@@ -1,78 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromToken } from '@/lib/supabase-helpers';
-import { supabaseAdmin } from '@/lib/supabase';
-import { logger } from '@/lib/logger';
+import { getUserIdFromRequest } from '@/lib/auth-helpers';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await getUserIdFromToken();
+    const userId = await getUserIdFromRequest(request);
     if (!userId) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = params.id;
-
-    if (!id) {
-      return NextResponse.json({ ok: false, message: 'Transaction ID required' }, { status: 400 });
-    }
-
-    // First try pending_transactions (pending receipts)
-    const { data, error } = await supabaseAdmin
-      .from('pending_transactions')
+    const { data: transaction, error } = await supabase
+      .from('transactions')
       .select('*')
-      .eq('reference', id)
+      .eq('transaction_id', params.id)
       .eq('user_id', userId)
       .single();
 
-    if (data) {
-      return NextResponse.json({ ok: true, transaction: data });
+    if (error || !transaction) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    // Fallback: try financial_transactions by id or reference
-    try {
-      const { data: finData, error: finError } = await supabaseAdmin
-        .from('financial_transactions')
-        .select('*')
-        .or(`id.eq.${id},reference.eq.${id}`)
-        .eq('user_id', userId)
-        .single();
+    // Format transaction data for receipt
+    const receiptData = {
+      type: transaction.category || 'airtime',
+      network: transaction.metadata?.network || transaction.party_name,
+      phoneNumber: transaction.metadata?.phoneNumber || transaction.party_biller_id,
+      amount: Math.abs(transaction.amount_in_kobo) / 100,
+      planName: transaction.metadata?.planName,
+      transactionId: transaction.transaction_id,
+      completedAt: transaction.created_at
+    };
 
-      if (finError || !finData) {
-        logger.warn('Transaction not found in pending or financial_transactions:', { id, userId, finError });
-        return NextResponse.json({ ok: false, message: 'Transaction not found' }, { status: 404 });
-      }
-
-      // Map financial_transactions fields to the shape expected by the receipt page
-      const mapped = {
-        id: finData.id,
-        reference: finData.reference,
-        type: finData.type,
-        amount: finData.amount,
-        narration: finData.narration,
-        party_name: finData.party?.name || finData.party_name || 'External Transfer',
-        balance_after: finData.balance_after,
-        status: 'completed',
-        category: finData.category,
-        metadata: {
-          service_type: finData.category,
-          recipient: finData.party?.name || finData.party_name || 'External Transfer',
-          network: finData.party?.bank || 'Bank Transfer',
-          vfd_reference: finData.reference,
-          ...finData.metadata,
-        },
-        created_at: finData.timestamp || finData.created_at,
-      };
-
-      return NextResponse.json({ ok: true, transaction: mapped });
-    } catch (err) {
-      logger.error('Error fetching from financial_transactions:', err);
-      return NextResponse.json({ ok: false, message: 'Transaction not found' }, { status: 404 });
-    }
+    return NextResponse.json(receiptData);
   } catch (error) {
-    logger.error('Transaction fetch error:', error);
-    return NextResponse.json({ ok: false, message: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching transaction:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

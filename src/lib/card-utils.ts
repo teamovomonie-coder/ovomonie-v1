@@ -180,7 +180,7 @@ export function validateExpiry(expiry: string): { isValid: boolean; isExpired: b
   if (year > currentYear + maxYears) {
     return { isValid: false, isExpired: false, message: 'Invalid expiry year' };
   }
-  
+
   return { isValid: true, isExpired: false, message: '' };
 }
 

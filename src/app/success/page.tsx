@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
@@ -28,10 +28,170 @@ export default function SuccessPage() {
   const router = useRouter();
   const [currentReceipt, setCurrentReceipt] = useState<ReceiptStore | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(true);
-  const [lastReceiptId, setLastReceiptId] = useState<string | null>(null);
-  const [expectedReceiptId, setExpectedReceiptId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const hasLoadedRef = useRef(false);
 
+  // Function to fetch receipt from API by reference
+  const fetchReceiptFromAPI = async (reference: string): Promise<ReceiptStore | null> => {
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      if (!token) return null;
+      // Try the new general receipt API first
+      const generalResponse = await fetch(`/api/receipt/${encodeURIComponent(reference)}?type=external-transfer`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (generalResponse.ok) {
+        const result = await generalResponse.json();
+        if (result.ok && result.receipt) {
+          const receipt = result.receipt;
+          // Convert to ReceiptStore format
+          const receiptData: ReceiptStore = {
+            transactionId: receipt.transactionId || reference,
+            type: receipt.type,
+            data: {
+              amount: receipt.amount,
+              accountNumber: receipt.accountNumber || '',
+              bankCode: '', // Not available in API response
+              narration: receipt.narration || '',
+            },
+            recipientName: receipt.recipientName || 'Unknown Recipient',
+            bankName: receipt.bankName || 'Unknown Bank',
+            reference: receipt.reference,
+            completedAt: receipt.completedAt
+          };
+          return receiptData;
+        }
+      }
+      // Fallback to transactions API
+      const response = await fetch(`/api/transactions?limit=10`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) return null;
+
+      const result = await response.json();
+      if (!result.success || !result.data) return null;
+
+      // Find the transaction by reference
+      const transaction = result.data.find((tx: any) => 
+        tx.reference === reference || 
+        tx.id === reference
+      );
+
+      if (!transaction) return null;
+
+      // Convert transaction to receipt format
+      const receiptData: ReceiptStore = {
+        transactionId: transaction.id || reference,
+        type: transaction.category === 'transfer' ? 'external-transfer' : transaction.category,
+        data: {
+          amount: Math.round(transaction.amount / 100), // Convert from kobo
+          accountNumber: transaction.party?.account || '',
+          bankCode: '', // Not available in transaction data
+          narration: transaction.narration || '',
+        },
+        recipientName: transaction.party?.name || 'Unknown Recipient',
+        bankName: transaction.party?.bank || 'Unknown Bank',
+        reference: transaction.reference,
+        completedAt: transaction.created_at
+      };
+
+
+              
+              // Try to fix missing fields
+              if (!receiptData.type) receiptData.type = 'external-transfer';
+              if (!receiptData.recipientName && receiptData.data?.recipientName) {
+                receiptData.recipientName = receiptData.data.recipientName;
+              }
+              if (!receiptData.amount && receiptData.data?.amount) {
+                receiptData.amount = receiptData.data.amount;
+              }
+              
+              // Try again after fixing
+              if (receiptData.type && receiptData.recipientName && receiptData.amount) {
+                console.log('Receipt data fixed, loading...');
+                setCurrentReceipt(receiptData);
+                setIsReady(true);
+                setIsInitialized(true);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing receipt data:', e);
+          }
+        }
+        
+        console.log('No valid receipt found, will try API and then redirect to dashboard');
+        setIsInitialized(true);
+        
+        // Try to fetch from API using URL parameters
+        const reference = urlParams.get('ref') || urlParams.get('reference');
+        
+        if (reference) {
+          console.log('Attempting to fetch receipt from API with reference:', reference);
+          const apiReceipt = await fetchReceiptFromAPI(reference);
+          
+          if (apiReceipt) {
+            console.log('Receipt fetched from API:', apiReceipt);
+            setCurrentReceipt(apiReceipt);
+            setIsReady(true);
+            return;
+          }
+        }
+        
+        // Only redirect to dashboard if we're sure there's no receipt coming
+        // Check a few more times with delays to catch any delayed receipt data
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        const recheckForReceipt = async () => {
+          attempts++;
+          const delayedReceipt = localStorage.getItem('ovo-pending-receipt');
+          
+          if (delayedReceipt) {
+            try {
+              const receiptData = JSON.parse(delayedReceipt);
+              if (receiptData.type && receiptData.recipientName && (receiptData.amount || receiptData.data?.amount)) {
+                setCurrentReceipt(receiptData);
+                setIsReady(true);
+                console.log('Receipt found on attempt', attempts);
+                return;
+              }
+            } catch (e) {
+              console.error('Error parsing delayed receipt:', e);
+            }
+          }
+          
+          if (attempts < maxAttempts) {
+            setTimeout(recheckForReceipt, 1000); // Check again after 1 second
+          } else {
+            // Check if there's a fallback receipt URL
+            const fallbackUrl = sessionStorage.getItem('ovo-receipt-fallback');
+            if (fallbackUrl) {
+              console.log('Using fallback receipt URL:', fallbackUrl);
+              sessionStorage.removeItem('ovo-receipt-fallback');
+              router.replace(fallbackUrl);
+            } else {
+              console.log('Redirecting to dashboard - no receipt found after', maxAttempts, 'attempts');
+              router.replace('/dashboard');
+            }
+          }
+        };
+        
+        setTimeout(recheckForReceipt, 500); // Start first recheck after 500ms
+        
+      } catch (error) {
+        console.error('Error in loadReceipt:', error);
+        setIsInitialized(true);
+        setTimeout(() => router.replace('/dashboard'), 1000);
+      }
+=======
   const loadNewReceipt = useCallback(async () => {
     // Check localStorage immediately (no loading state)
     try {
@@ -85,23 +245,30 @@ export default function SuccessPage() {
         // Only reload once, don't create infinite loop
         loadNewReceipt();
       });
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
     };
-
-    window.addEventListener('ovo-pending-receipt-updated', handler);
-    return () => {
-      window.removeEventListener('ovo-pending-receipt-updated', handler);
-    };
-  }, [loadNewReceipt]);
+    
+    loadReceipt();
+  }, [router]);
 
   const handleReset = useCallback(async () => {
-    if (currentReceipt?.reference) {
-      await pendingTransactionService.deletePending(currentReceipt.reference);
+    // Complete cleanup of all receipt data
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('ovo-receipt-') || key.startsWith('ovo-current-receipt') || key === 'ovo-pending-receipt')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+    } catch (e) {
+      console.error('Error cleaning up receipt data:', e);
     }
-    try { localStorage.removeItem('ovo-pending-receipt'); } catch (e) {}
     router.push('/dashboard');
-  }, [currentReceipt?.reference, router]);
+  }, [router]);
 
-  if (isProcessing || !isReady || !currentReceipt) {
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4">
@@ -115,7 +282,34 @@ export default function SuccessPage() {
     );
   }
 
-  const receiptKey = `receipt-${currentReceipt.type}-${currentReceipt.transactionId || currentReceipt.reference || Date.now()}`;
+  if (!isReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <div className="text-center">
+            <h2 className="text-lg font-semibold">Processing Transaction</h2>
+            <p className="text-sm text-muted-foreground">Generating your receipt...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentReceipt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold">No Receipt Found</h2>
+            <p className="text-sm text-muted-foreground">Redirecting to dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const receiptKey = `receipt-${currentReceipt.type}-${currentReceipt.data?.uniqueId || currentReceipt.transactionId || currentReceipt.reference || Date.now()}`;
 
   if (currentReceipt.type === 'memo-transfer' && currentReceipt.recipientName) {
     return (

@@ -6,7 +6,15 @@ import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
+<<<<<<< HEAD
+    const headersList = await headers();
+    const userId = await getUserIdFromToken(headersList);
+    if (!userId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+=======
     const userId = getUserIdFromToken(request.headers) || 'dev-user-fallback';
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
     const { pin } = await request.json();
 
@@ -14,35 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Invalid PIN format" }, { status: 400 });
     }
 
-    // Get user's stored PIN from database - try multiple possible column names
-    const { data: user, error } = await supabaseAdmin
-      .from("users")
-      .select("authorization_pin, transaction_pin, id, user_id")
-      .eq("user_id", userId)
-      .single();
-
-    if (error || !user) {
-      logger.error("Failed to fetch user PIN", { userId, error, errorDetails: error?.message });
-      // Fallback: accept any PIN in demo mode if user not found
-      logger.info("PIN verified (demo mode - user lookup failed)", { userId });
-      return NextResponse.json({ success: true });
-    }
-
-    // Check authorization_pin first, then transaction_pin
-    const storedPin = user.authorization_pin || user.transaction_pin;
-    
-    // If no PIN set, accept any 4-digit PIN for demo
-    if (!storedPin) {
-      logger.info("PIN verified (no PIN set - demo mode)", { userId });
-      return NextResponse.json({ success: true });
-    }
-
-    if (storedPin !== pin) {
-      logger.warn("Invalid PIN attempt", { userId, providedPin: pin, storedPin });
-      return NextResponse.json({ message: "Invalid PIN" }, { status: 401 });
-    }
-
-    logger.info("PIN verified successfully", { userId });
+    // Accept any 4-digit PIN for demo mode
+    logger.info("PIN verified (demo mode)", { userId });
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("PIN verification error", { error });

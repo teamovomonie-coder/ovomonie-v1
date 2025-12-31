@@ -1,18 +1,68 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { getUserById } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { generateAuthToken } from '@/lib/auth';
+import { apiUnauthorized, apiError, apiSuccess } from '@/lib/middleware/api-response';
 
 export async function GET() {
   try {
     const reqHeaders = await headers();
     const userId = getUserIdFromToken(reqHeaders as any) || 'dev-user-fallback';
     
+<<<<<<< HEAD
+    if (!userId) {
+      return apiUnauthorized();
+    }
+
+    // Add timeout protection with longer timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database timeout')), 15000)
+    );
+
+    const user = await Promise.race([
+      getUserById(userId),
+      timeoutPromise
+    ]).catch(err => {
+      logger.error('Error fetching user by ID', { userId, error: { message: err.message, details: err.stack, hint: '', code: '' } });
+      return null;
+    });
+=======
     const user = await getUserById(userId);
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
 
     if (!user) {
+      // Try one more time with direct supabase query as fallback
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase');
+        if (supabaseAdmin) {
+          const { data: fallbackUser, error } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+          
+          if (fallbackUser && !error) {
+            logger.info('User found via fallback query', { userId });
+            return NextResponse.json({
+              userId: fallbackUser.id,
+              phone: fallbackUser.phone,
+              fullName: fallbackUser.full_name,
+              email: fallbackUser.email,
+              accountNumber: fallbackUser.account_number,
+              balance: fallbackUser.balance || 0,
+              kycTier: fallbackUser.kyc_tier || 1,
+              isAgent: fallbackUser.is_agent || false,
+              status: fallbackUser.status || 'active',
+              avatarUrl: fallbackUser.avatar_url,
+              photoUrl: fallbackUser.avatar_url,
+            });
+          }
+        }
+      } catch (fallbackError) {
+        logger.error('Fallback query also failed', { userId, error: fallbackError });
+      }
+      
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
@@ -34,39 +84,7 @@ export async function GET() {
       device_fingerprinting_enabled: user.device_fingerprinting_enabled ?? true,
     });
   } catch (error) {
-    console.error('Auth me error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
-  }
-}
-
-// Handle biometric authentication
-export async function POST(request: NextRequest) {
-  try {
-    const { phone, method } = await request.json();
-    
-    if (method !== 'biometric') {
-      return NextResponse.json({ message: 'Invalid method' }, { status: 400 });
-    }
-
-    // For biometric auth, we trust that the client has already verified the biometric
-    // In a real implementation, you might want additional server-side verification
-    const user = await getUserById(phone); // Using phone as userId for biometric
-    
-    if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-
-    const token = generateAuthToken(user.id);
-    
-    logger.info('Biometric authentication successful', { userId: user.id });
-    
-    return NextResponse.json({
-      token,
-      userId: user.id,
-      message: 'Biometric authentication successful'
-    });
-  } catch (error) {
-    console.error('Biometric auth error:', error);
-    return NextResponse.json({ message: 'Authentication failed' }, { status: 500 });
+    logger.error('Auth me error:', error);
+    return apiError('Internal server error');
   }
 }

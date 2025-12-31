@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { verifyAuthToken } from "./auth";
 
-export function getUserIdFromToken(headers: Headers | Record<string, any> | any): string | null {
+export async function getUserIdFromToken(headers: Headers | Record<string, any> | any): Promise<string | null> {
   try {
-    const authHeader =
-      (typeof headers?.get === 'function' && headers.get('authorization')) ||
-      headers?.authorization ||
-      headers?.['authorization'];
+    let authHeader;
+    
+    if (typeof headers?.get === 'function') {
+      authHeader = headers.get('authorization');
+    } else {
+      authHeader = headers?.authorization || headers?.['authorization'];
+    }
 
     if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
       return null;

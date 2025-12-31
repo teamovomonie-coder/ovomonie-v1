@@ -53,6 +53,13 @@ export function AirtimeReceipt({ data }: { data: AirtimeReceiptData }) {
                 <span className="text-sm">Completed</span>
               </div>
             </div>
+            {data.transactionId && (
+              <div className="flex justify-between mt-2">
+                <span className="text-muted-foreground">Reference</span>
+                <span className="font-semibold text-xs font-mono">{data.transactionId.slice(0, 12)}...</span>
+              </div>
+            )}
+            </div>
           </div>
 
           {/* Content */}

@@ -602,6 +602,15 @@ function FundWithAgent() {
 // --- Main Component ---
 export function AddMoneyOptions() {
   return (
+<<<<<<< HEAD
+    <Tabs defaultValue="bank" className="w-full">
+      <TabsList className="grid w-full grid-cols-5 h-auto">
+        <TabsTrigger value="bank" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Landmark className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Bank</span></TabsTrigger>
+        <TabsTrigger value="card" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><CreditCard className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Card</span></TabsTrigger>
+        <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">USSD</span></TabsTrigger>
+        <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">QR Code</span></TabsTrigger>
+        <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10 text-xs sm:text-sm"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" /><span className="text-foreground">Agent</span></TabsTrigger>
+=======
     <Tabs defaultValue="saved" className="w-full">
       <TabsList className="grid w-full grid-cols-6 h-auto">
         <TabsTrigger value="saved" className="flex-col sm:flex-row h-16 sm:h-10"><Wallet className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Saved</TabsTrigger>
@@ -610,6 +619,7 @@ export function AddMoneyOptions() {
         <TabsTrigger value="ussd" className="flex-col sm:flex-row h-16 sm:h-10"><Hash className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />USSD</TabsTrigger>
         <TabsTrigger value="qr" className="flex-col sm:flex-row h-16 sm:h-10"><QrCode className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />QR</TabsTrigger>
         <TabsTrigger value="agent" className="flex-col sm:flex-row h-16 sm:h-10"><Store className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />Agent</TabsTrigger>
+>>>>>>> 2df66c9c09cc07b6cf12ffa753372777fb2cf6b2
       </TabsList>
       <TabsContent value="saved" className="pt-6"><SavedPaymentMethods /></TabsContent>
       <TabsContent value="bank" className="pt-6"><BankTransfer /></TabsContent>
