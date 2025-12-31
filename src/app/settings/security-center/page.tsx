@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
 import BiometricSettings from "@/components/auth/biometric-settings";
+import DeviceFingerprintingSettings from "@/components/security/device-fingerprinting-settings";
 
 interface Device {
   id: string;
@@ -24,6 +25,7 @@ interface Device {
   location: string;
   last_active: string;
   is_current: boolean;
+  device_fingerprint?: string;
 }
 
 interface SecurityActivity {
@@ -98,14 +100,38 @@ export default function SecurityCenterPage() {
   const fetchDevicesAndActivities = async () => {
     try {
       const token = localStorage.getItem("ovo-auth-token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get current device fingerprint to mark it
+      const { getCurrentDeviceFingerprint } = await import('@/lib/device-fingerprint');
+      const currentFingerprint = getCurrentDeviceFingerprint();
       
       // Fetch devices
       const devicesRes = await fetch("/api/security/devices", {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
       if (devicesRes.ok) {
         const devicesData = await devicesRes.json();
-        setDevices(devicesData.devices || []);
+        // Mark current device
+        const devicesWithCurrent = (devicesData.devices || []).map((device: Device) => ({
+          ...device,
+          is_current: device.device_fingerprint === currentFingerprint
+        }));
+        setDevices(devicesWithCurrent);
+      } else {
+        const errorData = await devicesRes.json().catch(() => ({}));
+        console.error("Failed to fetch devices:", errorData);
+        if (devicesRes.status !== 401) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: errorData.error || errorData.details || "Failed to fetch devices. Please try again.",
+          });
+        }
       }
 
       // Fetch security activities
@@ -118,6 +144,11 @@ export default function SecurityCenterPage() {
       }
     } catch (error) {
       console.error("Failed to fetch security data:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load security data. Please refresh the page.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +191,8 @@ export default function SecurityCenterPage() {
 
         <div className="space-y-4 max-w-4xl">
           <BiometricSettings />
+          
+          <DeviceFingerprintingSettings />
           
           <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>

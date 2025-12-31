@@ -18,8 +18,10 @@ export default function BiometricSettings() {
   useEffect(() => {
     const initBiometric = async () => {
       await biometricService.initialize();
-      setIsAvailable(biometricService.isAvailable());
-      setCapabilities(biometricService.getCapabilities());
+      const available = await biometricService.isAvailable();
+      setIsAvailable(available);
+      const caps = await biometricService.getCapabilities();
+      setCapabilities(caps);
       
       if (user?.phone) {
         setIsEnabled(biometricService.hasBiometricRegistered(user.phone));
@@ -50,9 +52,12 @@ export default function BiometricSettings() {
         const result = await biometricService.registerBiometric(user.phone);
         if (result.success) {
           setIsEnabled(true);
+          const typeLabel = result.type === 'fingerprint' ? 'Fingerprint' : 
+                           result.type === 'faceId' ? 'Face ID' : 
+                           result.type === 'biometric' ? 'Face ID or Fingerprint' : 'Biometric';
           toast({
             title: "Biometric Enabled",
-            description: `${result.type === 'faceId' ? 'Face ID' : 'Fingerprint'} authentication is now active`,
+            description: `${typeLabel} authentication is now active`,
           });
         } else {
           toast({
@@ -99,17 +104,28 @@ export default function BiometricSettings() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {capabilities.faceId ? (
+            {capabilities.faceId && capabilities.fingerprint ? (
+              <div className="flex gap-1">
+                <Scan className="h-5 w-5 text-primary" />
+                <Fingerprint className="h-5 w-5 text-primary" />
+              </div>
+            ) : capabilities.faceId ? (
               <Scan className="h-5 w-5 text-primary" />
             ) : (
               <Fingerprint className="h-5 w-5 text-primary" />
             )}
             <div>
               <CardTitle className="text-lg">
-                {capabilities.faceId ? 'Face ID' : 'Fingerprint'} Authentication
+                {capabilities.faceId && capabilities.fingerprint 
+                  ? 'Face ID & Fingerprint' 
+                  : capabilities.faceId 
+                    ? 'Face ID' 
+                    : 'Fingerprint'} Authentication
               </CardTitle>
               <CardDescription>
-                Quick and secure access to your account
+                {capabilities.faceId && capabilities.fingerprint
+                  ? 'Quick and secure access with Face ID or Fingerprint'
+                  : 'Quick and secure access to your account'}
               </CardDescription>
             </div>
           </div>
@@ -136,7 +152,9 @@ export default function BiometricSettings() {
             <div className="text-sm">
               <p className="font-medium">How it works</p>
               <p className="text-muted-foreground mt-1">
-                Your {capabilities.faceId ? 'face' : 'fingerprint'} data is stored securely on your device and never leaves it. 
+                {capabilities.faceId && capabilities.fingerprint
+                  ? 'Your face or fingerprint data is stored securely on your device and never leaves it. '
+                  : `Your ${capabilities.faceId ? 'face' : 'fingerprint'} data is stored securely on your device and never leaves it. `}
                 We use industry-standard WebAuthn technology for authentication.
               </p>
             </div>
@@ -150,7 +168,9 @@ export default function BiometricSettings() {
               <span>Biometric authentication is enabled</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              You can now sign in quickly using your {capabilities.faceId ? 'face' : 'fingerprint'} instead of entering your PIN every time.
+              {capabilities.faceId && capabilities.fingerprint
+                ? 'You can now sign in quickly using your Face ID or Fingerprint instead of entering your PIN every time.'
+                : `You can now sign in quickly using your ${capabilities.faceId ? 'face' : 'fingerprint'} instead of entering your PIN every time.`}
             </p>
             <Button 
               variant="outline" 
@@ -164,14 +184,20 @@ export default function BiometricSettings() {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Set up {capabilities.faceId ? 'Face ID' : 'fingerprint'} authentication for faster and more secure access to your account.
+              {capabilities.faceId && capabilities.fingerprint
+                ? 'Set up Face ID or Fingerprint authentication for faster and more secure access to your account.'
+                : `Set up ${capabilities.faceId ? 'Face ID' : 'fingerprint'} authentication for faster and more secure access to your account.`}
             </p>
             <Button 
               onClick={handleToggleBiometric}
               disabled={isLoading}
               className="w-full sm:w-auto"
             >
-              {isLoading ? 'Setting up...' : `Set up ${capabilities.faceId ? 'Face ID' : 'Fingerprint'}`}
+              {isLoading 
+                ? 'Setting up...' 
+                : capabilities.faceId && capabilities.fingerprint
+                  ? 'Set up Face ID or Fingerprint'
+                  : `Set up ${capabilities.faceId ? 'Face ID' : 'Fingerprint'}`}
             </Button>
           </div>
         )}

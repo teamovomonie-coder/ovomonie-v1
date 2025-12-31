@@ -169,85 +169,56 @@ export default function SuccessPage() {
   }
 
   if (currentReceipt.type === 'betting') {
-    const receipt = {
-      template: {
-        id: 'betting-default',
-        category: 'betting',
-        template_name: 'Betting Wallet Receipt',
-        fields: ['accountId', 'walletBalance'],
-        color_scheme: { primary: '#10b981', secondary: '#34d399', accent: '#d1fae5' },
-        icon: 'trophy',
-      },
-      data: currentReceipt.data,
-    };
     return (
       <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
-        <DynamicReceipt receipt={{ ...receipt, data: { ...receipt.data, completedAt: receipt.data?.completedAt ?? '' } }} />
+        <BettingReceipt data={{
+          type: 'betting',
+          platform: currentReceipt.data?.platform || 'betting',
+          accountId: currentReceipt.data?.accountId || '',
+          amount: currentReceipt.data?.amount || 0,
+          recipientName: currentReceipt.data?.recipientName,
+          transactionId: currentReceipt.transactionId || currentReceipt.reference,
+          completedAt: currentReceipt.completedAt || new Date().toISOString()
+        }} />
       </div>
     );
   }
 
   if (currentReceipt.type === 'airtime') {
-    const category = currentReceipt.data?.planName ? 'data' : 'airtime';
-    const colors = category === 'data' 
-      ? { primary: '#a855f7', secondary: '#c084fc', accent: '#f3e8ff', icon: 'wifi' }
-      : { primary: '#ec4899', secondary: '#f472b6', accent: '#fce7f3', icon: 'phone' };
-    
-    const receipt = {
-      template: {
-        id: `${category}-default`,
-        category,
-        template_name: category === 'data' ? 'Data Purchase Receipt' : 'Airtime Recharge Receipt',
-        fields: ['phoneNumber', 'network'],
-        color_scheme: { primary: colors.primary, secondary: colors.secondary, accent: colors.accent },
-        icon: colors.icon,
-      },
-      data: {
-        biller: { id: currentReceipt.data?.network, name: currentReceipt.data?.network },
-        amount: currentReceipt.data?.amount,
-        accountId: currentReceipt.data?.phoneNumber,
-        planName: currentReceipt.data?.planName,
-        transactionId: currentReceipt.transactionId || currentReceipt.data?.transactionId,
-        completedAt: currentReceipt.completedAt ?? '',
-      },
-    };
     return (
       <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
-        <DynamicReceipt receipt={receipt} />
+        <AirtimeReceipt data={{
+          type: 'airtime',
+          network: currentReceipt.data?.network || '',
+          phoneNumber: currentReceipt.data?.phoneNumber || '',
+          amount: currentReceipt.data?.amount || 0,
+          planName: currentReceipt.data?.planName,
+          isDataPlan: !!currentReceipt.data?.planName,
+          transactionId: currentReceipt.transactionId || currentReceipt.reference,
+          completedAt: currentReceipt.completedAt || new Date().toISOString()
+        }} />
       </div>
     );
   }
 
   if (currentReceipt.type === 'bill-payment') {
-    const getTemplateColors = (cat: string) => {
-      const colors: Record<string, any> = {
-        utility: { primary: '#f59e0b', secondary: '#fbbf24', accent: '#fef3c7', icon: 'zap' },
-        'cable tv': { primary: '#8b5cf6', secondary: '#a78bfa', accent: '#ede9fe', icon: 'tv' },
-        'internet subscription': { primary: '#06b6d4', secondary: '#22d3ee', accent: '#cffafe', icon: 'wifi' },
-        betting: { primary: '#10b981', secondary: '#34d399', accent: '#d1fae5', icon: 'trophy' },
-        water: { primary: '#3b82f6', secondary: '#60a5fa', accent: '#dbeafe', icon: 'droplet' },
-        airtime: { primary: '#ec4899', secondary: '#f472b6', accent: '#fce7f3', icon: 'phone' },
-        data: { primary: '#a855f7', secondary: '#c084fc', accent: '#f3e8ff', icon: 'wifi' },
-      };
-      return colors[cat.toLowerCase()] || { primary: '#6366f1', secondary: '#818cf8', accent: '#e0e7ff', icon: 'receipt' };
-    };
-    
-    const category = currentReceipt.data?.category || 'generic';
-    const colors = getTemplateColors(category);
-    const receipt = {
-      template: {
-        id: `${category}-default`,
-        category,
-        template_name: 'Bill Payment Receipt',
-        fields: ['accountId'],
-        color_scheme: { primary: colors.primary, secondary: colors.secondary, accent: colors.accent },
-        icon: colors.icon,
-      },
-      data: currentReceipt.data,
-    };
     return (
       <div key={receiptKey} className="min-h-screen flex items-center justify-center p-4">
-        <DynamicReceipt receipt={{ ...receipt, data: { ...receipt.data, completedAt: receipt.data?.completedAt ?? currentReceipt.completedAt ?? '' } }} />
+        <DynamicReceipt receipt={{
+          template: {
+            id: 'bill-payment-default',
+            category: currentReceipt.data?.category || 'utility',
+            template_name: 'Bill Payment Receipt',
+            fields: ['accountId'],
+            color_scheme: { primary: '#13284d', secondary: '#13284d', accent: '#f3f4f6' },
+            icon: 'receipt',
+          },
+          data: {
+            ...currentReceipt.data,
+            biller: { name: currentReceipt.data?.biller || 'Service Provider' },
+            completedAt: currentReceipt.completedAt || new Date().toISOString()
+          }
+        }} />
       </div>
     );
   }

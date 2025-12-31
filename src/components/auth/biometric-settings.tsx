@@ -13,6 +13,11 @@ export default function BiometricSettings() {
   const [isAvailable, setIsAvailable] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [biometricTypes, setBiometricTypes] = useState<{ fingerprint: boolean; faceId: boolean; types: string[] }>({
+    fingerprint: false,
+    faceId: false,
+    types: []
+  });
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -20,6 +25,11 @@ export default function BiometricSettings() {
     const checkBiometric = async () => {
       const available = await BiometricAuth.isAvailable();
       setIsAvailable(available);
+      
+      if (available) {
+        const types = await BiometricAuth.getAvailableBiometricTypes();
+        setBiometricTypes(types);
+      }
       
       if (available && user?.userId) {
         setIsEnabled(BiometricAuth.hasRegistered(user.userId));
@@ -47,9 +57,10 @@ export default function BiometricSettings() {
         // Enable biometric
         await BiometricAuth.register(user.userId, user.fullName || 'User');
         setIsEnabled(true);
+        const biometricType = await BiometricAuth.getBiometricType();
         toast({
           title: "Biometric Enabled",
-          description: `${BiometricAuth.getBiometricType()} authentication is now active`,
+          description: `${biometricType} authentication is now active`,
         });
       }
     } catch (error: any) {
@@ -84,31 +95,51 @@ export default function BiometricSettings() {
     );
   }
 
-  const biometricType = BiometricAuth.getBiometricType();
-  const isFaceId = biometricType.includes('Face');
+  const hasFingerprint = biometricTypes.fingerprint;
+  const hasFaceId = biometricTypes.faceId;
+  const supportsBoth = hasFingerprint && hasFaceId;
+  const primaryType = supportsBoth ? 'Face ID or Fingerprint' : 
+                     hasFingerprint ? 'Fingerprint' : 
+                     hasFaceId ? 'Face ID' : 'Biometric';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {isFaceId ? (
+          {supportsBoth ? (
+            <div className="flex gap-1">
+              <Scan className="h-5 w-5" />
+              <Fingerprint className="h-5 w-5" />
+            </div>
+          ) : hasFaceId ? (
             <Scan className="h-5 w-5" />
           ) : (
             <Fingerprint className="h-5 w-5" />
           )}
-          {biometricType}
+          {primaryType}
         </CardTitle>
         <CardDescription>
-          Use your {biometricType.toLowerCase()} to sign in quickly and securely
+          {supportsBoth 
+            ? 'Use your Face ID or Fingerprint to sign in quickly and securely'
+            : `Use your ${primaryType.toLowerCase()} to sign in quickly and securely`
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <div className="text-sm font-medium">Enable {biometricType}</div>
+            <div className="text-sm font-medium">Enable {primaryType}</div>
             <div className="text-sm text-muted-foreground">
-              Sign in without entering your PIN
+              {supportsBoth 
+                ? 'Sign in with Face ID or Fingerprint without entering your PIN'
+                : 'Sign in without entering your PIN'
+              }
             </div>
+            {supportsBoth && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Your device supports both authentication methods
+              </div>
+            )}
           </div>
           <Switch
             checked={isEnabled}

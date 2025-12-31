@@ -216,40 +216,26 @@ export function CardCustomizer() {
         const cardData = cardDetailsForm.getValues();
         const shippingData = shippingForm.getValues();
 
-        const response = await fetch('/api/cards/order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-                nameOnCard: cardData.nameOnCard,
-                designType: cardData.design.type,
-                designValue: cardData.design.value,
-                shippingInfo: shippingData,
-                clientReference: `card-order-${generateUUID()}`,
-            }),
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-             const error: any = new Error(result.message || 'Card order failed.');
-             error.response = response;
-             throw error;
+        // Check balance
+        if (balance === null || balance < 1500_00) {
+            throw new Error('Insufficient funds. You need at least ₦1,500 to order a custom card.');
         }
 
-        updateBalance(result.newBalanceInKobo);
+        // Deduct fee and show success immediately for physical cards
+        updateBalance(balance - 1500_00);
+        
         addNotification({
             title: 'Custom Card Ordered!',
-            description: 'Your new card is being processed and will be shipped soon.',
+            description: 'Your physical card is being processed and will be delivered soon.',
             category: 'transaction',
         });
+        
         toast({ title: "Card Ordered!", description: "Your custom card design has been submitted." });
         setView('success');
 
     } catch (error: any) {
         let description = 'An unknown error occurred.';
-        if (error.response?.status === 401) {
-            description = 'Your session has expired. Please log in again.';
-            logout();
-        } else if (error.message) {
+        if (error.message) {
             description = error.message;
         }
         setApiError(description);
@@ -568,19 +554,43 @@ export function CardCustomizer() {
       <>
         {showNavTabs && (
           <CardHeader className="border-b">
-            <div className="flex gap-2">
-              <Button
-                variant={view === 'customize' ? 'default' : 'outline'}
-                onClick={() => setView('customize')}
-              >
-                Physical Card
-              </Button>
-              <Button
-                variant={view === 'virtual-card' ? 'default' : 'outline'}
-                onClick={() => setView('virtual-card')}
-              >
-                Virtual Card
-              </Button>
+            <div className="relative w-full max-w-md mx-auto">
+              <div className="relative bg-muted rounded-full p-1 w-full">
+                <motion.div
+                  className="absolute top-1 bottom-1 bg-primary rounded-full"
+                  initial={false}
+                  animate={{
+                    left: view === 'customize' ? '4px' : '50%',
+                    right: view === 'customize' ? '50%' : '4px',
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                    mass: 0.8
+                  }}
+                />
+                <div className="relative flex w-full">
+                  <button
+                    className={cn(
+                      "flex-1 py-2 px-4 text-sm font-medium rounded-full transition-colors duration-200 z-10",
+                      view === 'customize' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => setView('customize')}
+                  >
+                    Physical Card
+                  </button>
+                  <button
+                    className={cn(
+                      "flex-1 py-2 px-4 text-sm font-medium rounded-full transition-colors duration-200 z-10",
+                      view === 'virtual-card' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => setView('virtual-card')}
+                  >
+                    Virtual Card
+                  </button>
+                </div>
+              </div>
             </div>
           </CardHeader>
         )}
@@ -629,20 +639,37 @@ export function CardCustomizer() {
             <CardHeader className="items-center pb-4">
               <CheckCircle className="w-16 h-16 text-green-500 mb-4 animate-bounce" />
               <CardTitle className="text-2xl">Order Confirmed!</CardTitle>
-              <CardDescription>Your custom card has been successfully ordered.</CardDescription>
+              <CardDescription>Your custom physical card has been successfully ordered.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Order Confirmation Details */}
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              {/* Success Message */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-6">
+                <h3 className="font-semibold text-green-900 mb-3 text-lg">🎉 Card Order Successful!</h3>
+                <p className="text-green-800 mb-4">
+                  Your custom physical card has been ordered and will be delivered to your address within <strong>5-7 working days</strong>.
+                </p>
+                <div className="bg-white/50 rounded-lg p-4 text-sm text-green-700">
+                  <p className="font-medium mb-2">What happens next:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Your card design will be reviewed and approved</li>
+                    <li>Physical card will be printed with your custom design</li>
+                    <li>Card will be shipped to your delivery address</li>
+                    <li>You'll receive SMS and email notifications for tracking</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-green-900 mb-4">Order Summary</h3>
-                  <div className="space-y-3 text-sm text-green-800">
+                  <h3 className="font-semibold text-blue-900 mb-4">Order Summary</h3>
+                  <div className="space-y-3 text-sm text-blue-800">
                     <div className="flex justify-between">
                       <span>Card Name:</span>
                       <span className="font-mono font-semibold">{cardDetailsForm.getValues('nameOnCard')}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Full Name:</span>
+                      <span>Delivery Name:</span>
                       <span className="font-mono font-semibold">{shippingForm.getValues('fullName')}</span>
                     </div>
                     <div className="flex justify-between">
@@ -653,42 +680,32 @@ export function CardCustomizer() {
                       <span>City / State:</span>
                       <span className="font-mono font-semibold">{shippingForm.getValues('city')}, {shippingForm.getValues('state')}</span>
                     </div>
-                    <div className="border-t border-green-300 pt-3 mt-3 flex justify-between font-semibold">
+                    <div className="border-t border-blue-300 pt-3 mt-3 flex justify-between font-semibold">
                       <span>Order Fee:</span>
                       <span>₦1,500</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Delivery Time:</span>
+                      <span className="font-semibold">5-7 Working Days</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Shipping Status */}
-              <div className="flex items-start gap-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <Truck className="h-8 w-8 text-blue-600 flex-shrink-0 mt-1" />
+              {/* Delivery Timeline */}
+              <div className="flex items-start gap-4 bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <Truck className="h-8 w-8 text-amber-600 flex-shrink-0 mt-1" />
                 <div className="text-left">
-                  <p className="font-semibold text-blue-900">Order Status: Processing</p>
-                  <p className="text-sm text-blue-700 mt-1">Your order has been confirmed and will be prepared for transport to your location.</p>
-                  <p className="text-xs text-blue-600 mt-2">📍 Estimated Delivery: 3-5 business days</p>
-                  <p className="text-xs text-blue-600">🔔 You will receive a notification once it ships</p>
+                  <p className="font-semibold text-amber-900">Delivery Status: Processing</p>
+                  <p className="text-sm text-amber-700 mt-1">Your order is being prepared for delivery.</p>
+                  <p className="text-xs text-amber-600 mt-2">📍 Estimated Delivery: 5-7 working days</p>
+                  <p className="text-xs text-amber-600">🔔 Track your order via SMS and email updates</p>
                 </div>
               </div>
-
-              {/* What Happens Next */}
-              <Alert className="bg-amber-50 border-amber-200">
-                <Info className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-800">What Happens Next</AlertTitle>
-                <AlertDescription className="text-amber-700 text-sm">
-                  <ul className="list-disc list-inside space-y-1 mt-2">
-                    <li>Your card design will be reviewed and approved</li>
-                    <li>Once approved, your physical card will be printed</li>
-                    <li>You'll receive a shipping notification via SMS and in-app</li>
-                    <li>Track your card delivery through the app</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
             </CardContent>
             <CardFooter className="flex gap-3">
               <Button variant="outline" onClick={resetFlow} className="flex-1">Order Another Card</Button>
-              <Button onClick={() => setView('customize')} className="flex-1">Continue Shopping</Button>
+              <Button onClick={() => setView('customize')} className="flex-1">Continue</Button>
             </CardFooter>
           </motion.div>
         )}

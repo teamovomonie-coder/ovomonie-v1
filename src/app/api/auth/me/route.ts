@@ -30,6 +30,8 @@ export async function GET() {
       status: user.status || 'active',
       avatarUrl: user.avatar_url,
       photoUrl: user.avatar_url,
+      liveness_check_enabled: user.liveness_check_enabled ?? true,
+      device_fingerprinting_enabled: user.device_fingerprinting_enabled ?? true,
     });
   } catch (error) {
     console.error('Auth me error:', error);

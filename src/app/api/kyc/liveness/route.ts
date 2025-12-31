@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const livenessSchema = z.object({
-  videoFrames: z.array(z.string()).min(1, 'At least one video frame is required'),
+  base64Image: z.string().min(1, 'Base64 image is required'),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { videoFrames } = validation.data;
+    const { base64Image } = validation.data;
 
     const user = await userService.getById(userId);
     if (!user) {
@@ -37,19 +37,27 @@ export async function POST(request: NextRequest) {
     try {
       // Use VFD liveness check
       const livenessResult = await vfdWalletService.verifyLiveness({
-        accountNumber: user.account_number || 'DEV-ACCOUNT',
-        videoFrames: videoFrames.map(frame => frame.replace(/^data:image\/\w+;base64,/, '')),
+        base64Image: base64Image.replace(/^data:image\/\w+;base64,/, ''),
       });
 
-      const isLive = livenessResult.isLive && livenessResult.confidence >= 70;
+      // VFD API: probability > 0.5 means "live"
+      const isLive = livenessResult.isLive;
 
-      logger.info('Liveness check completed', { userId, isLive, confidence: livenessResult.confidence });
+      logger.info('Liveness check completed', { 
+        userId, 
+        isLive, 
+        probability: livenessResult.probability,
+        quality: livenessResult.quality,
+        confidence: livenessResult.confidence 
+      });
 
       return NextResponse.json({
         ok: true,
         message: isLive ? 'Liveness verification successful' : 'Liveness verification failed',
         data: {
           isLive,
+          probability: livenessResult.probability,
+          quality: livenessResult.quality,
           confidence: livenessResult.confidence,
         },
       });

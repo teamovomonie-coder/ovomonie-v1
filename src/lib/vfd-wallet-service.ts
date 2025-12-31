@@ -114,13 +114,15 @@ export interface ImageMatchResult {
 }
 
 export interface LivenessCheckRequest {
-  accountNumber: string;
-  videoFrames: string[]; // Array of base64 encoded video frames
+  base64Image: string; // Base64 encoded image (JPEG, PNG, or BMP)
 }
 
 export interface LivenessCheckResult {
-  isLive: boolean;
-  confidence: number; // 0-100
+  isLive: boolean; // true if probability > 0.5
+  probability: number; // 0-1, main response for liveness decision
+  score: number; // Unbound score for calibration
+  quality: number; // 0-1, image quality mark
+  confidence: number; // 0-100, derived from probability for backward compatibility
   verificationDate: string;
 }
 
@@ -547,38 +549,94 @@ class VFDWalletService {
 
   /**
    * Liveness Check - Detect if user is physically present (anti-spoofing)
-   * Based on: https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/KYC/livenesscheck
+   * Based on: VFD Liveness Check API
+   * Endpoint: /checkliveness
+   * Documentation: https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/wallets-api/#30-how-to-use-the-liveness-check-api
+   * 
+   * Image Requirements:
+   * - Format: JPEG, PNG, or BMP in Base64
+   * - Resolution: 600x800 to 960x1280 (portrait, face-centered)
+   * - Compression: Minimal (JPEG quality >= 70)
+   * - Face: Single face, fully visible, no occlusions, 150x150px minimum
+   * - Pupil distance: >= 50 pixels
+   * - Rotation: ±30 degrees max
    */
   async verifyLiveness(request: LivenessCheckRequest): Promise<LivenessCheckResult> {
     const headers = await getVFDHeaders();
 
-    logger.info('VFD Wallet: Liveness check', { accountNumber: request.accountNumber });
+    logger.info('VFD Wallet: Liveness check initiated');
 
-    const response = await fetch(`${BASE_URL}/kyc/liveness/check`, {
+    // Remove data URL prefix if present (data:image/jpeg;base64,)
+    const base64Image = request.base64Image.replace(/^data:image\/\w+;base64,/, '');
+
+    const response = await fetch(`${BASE_URL}/checkliveness`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        base64Image
+      }),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      logger.error('VFD Wallet: Liveness check failed', { status: response.status, error });
-      throw new Error(`Liveness check failed: ${response.status}`);
+    const responseText = await response.text();
+    logger.info('VFD Liveness check response', { 
+      status: response.status, 
+      hasContent: !!responseText.trim()
+    });
+
+    if (!response.ok || !responseText.trim()) {
+      logger.error('VFD Liveness check HTTP error', { 
+        status: response.status, 
+        responseText: responseText.substring(0, 200) 
+      });
+      throw new Error('Liveness check failed: HTTP error');
     }
 
-    const result: VFDResponse<LivenessCheckResult> = await response.json();
-
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      logger.error('VFD Liveness check parse error', { responseText: responseText.substring(0, 200) });
+      throw new Error('Liveness check failed: Invalid response format');
+    }
+    
     if (result.status !== '00') {
+      logger.warn('VFD Liveness check failed', { 
+        status: result.status, 
+        message: result.message 
+      });
       throw new Error(result.message || 'Liveness check failed');
     }
 
-    logger.info('VFD Wallet: Liveness check complete', { 
-      accountNumber: request.accountNumber,
-      isLive: result.data.isLive,
-      confidence: result.data.confidence
+    const data = result.data;
+    if (!data || typeof data.probability === 'undefined') {
+      logger.error('VFD Liveness check missing data', { result });
+      throw new Error('Liveness check failed: Invalid response data');
+    }
+
+    const probability = parseFloat(data.probability);
+    const score = parseFloat(data.score || '0');
+    const quality = parseFloat(data.quality || '0');
+    
+    // Main decision: probability > 0.5 means "live"
+    const isLive = probability > 0.5;
+    const confidence = probability * 100; // Convert to 0-100 scale for backward compatibility
+    
+    logger.info('VFD Liveness check complete', { 
+      isLive,
+      probability,
+      score,
+      quality,
+      confidence
     });
 
-    return result.data;
+    return {
+      isLive,
+      probability,
+      score,
+      quality,
+      confidence,
+      verificationDate: new Date().toISOString()
+    };
   }
 
   /**

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,10 +15,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban } from 'lucide-react';
+import { Lock, KeyRound, Fingerprint, Bell, Smartphone, Shield, LogOut, Loader2, CreditCard, Ban, Sun, Moon } from 'lucide-react';
 import { LogoutDialog } from '@/components/auth/logout-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import BiometricSettings from '@/components/security/biometric-settings';
 
 // Mock data
@@ -197,12 +198,91 @@ function LogoutAllDevicesDialog() {
 
 export function SecurityDashboard() {
     const [devices, setDevices] = useState(mockDevices);
+    const [livenessEnabled, setLivenessEnabled] = useState(true);
+    const [loginAlertsEnabled, setLoginAlertsEnabled] = useState(true);
+    const [geoFencingEnabled, setGeoFencingEnabled] = useState(false);
+    const [internationalTxnsBlocked, setInternationalTxnsBlocked] = useState(false);
+    const [bettingPaymentsRestricted, setBettingPaymentsRestricted] = useState(false);
+    const [isUpdatingSettings, setIsUpdatingSettings] = useState<string | null>(null);
     const { toast } = useToast();
+    const { theme, toggleTheme } = useTheme();
+
+    // Load user settings on component mount
+    useEffect(() => {
+        const loadUserSettings = async () => {
+            try {
+                const token = localStorage.getItem('ovo-auth-token');
+                if (!token) return;
+                
+                const response = await fetch('/api/auth/me', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    setLivenessEnabled(userData.liveness_check_enabled ?? true);
+                    setLoginAlertsEnabled(userData.login_alerts_enabled ?? true);
+                    setGeoFencingEnabled(userData.geo_fencing_enabled ?? false);
+                    setInternationalTxnsBlocked(userData.international_txns_blocked ?? false);
+                    setBettingPaymentsRestricted(userData.betting_payments_restricted ?? false);
+                }
+            } catch (error) {
+                console.warn('Failed to load user settings:', error);
+            }
+        };
+        
+        loadUserSettings();
+    }, []);
 
     const handleRemoveDevice = (id: string) => {
         setDevices(prev => prev.filter(d => d.id !== id));
         toast({ title: 'Device Removed', description: 'The device has been unlinked from your account.' });
     };
+
+    const updateSetting = async (setting: string, enabled: boolean, setter: (value: boolean) => void) => {
+        setIsUpdatingSettings(setting);
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            const response = await fetch('/api/auth/update-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ setting, enabled }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to update setting.');
+            
+            setter(enabled);
+            toast({ 
+                title: 'Setting Updated', 
+                description: `${getSettingDisplayName(setting)} ${enabled ? 'enabled' : 'disabled'}.` 
+            });
+        } catch (error) {
+            toast({ 
+                variant: 'destructive', 
+                title: 'Error', 
+                description: error instanceof Error ? error.message : 'Failed to update setting.' 
+            });
+        } finally {
+            setIsUpdatingSettings(null);
+        }
+    };
+
+    const getSettingDisplayName = (setting: string): string => {
+        const names: Record<string, string> = {
+            'livenessCheck': 'New device liveness check',
+            'loginAlerts': 'Login alerts',
+            'geoFencing': 'Geo-fencing',
+            'internationalTxns': 'International transactions block',
+            'bettingPayments': 'Betting payments restriction'
+        };
+        return names[setting] || setting;
+    };
+
+    const handleLivenessToggle = (enabled: boolean) => updateSetting('livenessCheck', enabled, setLivenessEnabled);
+    const handleLoginAlertsToggle = (enabled: boolean) => updateSetting('loginAlerts', enabled, setLoginAlertsEnabled);
+    const handleGeoFencingToggle = (enabled: boolean) => updateSetting('geoFencing', enabled, setGeoFencingEnabled);
+    const handleInternationalTxnsToggle = (enabled: boolean) => updateSetting('internationalTxns', enabled, setInternationalTxnsBlocked);
+    const handleBettingPaymentsToggle = (enabled: boolean) => updateSetting('bettingPayments', enabled, setBettingPaymentsRestricted);
 
   return (
     <div className="space-y-6">
@@ -222,16 +302,71 @@ export function SecurityDashboard() {
                 
                 <BiometricSettings />
                 
+                <Card>
+                    <CardHeader><CardTitle>Appearance</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <Label htmlFor="theme-switch" className="flex items-center gap-3">
+                                {theme === 'light' ? <Sun /> : <Moon />}
+                                <span>Dark Mode</span>
+                            </Label>
+                            <Switch 
+                                id="theme-switch" 
+                                checked={theme === 'dark'}
+                                onCheckedChange={(checked) => {
+                                    console.log('Switch toggled:', checked);
+                                    if (checked) {
+                                        updateTheme('dark');
+                                    } else {
+                                        updateTheme('light');
+                                    }
+                                }}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground px-3">
+                            Switch between light and dark themes for better viewing experience.
+                        </p>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader><CardTitle>Device Security</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <Label htmlFor="liveness-switch" className="flex items-center gap-3"><Shield /><span>New Device Liveness Check</span></Label>
+                            <Switch 
+                                id="liveness-switch" 
+                                checked={livenessEnabled}
+                                onCheckedChange={handleLivenessToggle}
+                                disabled={isUpdatingSettings === 'livenessCheck'}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground px-3">
+                            When enabled, you'll need to take a selfie when logging in from a new device for additional security.
+                        </p>
+                    </CardContent>
+                </Card>
+                
                  <Card>
                     <CardHeader><CardTitle>Transaction Limits</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                          <div className="flex items-center justify-between p-3 border rounded-lg">
                             <Label htmlFor="international-switch" className="flex items-center gap-3"><CreditCard /><span>Block International Txns</span></Label>
-                            <Switch id="international-switch" />
+                            <Switch 
+                                id="international-switch" 
+                                checked={internationalTxnsBlocked}
+                                onCheckedChange={handleInternationalTxnsToggle}
+                                disabled={isUpdatingSettings === 'internationalTxns'}
+                            />
                         </div>
                          <div className="flex items-center justify-between p-3 border rounded-lg">
                             <Label htmlFor="gambling-switch" className="flex items-center gap-3"><Ban /><span>Restrict Betting Payments</span></Label>
-                            <Switch id="gambling-switch" />
+                            <Switch 
+                                id="gambling-switch" 
+                                checked={bettingPaymentsRestricted}
+                                onCheckedChange={handleBettingPaymentsToggle}
+                                disabled={isUpdatingSettings === 'bettingPayments'}
+                            />
                         </div>
                     </CardContent>
                 </Card>
@@ -241,11 +376,21 @@ export function SecurityDashboard() {
                     <CardContent className="space-y-4">
                          <div className="flex items-center justify-between p-3 border rounded-lg">
                             <Label htmlFor="login-alert-switch" className="flex items-center gap-3"><Bell /><span>Login Alerts</span></Label>
-                            <Switch id="login-alert-switch" defaultChecked />
+                            <Switch 
+                                id="login-alert-switch" 
+                                checked={loginAlertsEnabled}
+                                onCheckedChange={handleLoginAlertsToggle}
+                                disabled={isUpdatingSettings === 'loginAlerts'}
+                            />
                         </div>
                          <div className="flex items-center justify-between p-3 border rounded-lg">
                             <Label htmlFor="geo-fence-switch" className="flex items-center gap-3"><Shield /><span>Geo-Fencing</span></Label>
-                            <Switch id="geo-fence-switch" />
+                            <Switch 
+                                id="geo-fence-switch" 
+                                checked={geoFencingEnabled}
+                                onCheckedChange={handleGeoFencingToggle}
+                                disabled={isUpdatingSettings === 'geoFencing'}
+                            />
                         </div>
                     </CardContent>
                 </Card>

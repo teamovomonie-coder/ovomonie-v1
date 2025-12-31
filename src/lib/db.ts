@@ -16,6 +16,8 @@ export interface DbUser {
   status?: string;
   login_pin_hash?: string;
   transaction_pin_hash?: string;
+  liveness_check_enabled?: boolean;
+  device_fingerprinting_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -68,6 +70,8 @@ function mapUser(row: any): DbUser | null {
     status: row.status,
     login_pin_hash: row.login_pin_hash || null,
     transaction_pin_hash: row.transaction_pin_hash || null,
+    liveness_check_enabled: row.liveness_check_enabled ?? true,
+    device_fingerprinting_enabled: row.device_fingerprinting_enabled ?? true,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

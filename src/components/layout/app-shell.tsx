@@ -29,6 +29,7 @@ import { getPersonalizedRecommendation } from '@/ai/flows/personalized-recommend
 import { ProactiveAssistantDialog } from '../ai-assistant/proactive-assistant-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { LogoutDialog } from '../auth/logout-dialog';
+import { LivenessCheckModal } from '../auth/liveness-check/liveness-check-modal';
 
 interface NavItem {
     href: string;
@@ -85,12 +86,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const [isProactiveAssistantOpen, setIsProactiveAssistantOpen] = useState(false);
     const [proactiveRecommendation, setProactiveRecommendation] = useState('');
     const [isGeneratingRecommendation, setIsGeneratingRecommendation] = useState(false);
+    const [showLivenessCheck, setShowLivenessCheck] = useState(false);
+    const [deviceFingerprint, setDeviceFingerprint] = useState('');
+
+    const handleLivenessSuccess = useCallback(() => {
+        setShowLivenessCheck(false);
+        toast({ 
+            title: 'Device Verified', 
+            description: 'Your device has been successfully verified and trusted.' 
+        });
+    }, [toast]);
+
+    const fetchUserLivenessSetting = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('ovo-auth-token');
+            if (!token) return;
+            
+            const response = await fetch('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const userData = await response.json();
+                return userData.liveness_check_enabled ?? true;
+            }
+        } catch (error) {
+            console.warn('Failed to fetch liveness setting:', error);
+        }
+        return true; // Default to enabled
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated === false) {
             router.push(`/login?callbackUrl=${pathname}`);
         }
     }, [isAuthenticated, router, pathname]);
+
+    useEffect(() => {
+        // Listen for liveness check events
+        const handleShowLivenessCheck = (event: CustomEvent) => {
+            setDeviceFingerprint(event.detail.deviceFingerprint);
+            setShowLivenessCheck(true);
+        };
+
+        window.addEventListener('show-liveness-check', handleShowLivenessCheck as EventListener);
+
+        return () => {
+            window.removeEventListener('show-liveness-check', handleShowLivenessCheck as EventListener);
+        };
+    }, []);
 
     if (isAuthenticated === null || isAuthenticated === false) {
         return (
@@ -179,6 +223,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     setIsProactiveAssistantOpen(false);
                     router.push('/ai-assistant');
                 }}
+            />
+            
+            <LivenessCheckModal
+                open={showLivenessCheck}
+                deviceFingerprint={deviceFingerprint}
+                onSuccess={handleLivenessSuccess}
             />
         </div>
     );

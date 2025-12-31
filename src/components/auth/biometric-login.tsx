@@ -16,6 +16,11 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
   const [isLoading, setIsLoading] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const [hasRegistered, setHasRegistered] = useState(false);
+  const [biometricTypes, setBiometricTypes] = useState<{ fingerprint: boolean; faceId: boolean; types: string[] }>({
+    fingerprint: false,
+    faceId: false,
+    types: []
+  });
   const { login } = useAuth();
   const { toast } = useToast();
 
@@ -23,6 +28,11 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     const initBiometric = async () => {
       const available = await BiometricAuth.isAvailable();
       setIsAvailable(available);
+      
+      if (available) {
+        const types = await BiometricAuth.getAvailableBiometricTypes();
+        setBiometricTypes(types);
+      }
       
       if (userId && available) {
         setHasRegistered(BiometricAuth.hasRegistered(userId));
@@ -51,9 +61,10 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
         // Authenticate user in the app
         await login(userId, '', 'biometric');
         
+        const biometricType = await BiometricAuth.getBiometricType();
         toast({
           title: "Success",
-          description: `Authenticated with ${BiometricAuth.getBiometricType()}`,
+          description: `Authenticated with ${biometricType}`,
         });
         
         onSuccess();
@@ -83,9 +94,10 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     try {
       await BiometricAuth.register(userId, 'User');
       setHasRegistered(true);
+      const biometricType = await BiometricAuth.getBiometricType();
       toast({
         title: "Success",
-        description: `${BiometricAuth.getBiometricType()} registered successfully`,
+        description: `${biometricType} registered successfully`,
       });
     } catch (error: any) {
       toast({
@@ -117,26 +129,44 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
     );
   }
 
-  const biometricType = BiometricAuth.getBiometricType();
-  const isFaceId = biometricType.includes('Face');
+  const hasFingerprint = biometricTypes.fingerprint;
+  const hasFaceId = biometricTypes.faceId;
+  const supportsBoth = hasFingerprint && hasFaceId;
+  const primaryType = supportsBoth ? 'Face ID or Fingerprint' : 
+                     hasFingerprint ? 'Fingerprint' : 
+                     hasFaceId ? 'Face ID' : 'Biometric';
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
-          {isFaceId ? (
+          {supportsBoth ? (
+            <div className="flex gap-2">
+              <Scan className="h-16 w-16 text-primary" />
+              <Fingerprint className="h-16 w-16 text-primary" />
+            </div>
+          ) : hasFaceId ? (
             <Scan className="h-16 w-16 text-primary" />
           ) : (
             <Fingerprint className="h-16 w-16 text-primary" />
           )}
         </div>
-        <CardTitle>{biometricType}</CardTitle>
+        <CardTitle>{primaryType}</CardTitle>
         <CardDescription>
           {hasRegistered 
-            ? `Use your ${biometricType.toLowerCase()} to sign in securely`
-            : `Register your ${biometricType.toLowerCase()} for quick and secure access`
+            ? supportsBoth 
+              ? 'Use your Face ID or Fingerprint to sign in securely'
+              : `Use your ${primaryType.toLowerCase()} to sign in securely`
+            : supportsBoth
+              ? 'Register your Face ID or Fingerprint for quick and secure access'
+              : `Register your ${primaryType.toLowerCase()} for quick and secure access`
           }
         </CardDescription>
+        {supportsBoth && (
+          <div className="text-xs text-muted-foreground mt-2">
+            Your device supports both Face ID and Fingerprint authentication
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -149,7 +179,7 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
               size="lg"
             >
               <Shield className="mr-2 h-4 w-4" />
-              {isLoading ? 'Authenticating...' : `Sign in with ${biometricType}`}
+              {isLoading ? 'Authenticating...' : `Sign in with ${primaryType}`}
             </Button>
             
             <Button 
@@ -168,8 +198,20 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
               className="w-full"
               size="lg"
             >
-              <Fingerprint className="mr-2 h-4 w-4" />
-              {isLoading ? 'Registering...' : `Set up ${biometricType}`}
+              {supportsBoth ? (
+                <>
+                  <div className="mr-2 flex gap-1">
+                    <Scan className="h-4 w-4" />
+                    <Fingerprint className="h-4 w-4" />
+                  </div>
+                  {isLoading ? 'Registering...' : 'Set up Face ID or Fingerprint'}
+                </>
+              ) : (
+                <>
+                  <Fingerprint className="mr-2 h-4 w-4" />
+                  {isLoading ? 'Registering...' : `Set up ${primaryType}`}
+                </>
+              )}
             </Button>
             
             <Button 
@@ -182,9 +224,16 @@ export default function BiometricLogin({ userId, onSuccess, onFallback }: Biomet
           </>
         )}
         
-        <div className="text-center text-sm text-muted-foreground">
-          <Shield className="inline h-4 w-4 mr-1" />
-          Your biometric data is stored securely on your device
+        <div className="text-center text-sm text-muted-foreground space-y-1">
+          <div>
+            <Shield className="inline h-4 w-4 mr-1" />
+            Your biometric data is stored securely on your device
+          </div>
+          {supportsBoth && (
+            <div className="text-xs">
+              You can use either Face ID or Fingerprint - choose during authentication
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import CustomLink from '@/components/layout/custom-link';
 import BiometricLogin from '@/components/auth/biometric-login';
 import { BiometricAuth } from '@/lib/biometric';
+import { LivenessCheckModal } from '@/components/auth/liveness-check/liveness-check-modal';
 
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,24 @@ function LoginFormContent() {
   const [showBiometric, setShowBiometric] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [lastUsedPhone, setLastUsedPhone] = useState('');
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [showLivenessCheck, setShowLivenessCheck] = useState(false);
+  const [deviceFingerprint, setDeviceFingerprint] = useState('');
+  
+  useEffect(() => {
+    // Listen for liveness check event from auth context
+    const handleLivenessCheck = (event: CustomEvent) => {
+      setDeviceFingerprint(event.detail.deviceFingerprint || '');
+      setShowLivenessCheck(true);
+    };
+    
+    window.addEventListener('show-liveness-check', handleLivenessCheck as EventListener);
+    
+    return () => {
+      window.removeEventListener('show-liveness-check', handleLivenessCheck as EventListener);
+    };
+  }, []);
   
   useEffect(() => {
     const initBiometric = async () => {
@@ -102,12 +121,22 @@ function LoginFormContent() {
       router.push(callbackUrl);
     } catch (error) {
       if (error instanceof Error) {
-        toast({
-          variant: 'destructive',
-          title: 'Login Failed',
-          description: error.message,
-          className: "bg-[#0b1a3a] text-white border border-[#0b1a3a]",
-        });
+        // Check if it's a closed account error
+        if (error.message.includes('Account is closed')) {
+          setShowRecovery(true);
+          toast({
+            title: 'Account Closed',
+            description: 'Your account was closed but can be recovered. Use the recovery option below.',
+            className: "bg-yellow-50 text-yellow-800 border border-yellow-200",
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: error.message,
+            className: "bg-[#0b1a3a] text-white border border-[#0b1a3a]",
+          });
+        }
       }
     } finally {
       setIsLoading(false);
@@ -121,6 +150,64 @@ function LoginFormContent() {
 
   const handleBiometricFallback = () => {
     setShowBiometric(false);
+  };
+
+  const handleLivenessSuccess = () => {
+    setShowLivenessCheck(false);
+    // Continue with login flow - user is already logged in
+    const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+    router.push(callbackUrl);
+  };
+
+  const handleRecoverAccount = async () => {
+    const phone = form.getValues('phone');
+    const pin = form.getValues('pin');
+    
+    if (!phone || !pin) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please enter your phone number and PIN to recover your account.',
+      });
+      return;
+    }
+
+    setIsRecovering(true);
+    try {
+      const response = await fetch('/api/user/recover-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: `${phone}@temp.com`,
+          password: pin 
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: 'Account Recovered!',
+          description: 'Your account has been successfully reactivated.',
+        });
+        setShowRecovery(false);
+        await onSubmit({ phone, pin });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Recovery Failed',
+          description: result.message || 'Failed to recover account',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to recover account. Please try again.',
+      });
+    } finally {
+      setIsRecovering(false);
+    }
   };
 
   return (
@@ -268,6 +355,17 @@ function LoginFormContent() {
                   <Button type="submit" className="w-full" disabled={isLoading} data-testid="login-button">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log In'}
                   </Button>
+                  {showRecovery && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full" 
+                      disabled={isRecovering}
+                      onClick={handleRecoverAccount}
+                    >
+                      {isRecovering ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Recover Closed Account'}
+                    </Button>
+                  )}
                 </form>
               </Form>
               <div className="rounded-2xl border border-dashed border-slate-200 bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -283,6 +381,13 @@ function LoginFormContent() {
           </Card>
           )}
         </div>
+        
+        {/* Liveness Check Modal for New Devices */}
+        <LivenessCheckModal
+          open={showLivenessCheck}
+          onSuccess={handleLivenessSuccess}
+          deviceFingerprint={deviceFingerprint}
+        />
       </div>
     </div>
   );

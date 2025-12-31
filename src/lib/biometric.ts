@@ -121,9 +121,73 @@ export class BiometricAuth {
   }
 
   /**
+   * Get available biometric types
+   */
+  static async getAvailableBiometricTypes(): Promise<{
+    fingerprint: boolean;
+    faceId: boolean;
+    types: string[];
+  }> {
+    if (!await this.isAvailable()) {
+      return { fingerprint: false, faceId: false, types: [] };
+    }
+
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isIOS = userAgent.includes('iphone') || userAgent.includes('ipad');
+    const isAndroid = userAgent.includes('android');
+    
+    // iOS devices support both Face ID and Touch ID (fingerprint)
+    if (isIOS) {
+      return {
+        fingerprint: true,
+        faceId: true,
+        types: ['Face ID', 'Touch ID (Fingerprint)']
+      };
+    }
+    
+    // Android devices typically support fingerprint and sometimes face unlock
+    if (isAndroid) {
+      return {
+        fingerprint: true,
+        faceId: true, // Many Android devices support face unlock
+        types: ['Fingerprint', 'Face Unlock']
+      };
+    }
+    
+    // Desktop/other platforms
+    return {
+      fingerprint: true,
+      faceId: false,
+      types: ['Fingerprint', 'Windows Hello']
+    };
+  }
+
+  /**
    * Get biometric type description
    */
-  static getBiometricType(): string {
+  static async getBiometricType(): Promise<string> {
+    const types = await this.getAvailableBiometricTypes();
+    
+    if (types.types.length === 0) {
+      return 'Device Biometric';
+    }
+    
+    // Return the primary type or combined description
+    if (types.fingerprint && types.faceId) {
+      return 'Face ID or Fingerprint';
+    } else if (types.fingerprint) {
+      return 'Fingerprint';
+    } else if (types.faceId) {
+      return 'Face ID';
+    }
+    
+    return 'Device Biometric';
+  }
+
+  /**
+   * Get biometric type description (synchronous version for backward compatibility)
+   */
+  static getBiometricTypeSync(): string {
     const userAgent = navigator.userAgent.toLowerCase();
     
     if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
@@ -139,12 +203,23 @@ export class BiometricAuth {
 // Legacy export for backward compatibility
 export const biometricService = {
   initialize: async () => {},
-  getCapabilities: () => ({ fingerprint: true, faceId: true, voiceId: false }),
+  getCapabilities: async () => {
+    const types = await BiometricAuth.getAvailableBiometricTypes();
+    return { 
+      fingerprint: types.fingerprint, 
+      faceId: types.faceId, 
+      voiceId: false 
+    };
+  },
   isAvailable: () => BiometricAuth.isAvailable(),
   registerBiometric: async (userId: string) => {
     try {
       await BiometricAuth.register(userId, 'User');
-      return { success: true, type: 'faceId' as const };
+      const types = await BiometricAuth.getAvailableBiometricTypes();
+      // Determine which type was registered (user's device will prompt for available option)
+      const type = types.fingerprint && types.faceId ? 'biometric' : 
+                   types.fingerprint ? 'fingerprint' : 'faceId';
+      return { success: true, type: type as 'fingerprint' | 'faceId' | 'biometric' };
     } catch (error: any) {
       return { success: false, type: null, error: error.message };
     }
@@ -152,7 +227,10 @@ export const biometricService = {
   authenticateWithBiometric: async (userId: string) => {
     try {
       const success = await BiometricAuth.authenticate(userId);
-      return { success, type: success ? 'faceId' as const : null };
+      const types = await BiometricAuth.getAvailableBiometricTypes();
+      const type = success ? (types.fingerprint && types.faceId ? 'biometric' : 
+                             types.fingerprint ? 'fingerprint' : 'faceId') : null;
+      return { success, type: type as 'fingerprint' | 'faceId' | 'biometric' | null };
     } catch (error: any) {
       return { success: false, type: null, error: error.message };
     }
