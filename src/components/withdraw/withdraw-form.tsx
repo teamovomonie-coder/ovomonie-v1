@@ -196,7 +196,7 @@ function BankTransferWithdrawal() {
       }
 
       // Navigate to success page
-      router.push('/success');
+      window.location.href = '/success';
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';

@@ -36,6 +36,21 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     throw new AuthenticationError('Invalid phone number or PIN.');
   }
 
+  // Check if account is closed
+  if (user.account_status === 'closed') {
+    logger.info('Login attempt on closed account', { phone: phoneSanitized, userId: user.id });
+    return NextResponse.json({ 
+      message: 'Account is closed', 
+      accountClosed: true,
+      canRecover: true 
+    }, { status: 403 });
+  }
+
+  if (user.account_status === 'deleted') {
+    logger.info('Login attempt on deleted account', { phone: phoneSanitized, userId: user.id });
+    throw new AuthenticationError('Account not found.');
+  }
+
   const providedPin = String(pin).trim();
   const isValid = verifySecret(providedPin, user.login_pin_hash || '');
 

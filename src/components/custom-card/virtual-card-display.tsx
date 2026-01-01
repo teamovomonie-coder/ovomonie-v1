@@ -53,7 +53,10 @@ export function VirtualCardDisplay({
   const displayBalance = (displayBalanceKobo / 100) || 0;
   const cardholderName = user?.fullName || 'OVOMONIE VIRTUAL';
   const maskCardNumber = (cardNumber: string) => {
-    return cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ').split('').map((char, idx) => idx < 12 ? '*' : char).join('');
+    if (cardNumber.includes('*')) {
+      return cardNumber; // Already masked
+    }
+    return cardNumber.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, '$1 **** **** $4');
   };
 
   const displayNumber = isNumberVisible
@@ -126,35 +129,37 @@ export function VirtualCardDisplay({
             </div>
           </div>
 
-          {/* Card Details */}
-          <div className="space-y-6">
-            {/* Card Number */}
+          {/* Middle Section: Card Number */}
+          <div className="flex-1 flex flex-col justify-center">
             <div>
               <p className="text-xs font-medium opacity-75 mb-2 tracking-wide">CARD NUMBER</p>
               <p className="text-xl sm:text-2xl font-mono font-bold tracking-wider drop-shadow-lg">
                 {displayNumber}
               </p>
             </div>
+          </div>
 
-            {/* Footer: Name, Expiry, Type */}
+          {/* Bottom Section: Name, Expiry, and Brand */}
+          <div className="space-y-4">
+            {/* Name and Expiry */}
             <div className="flex justify-between items-end">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs opacity-75 mb-1">CARDHOLDER</p>
                 <p className="text-sm sm:text-base font-semibold uppercase tracking-wide truncate pr-2">
                   {cardholderName.toUpperCase()}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs opacity-75 " >EXPIRES</p>
+                <p className="text-xs opacity-75">EXPIRES</p>
                 <p className="text-sm sm:text-base font-mono font-bold">{card.expiryDate}</p>
               </div>
             </div>
-          </div>
-
-          {/* Visa Logo & Card Type */}
-          <div className="flex justify-between items-center ">
-            <div className="text-xs font-bold opacity-90">VIRTUAL</div>
-            <div className="text-xl sm:text-2xl font-black tracking-wider">VISA</div>
+            
+            {/* Virtual and Visa Branding */}
+            <div className="flex justify-between items-center pt-2">
+              <div className="text-sm sm:text-base font-bold opacity-90 tracking-wider">VIRTUAL</div>
+              <div className="text-2xl sm:text-3xl font-black tracking-wider italic" style={{ fontFamily: 'serif' }}>VISA</div>
+            </div>
           </div>
         </div>
       </div>

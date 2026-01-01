@@ -547,38 +547,53 @@ class VFDWalletService {
 
   /**
    * Liveness Check - Detect if user is physically present (anti-spoofing)
-   * Based on: https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/KYC/livenesscheck
+   * Based on: VFD Liveness Check API
    */
   async verifyLiveness(request: LivenessCheckRequest): Promise<LivenessCheckResult> {
     const headers = await getVFDHeaders();
 
     logger.info('VFD Wallet: Liveness check', { accountNumber: request.accountNumber });
 
-    const response = await fetch(`${BASE_URL}/kyc/liveness/check`, {
+    const response = await fetch(`${BASE_URL}/checkliveness`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        base64Image: request.videoFrames[0] // Use first frame
+      }),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      logger.error('VFD Wallet: Liveness check failed', { status: response.status, error });
-      throw new Error(`Liveness check failed: ${response.status}`);
+    const responseText = await response.text();
+    logger.info('VFD Liveness check response', { 
+      status: response.status, 
+      hasContent: !!responseText.trim()
+    });
+
+    if (!response.ok || !responseText.trim()) {
+      throw new Error('Liveness check failed');
     }
 
-    const result: VFDResponse<LivenessCheckResult> = await response.json();
-
+    const result = JSON.parse(responseText);
+    
     if (result.status !== '00') {
       throw new Error(result.message || 'Liveness check failed');
     }
 
-    logger.info('VFD Wallet: Liveness check complete', { 
+    const data = result.data;
+    const isLive = parseFloat(data.probability) > 0.5;
+    const confidence = parseFloat(data.probability) * 100;
+    
+    logger.info('VFD Liveness check complete', { 
       accountNumber: request.accountNumber,
-      isLive: result.data.isLive,
-      confidence: result.data.confidence
+      isLive,
+      confidence,
+      probability: data.probability
     });
 
-    return result.data;
+    return {
+      isLive,
+      confidence,
+      verificationDate: new Date().toISOString()
+    };
   }
 
   /**

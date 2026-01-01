@@ -6,10 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+
+interface FeedbackItem {
+  id: string;
+  type: string;
+  message: string;
+  status: string;
+  created_at: string;
+}
 
 export default function FeedbackPage() {
   const router = useRouter();
@@ -17,6 +26,30 @@ export default function FeedbackPage() {
   const [feedbackType, setFeedbackType] = useState("suggestion");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previousFeedback, setPreviousFeedback] = useState<FeedbackItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadPreviousFeedback();
+  }, []);
+
+  const loadPreviousFeedback = async () => {
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const response = await fetch('/api/feedback', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPreviousFeedback(data.feedback || []);
+      }
+    } catch (error) {
+      console.error('Failed to load feedback:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
@@ -24,13 +57,57 @@ export default function FeedbackPage() {
       return;
     }
 
+    if (feedback.trim().length < 10) {
+      toast({ variant: "destructive", title: "Error", description: "Feedback must be at least 10 characters" });
+      return;
+    }
+
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      toast({ title: "Thank You!", description: "Your feedback has been submitted successfully." });
-      setFeedback("");
+    try {
+      const token = localStorage.getItem('ovo-auth-token');
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ type: feedbackType, message: feedback })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({ title: "Thank You!", description: "Your feedback has been submitted successfully." });
+        setFeedback("");
+        loadPreviousFeedback(); // Reload feedback list
+      } else {
+        toast({ variant: "destructive", title: "Error", description: result.message || "Failed to submit feedback" });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to submit feedback" });
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'reviewed': return 'bg-blue-100 text-blue-800';
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'suggestion': return <Icons.Lightbulb className="h-4 w-4" />;
+      case 'bug': return <Icons.Bug className="h-4 w-4" />;
+      case 'complaint': return <Icons.AlertCircle className="h-4 w-4" />;
+      case 'praise': return <Icons.Heart className="h-4 w-4" />;
+      default: return <Icons.MessageCircle className="h-4 w-4" />;
+    }
   };
 
   return (
@@ -107,6 +184,40 @@ export default function FeedbackPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {previousFeedback.length > 0 && (
+            <Card className="rounded-3xl border-none bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-semibold">Your Previous Feedback</CardTitle>
+                <CardDescription className="text-sm">Track the status of your submitted feedback</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Icons.Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : (
+                  previousFeedback.map((item) => (
+                    <div key={item.id} className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getTypeIcon(item.type)}
+                          <span className="text-sm font-medium capitalize">{item.type}</span>
+                        </div>
+                        <Badge className={getStatusColor(item.status)}>
+                          {item.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{item.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="rounded-3xl border-none bg-white shadow-sm">
             <CardHeader>

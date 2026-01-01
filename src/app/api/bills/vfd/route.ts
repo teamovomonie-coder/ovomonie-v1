@@ -180,6 +180,7 @@ export async function POST(request: NextRequest) {
       KCT1: paymentResult.KCT1 || null,
       KCT2: paymentResult.KCT2 || null,
       category: category || 'generic',
+      balanceAfter: newBalance / 100, // Convert from kobo to naira
     };
     
     await transactionService.create({

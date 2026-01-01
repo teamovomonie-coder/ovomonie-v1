@@ -23,7 +23,8 @@ import { pendingTransactionService } from '@/lib/pending-transaction-service';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { DynamicReceipt } from './dynamic-receipt';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { generateTransactionReference } from '@/lib/transaction-utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ReceiptData } from '@/lib/receipt-templates';
 
 const billSchema = z.object({
@@ -194,7 +195,7 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
 
     try {
       const token = localStorage.getItem('ovo-auth-token');
-      const reference = `ovopay-${Date.now()}`;
+      const reference = generateTransactionReference('ovopay');
 
       const response = await fetch('/api/bills/vfd', {
         method: 'POST',
@@ -221,39 +222,36 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
       if (result.success) {
         setIsPinModalOpen(false);
         
-        // Clear any old receipt state
+        // Clear any old receipt state before redirecting
         setReceiptData(null);
         setShowReceipt(false);
         setPaymentToken('');
         
-        // Show token if provided (for electricity)
-        if (result.data.token) {
-          setPaymentToken(result.data.token);
+        // Clear localStorage receipt state
+        try {
+          localStorage.removeItem('ovo-pending-receipt');
+        } catch (e) {
+          console.debug('[VFDBillPayment] Failed to clear localStorage:', e);
         }
-
-        // Navigate to receipt page with transaction ID
-        if (result.transaction_id) {
-          window.location.href = `/receipt/${result.transaction_id}`;
-          return;
-        }
-
-        // Fallback success handling
-        addNotification({
-          title: 'Bill Paid Successfully',
-          description: `Your ${selectedBiller.name} bill payment of ₦${billData.amount.toLocaleString()} has been processed successfully.`,
-          category: 'transaction',
+        
+        // Get the transaction reference from response
+        const txReference = result.data?.reference || reference;
+        const utilityProvider = selectedBiller.name;
+        const customerId = billData.customerId;
+        
+        console.log('[Utility] Payment successful, preparing redirect');
+        console.log('[Utility] Transaction data:', { txReference, amount: billData.amount, provider: utilityProvider, customerId });
+        
+        // Redirect directly to success page with transaction data
+        const successUrl = `/success?ref=${encodeURIComponent(txReference)}&type=utility&amount=${billData.amount}&provider=${encodeURIComponent(utilityProvider)}&customerId=${encodeURIComponent(customerId)}`;
+        console.log('[Utility] Redirecting to:', successUrl);
+        console.log('[Utility] URL components:', {
+          txReference,
+          amount: billData.amount,
+          provider: utilityProvider,
+          customerId
         });
-
-        toast({
-          title: 'Success',
-          description: result.message || 'Bill payment completed successfully',
-        });
-
-        onSuccess?.(billData.amount, selectedBiller.name);
-        form.reset();
-        setBillData(null);
-        setSelectedBiller(null);
-        setValidationMessage('');
+        window.location.href = successUrl;
       } else {
         throw new Error(result.message || 'Payment failed');
       }
@@ -481,6 +479,9 @@ export function VFDBillPayment({ onSuccess, onError }: VFDBillPaymentProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Payment Receipt</DialogTitle>
+            <DialogDescription>
+              Your bill payment receipt details
+            </DialogDescription>
           </DialogHeader>
           {receiptData && <DynamicReceipt receipt={receiptData} />}
         </DialogContent>

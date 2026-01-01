@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
+import { ThemeProvider } from '@/context/theme-context';
 import BackButton from '@/components/layout/back-button';
 import { ErrorBoundary } from '@/components/error-boundary';
 
@@ -26,13 +27,15 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ErrorBoundary>
-          <AuthProvider>
-            <BackButton />
-            <NotificationProvider>
-              {children}
-              <Toaster />
-            </NotificationProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <BackButton />
+              <NotificationProvider>
+                {children}
+                <Toaster />
+              </NotificationProvider>
+            </AuthProvider>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>

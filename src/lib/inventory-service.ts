@@ -251,5 +251,53 @@ export const inventoryService = {
     });
     
     return true;
+  },
+
+  // New methods to connect stock, products, and suppliers
+  async getProductStock(productId: string, locationId: string): Promise<number> {
+    if (!supabaseAdmin) return 0;
+    const { data } = await supabaseAdmin.from('inventory_stock')
+      .select('quantity').eq('product_id', productId).eq('location_id', locationId).single();
+    return data?.quantity || 0;
+  },
+
+  async updateProductTotalStock(productId: string): Promise<boolean> {
+    if (!supabaseAdmin) return false;
+    
+    // Calculate total stock across all locations
+    const { data: stockData } = await supabaseAdmin.from('inventory_stock')
+      .select('quantity').eq('product_id', productId);
+    
+    const totalStock = stockData?.reduce((sum, stock) => sum + (stock.quantity || 0), 0) || 0;
+    
+    // Update product with total stock count
+    const { error } = await supabaseAdmin.from('inventory_products')
+      .update({ total_stock: totalStock, updated_at: new Date().toISOString() })
+      .eq('id', productId);
+    
+    return !error;
+  },
+
+  async updateSupplierStockCount(productId: string, stockIncrease: number): Promise<boolean> {
+    if (!supabaseAdmin) return false;
+    
+    // Get product's supplier
+    const { data: product } = await supabaseAdmin.from('inventory_products')
+      .select('supplier_id').eq('id', productId).single();
+    
+    if (!product?.supplier_id) return true; // No supplier assigned
+    
+    // Update supplier's total stock count
+    const { data: supplier } = await supabaseAdmin.from('inventory_suppliers')
+      .select('total_products_supplied').eq('id', product.supplier_id).single();
+    
+    const currentCount = supplier?.total_products_supplied || 0;
+    const newCount = currentCount + stockIncrease;
+    
+    const { error } = await supabaseAdmin.from('inventory_suppliers')
+      .update({ total_products_supplied: newCount, updated_at: new Date().toISOString() })
+      .eq('id', product.supplier_id);
+    
+    return !error;
   }
 };

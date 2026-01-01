@@ -247,28 +247,25 @@ export function BettingForm() {
             category: 'transaction',
         });
         
-        // Generate receipt using template
-        const receiptData = {
-          biller: { id: fundingData.platform, name: platformName },
-          amount: fundingData.amount,
-          accountId: fundingData.accountId,
-          verifiedName,
-          transactionId: clientReference,
-          completedAt: new Date().toISOString(),
-        };
+        // Get the transaction reference from response (use VFD reference if available)
+        const txReference = result.data?.reference || result.reference || clientReference;
+        const selectedPlatform = bettingPlatforms.find(p => p.id === fundingData.platform);
+        const platformDisplayName = selectedPlatform?.name || 'Betting Platform';
         
-        const pendingReceipt = {
-          type: 'betting' as const,
-          data: receiptData,
-          recipientName: verifiedName,
-          reference: clientReference,
-          amount: fundingData.amount,
-        };
-        await pendingTransactionService.savePendingReceipt(pendingReceipt);
         form.reset();
         setIsPinModalOpen(false);
         setVerifiedName(null);
-        router.push('/success');
+        
+        // Redirect directly to success page with transaction data
+        const successUrl = `/success?ref=${encodeURIComponent(txReference)}&type=betting&amount=${fundingData.amount}&platform=${encodeURIComponent(platformDisplayName)}&accountId=${encodeURIComponent(fundingData.accountId)}`;
+        console.log('[Betting] Redirecting to:', successUrl);
+        console.log('[Betting] URL components:', {
+          txReference,
+          amount: fundingData.amount,
+          platform: platformDisplayName,
+          accountId: fundingData.accountId
+        });
+        window.location.href = successUrl;
 
     } catch (error: any) {
         let description = "An unknown error occurred.";

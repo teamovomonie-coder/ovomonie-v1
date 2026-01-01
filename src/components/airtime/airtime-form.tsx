@@ -182,6 +182,8 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         });
 
         const result = await response.json();
+        console.log('[AirtimeForm] Payment response:', result);
+        
         if (!response.ok) {
             const error: any = new Error(result.message || 'Airtime purchase failed.');
             error.response = response;
@@ -194,8 +196,22 @@ function AirtimePurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) =
         form.reset();
         setPurchaseData(null);
         
-        // Navigate to receipt page with transaction reference
-        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
+        // Get the transaction reference from response (use VFD reference if available)
+        const txReference = result.data?.reference || result.reference || clientReference;
+        
+        console.log('[AirtimeForm] Payment successful, redirecting to success with reference:', txReference);
+        
+        // Redirect directly to success page with reference and additional params for fallback
+        const successUrl = `/success?ref=${encodeURIComponent(txReference)}&type=airtime&amount=${purchaseData.amount}&network=${encodeURIComponent(networks.find(n => n.id === purchaseData.network)?.name || 'MTN')}&phone=${encodeURIComponent(purchaseData.phoneNumber)}`;
+        console.log('[AirtimeForm] Redirecting to:', successUrl);
+        window.location.href = successUrl;
+        
+        // Also show success notification
+        addNotification({
+            title: 'Airtime Purchase Successful',
+            description: `₦${purchaseData.amount.toLocaleString()} airtime sent to ${purchaseData.phoneNumber}`,
+            category: 'transaction',
+        });
 
     } catch(error: any) {
         let description = "An unknown error occurred.";
@@ -321,6 +337,8 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         });
 
         const result = await response.json();
+        console.log('[DataForm] Payment response:', result);
+        
         if (!response.ok) {
             const error: any = new Error(result.message || 'Data purchase failed.');
             error.response = response;
@@ -333,8 +351,22 @@ function DataPurchaseForm({ onPurchase }: { onPurchase: (data: ReceiptData) => v
         form.reset();
         setPurchaseData(null);
         
-        // Navigate to receipt page with transaction reference
-        router.push(`/receipt/${encodeURIComponent(clientReference)}`);
+        // Get the transaction reference from response (use VFD reference if available)
+        const txReference = result.data?.reference || result.reference || clientReference;
+        
+        console.log('[DataForm] Payment successful, redirecting to success with reference:', txReference);
+        
+        // Redirect directly to success page with reference and additional params for fallback
+        const successUrl = `/success?ref=${encodeURIComponent(txReference)}&type=data&amount=${purchaseData.plan.price}&network=${encodeURIComponent(networks.find(n => n.id === purchaseData.values.network)?.name || 'MTN')}&phone=${encodeURIComponent(purchaseData.values.phoneNumber)}&plan=${encodeURIComponent(purchaseData.plan.name)}`;
+        console.log('[DataForm] Redirecting to:', successUrl);
+        window.location.href = successUrl;
+        
+        // Also show success notification
+        addNotification({
+            title: 'Data Purchase Successful',
+            description: `${purchaseData.plan.name} sent to ${purchaseData.values.phoneNumber}`,
+            category: 'transaction',
+        });
     } catch (error: any) {
         let description = "An unknown error occurred.";
         if (error.response?.status === 401) {

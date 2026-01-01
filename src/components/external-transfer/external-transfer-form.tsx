@@ -33,6 +33,7 @@ import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 import { MockAccounts } from './mock-accounts';
+import { generateTransactionReference } from '@/lib/transaction-utils';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -91,7 +92,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             </div>
             <div className="flex justify-between">
               <span>Ref ID</span>
-              <span>OVO-EXT-{Date.now()}</span>
+              <span>OVO-EXT-{generateTransactionReference('memo').slice(-8)}</span>
             </div>
           </div>
         </div>
@@ -265,7 +266,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         throw new Error('Authentication token not found. Please log in again.');
       }
       
-      const clientReference = `external-transfer-${crypto.randomUUID()}`;
+      const clientReference = generateTransactionReference('external-transfer');
 
       const response = await fetch('/api/transfers/external', {
         method: 'POST',
@@ -325,8 +326,18 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         console.warn('[ExternalTransfer] could not save pending receipt', e);
       }
 
-      // Navigate to success page to show receipt
-      router.push('/success');
+      // Navigate to success page with URL parameters
+      const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+      const params = new URLSearchParams({
+        ref: result.data.transactionId || clientReference,
+        amount: submittedData.amount.toString(),
+        type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
+        recipientName: recipientName,
+        bankName: bankName,
+        accountNumber: submittedData.accountNumber,
+        ...(submittedData.narration && { narration: submittedData.narration })
+      });
+      window.location.href = `/success?${params.toString()}`;
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';

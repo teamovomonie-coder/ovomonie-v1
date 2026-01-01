@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getUserIdFromToken } from "@/lib/auth-helpers";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { logger } from "@/lib/logger";
 import bcrypt from "bcryptjs";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function GET() {
   try {
@@ -17,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("security_questions")
       .select("question1, question2, question3")
       .eq("user_id", userId)
@@ -55,7 +50,7 @@ export async function POST(request: Request) {
     const answer3Hash = await bcrypt.hash(answer3.toLowerCase().trim(), 10);
 
     // Check if user already has security questions
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from("security_questions")
       .select("id")
       .eq("user_id", userId)
@@ -63,7 +58,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       // Update existing
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("security_questions")
         .update({
           question1,
@@ -82,7 +77,7 @@ export async function POST(request: Request) {
       }
     } else {
       // Insert new
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("security_questions")
         .insert({
           user_id: userId,

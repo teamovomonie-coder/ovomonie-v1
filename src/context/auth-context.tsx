@@ -196,6 +196,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [fetchUserData, balance]);
 
   const login = useCallback(async (phone: string, pin: string, method: 'pin' | 'biometric' = 'pin') => {
+    // Import device fingerprinting
+    const { getCurrentDeviceFingerprint } = await import('@/lib/device-fingerprint');
+    const deviceFingerprint = getCurrentDeviceFingerprint();
+    
     if (method === 'biometric') {
       // For biometric login, we assume the biometric verification was already done
       // We just need to get the user data
@@ -221,14 +225,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, pin }),
       });
+      
+      const responseData = await res.json().catch(() => ({}));
+      
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || "Login failed.");
+        // Check if account is closed
+        if (responseData.accountClosed) {
+          throw new Error('Account is closed');
+        }
+        throw new Error(responseData.message || "Login failed.");
       }
-      const { token, userId } = await res.json();
+      
+      const { token, userId } = responseData;
       localStorage.setItem("ovo-auth-token", token);
       localStorage.setItem("ovo-user-id", userId);
       await fetchUserData();
+      
+      // Check if device needs liveness verification
+      try {
+        const deviceCheckRes = await fetch('/api/auth/device-check', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ deviceFingerprint }),
+        });
+        
+        const deviceResult = await deviceCheckRes.json();
+        
+        if (deviceResult.ok && deviceResult.requiresLiveness) {
+          // Trigger liveness check modal
+          window.dispatchEvent(new CustomEvent('show-liveness-check', {
+            detail: { deviceFingerprint }
+          }));
+        }
+      } catch (error) {
+        console.warn('Device check failed:', error);
+        // Continue with login even if device check fails
+      }
     }
   }, [fetchUserData]);
 

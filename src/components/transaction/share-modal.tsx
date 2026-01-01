@@ -42,24 +42,81 @@ export default function ShareModal({ open, onOpenChange, targetRef, title = 'Rec
       (element as HTMLElement).style.display = 'none';
     });
 
+    // Convert Next.js Image components and SVGs to regular img elements for better rendering
+    const imageElements = container.querySelectorAll('img');
+    const svgElements = container.querySelectorAll('svg');
+    const replacements: Array<{ element: Element; originalElement: Element }> = [];
+    
+    // Handle Next.js Image components
+    for (const img of imageElements) {
+      if (img.src) {
+        const newImg = document.createElement('img');
+        newImg.src = img.src;
+        newImg.style.width = img.style.width || img.getAttribute('width') + 'px' || '40px';
+        newImg.style.height = img.style.height || img.getAttribute('height') + 'px' || '40px';
+        newImg.style.objectFit = 'contain';
+        newImg.style.display = 'inline-block';
+        
+        replacements.push({ element: newImg, originalElement: img });
+        img.parentNode?.replaceChild(newImg, img);
+        
+        // Wait for image to load
+        await new Promise((resolve) => {
+          newImg.onload = resolve;
+          newImg.onerror = resolve;
+          setTimeout(resolve, 1000); // Fallback timeout
+        });
+      }
+    }
+    
+    // Handle SVG elements
+    for (const svg of svgElements) {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      
+      const img = document.createElement('img');
+      img.src = svgUrl;
+      img.style.width = svg.getAttribute('width') || '40px';
+      img.style.height = svg.getAttribute('height') || '40px';
+      img.style.display = 'inline-block';
+      
+      replacements.push({ element: img, originalElement: svg });
+      svg.parentNode?.replaceChild(img, svg);
+      
+      // Wait for image to load
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 1000); // Fallback timeout
+      });
+    }
+
     const scale = 2;
     try {
-      // html2canvas will capture the node into a canvas with consistent dimensions
       const canvas = await html2canvas(container, { 
         scale, 
         useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
+        allowTaint: false,
+        backgroundColor: null,
         width: container.offsetWidth,
         height: container.offsetHeight,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        ignoreElements: (element) => {
+          return element.classList.contains('no-capture');
+        }
       });
       return canvas;
     } finally {
       // Restore the original styles
       originalStyles.forEach(({ element, display }) => {
         (element as HTMLElement).style.display = display;
+      });
+      
+      // Restore original elements
+      replacements.forEach(({ element, originalElement }) => {
+        element.parentNode?.replaceChild(originalElement, element);
       });
     }
   };

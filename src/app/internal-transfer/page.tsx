@@ -21,7 +21,7 @@ export default function InternalTransferPage() {
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Send to any Ovomonie account instantly.</h1>
                 <p className="text-slate-600 text-sm">
-                  Verify recipient, add your note, and we’ll handle the rails with fintech-grade reliability.
+                  Verify recipient, add your note, and we'll handle the rails with fintech-grade reliability.
                 </p>
               </div>
               <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-inner">

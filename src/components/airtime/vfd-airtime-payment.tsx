@@ -21,6 +21,7 @@ import { Loader2, AlertCircle, CheckCircle, Phone } from 'lucide-react';
 import networks from './network-logos';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
+import { generateTransactionReference } from '@/lib/transaction-utils';
 
 const airtimeSchema = z.object({
   provider: z.string().min(1, 'Select a mobile provider'),
@@ -91,26 +92,55 @@ export function VFDAirtimePayment({ onSuccess, onError }: VFDAirtimePaymentProps
             billerId: airtimeData.phoneNumber,
           },
           narration: `Airtime purchase for ${airtimeData.phoneNumber}`,
-          clientReference: `airtime-${Date.now()}`,
+          clientReference: generateTransactionReference('airtime'),
         }),
       });
 
       const result = await response.json();
 
-      if (result.success && result.transaction_id) {
+      if (result.success) {
         setIsPinModalOpen(false);
         
         // Clear any old pending receipts
         try {
           localStorage.removeItem('ovo-pending-receipt');
-        } catch (e) {}
+        } catch (e) {
+          console.debug('[VFDAirtimePayment] Failed to clear localStorage:', e);
+        }
         
         // Clear old state
         form.reset();
         setAirtimeData(null);
         
-        // Navigate to receipt with fresh transaction ID
-        router.push(`/receipt/${result.transaction_id}?t=${Date.now()}`);
+        // Get transaction reference or ID
+        const txReference = result.data?.reference || result.reference || result.transaction_id || generateTransactionReference('airtime');
+        
+        // Get network name
+        const networkName = MOBILE_PROVIDERS.find(p => p.id === airtimeData.provider)?.name || airtimeData.provider;
+        
+        // Save receipt to database
+        try {
+          const { receiptService } = await import('@/lib/receipt-service');
+          await receiptService.saveReceipt(
+            userId,
+            transaction.id,
+            txReference,
+            'airtime',
+            {
+              amount: airtimeData.amount,
+              network: networkName,
+              phoneNumber: airtimeData.phoneNumber,
+              transactionId: txReference,
+              completedAt: new Date().toISOString()
+            }
+          );
+        } catch (error) {
+          console.error('[VFDAirtimePayment] Receipt save error:', error);
+        }
+        
+        // Redirect directly to success page with transaction data
+        const successUrl = `/success?amount=${airtimeData.amount}&network=${encodeURIComponent(networkName)}&phone=${encodeURIComponent(airtimeData.phoneNumber)}&type=airtime&ref=${encodeURIComponent(txReference)}`;
+        router.push(successUrl);
       } else {
         throw new Error(result.message || 'Payment failed');
       }

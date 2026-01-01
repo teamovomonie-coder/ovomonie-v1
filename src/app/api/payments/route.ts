@@ -3,10 +3,19 @@ import { getUserIdFromToken } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Vercel serverless function configuration
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
     try {
-        const userId = getUserIdFromToken(request.headers) || 'dev-user-fallback';
+        const userId = await getUserIdFromToken(request.headers);
         
+        if (!userId) {
+            return NextResponse.json({ message: 'User not found' }, { status: 401 });
+        }
+
         if (!supabaseAdmin) {
             return NextResponse.json({ message: 'Database not available' }, { status: 500 });
         }
@@ -82,12 +91,18 @@ export async function POST(request: Request) {
             },
             balance_after: newBalance,
             category: category,
+            // Note: status column doesn't exist in financial_transactions schema
+            // Transaction is considered completed once inserted
             metadata: {
                 service_type: category,
                 recipient: party.billerId,
                 network: party.name,
                 plan_name: party.planName,
-                vfd_reference: vfdResponse.reference
+                vfd_reference: vfdResponse.success && 'reference' in vfdResponse ? vfdResponse.reference : undefined,
+                phoneNumber: party.billerId,
+                platform: party.name,
+                accountId: party.billerId,
+                status: 'completed', // Store status in metadata instead
             }
         };
 
@@ -136,14 +151,59 @@ export async function POST(request: Request) {
             return NextResponse.json(payload, { status: 500 });
         }
 
+        // Save receipt to new receipt system using direct service call
+        // Disabled for now due to foreign key constraint issues
+        /*
+        try {
+          const { receiptService } = await import('@/lib/receipt-service');
+          const templateType = category === 'betting' ? 'betting' : category === 'airtime' || category === 'data' ? 'airtime' : 'utility';
+          
+          const receiptData = {
+            platform: category === 'betting' ? party.name : undefined,
+            accountId: category === 'betting' ? party.billerId : undefined,
+            network: category === 'airtime' || category === 'data' ? party.name : undefined,
+            phoneNumber: category === 'airtime' || category === 'data' ? party.billerId : undefined,
+            planName: category === 'data' ? party.planName : undefined,
+            biller: category !== 'betting' && category !== 'airtime' && category !== 'data' ? party.name : undefined,
+            amount: amountInKobo / 100,
+            transactionId: clientReference,
+            completedAt: new Date().toISOString(),
+          };
+          
+          const receiptId = await receiptService.saveReceipt(
+            userId,
+            transaction.id,
+            clientReference,
+            templateType,
+            receiptData
+          );
+          
+          if (receiptId) {
+            console.log(`[Payments API] Receipt saved with ID: ${receiptId} for payment: ${clientReference}`);
+          } else {
+            console.warn(`[Payments API] Failed to save receipt for payment: ${clientReference} - receipt tables may not exist`);
+          }
+        } catch (receiptError) {
+          console.error('[Payments API] Receipt save error:', receiptError);
+          // Don't fail the payment if receipt saving fails
+        }
+        */
+
         // Send notification
         await sendTransactionNotification(userId, transaction.id, category, amount, party);
 
-        // Return transaction ID for receipt navigation
+        // Return transaction details for receipt navigation
+        // Include both ID and reference so processing page can poll status
         return NextResponse.json({
             success: true,
             transaction_id: transaction.id,
-            message: 'Payment successful'
+            reference: clientReference,
+            data: {
+                reference: clientReference,
+                transactionId: transaction.id,
+            },
+            message: 'Payment successful',
+            newBalanceInKobo: newBalance
         });
 
     } catch (error: any) {
@@ -177,15 +237,15 @@ async function processVFDService(category: string, party: any, amount: number) {
     }
 }
 
-function getVFDEndpoint(category: string): string {
-    const endpoints = {
+function getVFDEndpoint(category: string): string | undefined {
+    const endpoints: Record<string, string | undefined> = {
         'airtime': process.env.VFD_AIRTIME_API_BASE,
         'data': process.env.VFD_DATA_API_BASE,
         'utility': process.env.VFD_BILLS_API_BASE,
         'cable tv': process.env.VFD_BILLS_API_BASE,
         'betting': process.env.VFD_BILLS_API_BASE
     };
-    return endpoints[category as keyof typeof endpoints] || process.env.VFD_BILLS_API_BASE;
+    return endpoints[category] || process.env.VFD_BILLS_API_BASE;
 }
 
 function buildVFDPayload(category: string, party: any, amount: number) {
@@ -201,6 +261,10 @@ function buildVFDPayload(category: string, party: any, amount: number) {
 // Notification Service
 async function sendTransactionNotification(userId: string, transactionId: string, category: string, amount: number, party: any) {
     try {
+        if (!supabaseAdmin) {
+            logger.warn('Supabase admin not available, skipping notification');
+            return;
+        }
         await supabaseAdmin.from('notifications').insert({
             user_id: userId,
             title: `${category.charAt(0).toUpperCase() + category.slice(1)} Purchase Successful`,
