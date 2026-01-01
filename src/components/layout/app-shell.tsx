@@ -196,7 +196,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white">
-                                        {unreadCount > 99 ? '99+' : (unreadCount > 9 ? '9+' : unreadCount)}
+                                        {unreadCount > 99 ? '99+' : unreadCount}
                                     </span>
                                 </span>
                             )}

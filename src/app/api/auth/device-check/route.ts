@@ -5,6 +5,7 @@ import { userService } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 
+<<<<<<< HEAD
 // Helper functions to detect device info from user agent
 function detectDeviceType(userAgent: string): string {
   const ua = userAgent.toLowerCase();
@@ -37,6 +38,8 @@ function detectOS(userAgent: string): string {
   return 'Unknown OS';
 }
 
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
 export async function POST(req: NextRequest) {
   try {
     const userId = getUserIdFromToken(req.headers);
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
+<<<<<<< HEAD
     const { deviceFingerprint, selfieImage, deviceMetadata } = await req.json();
     
     // Extract device metadata from request if provided, otherwise use defaults
@@ -57,6 +61,9 @@ export async function POST(req: NextRequest) {
                   'Unknown',
       location: 'Unknown' // Could be enhanced with IP geolocation
     };
+=======
+    const { deviceFingerprint, selfieImage } = await req.json();
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
 
     if (!deviceFingerprint) {
       return NextResponse.json({ ok: false, message: 'Device fingerprint required' }, { status: 400 });
@@ -84,6 +91,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+<<<<<<< HEAD
     // Check if device fingerprinting is enabled
     const deviceFingerprintingEnabled = user.device_fingerprinting_enabled ?? true; // Default enabled
     
@@ -113,6 +121,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user has liveness check enabled (for backward compatibility)
+=======
+    // Check if user has liveness check enabled
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
     const livenessEnabled = user.liveness_check_enabled ?? true; // Default enabled
 
     if (!livenessEnabled) {
@@ -123,6 +134,7 @@ export async function POST(req: NextRequest) {
           user_id: userId,
           device_fingerprint: deviceFingerprint,
           is_trusted: true,
+<<<<<<< HEAD
           last_used: new Date().toISOString(),
           device_name: deviceInfo.device_name,
           device_type: deviceInfo.device_type,
@@ -130,6 +142,9 @@ export async function POST(req: NextRequest) {
           os: deviceInfo.os,
           ip_address: deviceInfo.ip_address,
           location: deviceInfo.location
+=======
+          last_used: new Date().toISOString()
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
         });
 
       return NextResponse.json({ 
@@ -148,6 +163,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+<<<<<<< HEAD
     // Perform liveness check using VFD API
     try {
       // Remove data URL prefix if present
@@ -184,6 +200,22 @@ export async function POST(req: NextRequest) {
         // Still allow but log warning
       }
 
+=======
+    // Perform liveness check
+    try {
+      const livenessResult = await vfdWalletService.verifyLiveness({
+        accountNumber: user.account_number || 'DEV-ACCOUNT',
+        videoFrames: [selfieImage.replace(/^data:image\/\w+;base64,/, '')]
+      });
+
+      if (!livenessResult.isLive || livenessResult.confidence < 50) {
+        return NextResponse.json({
+          ok: false,
+          message: `Liveness check failed. Confidence: ${livenessResult.confidence.toFixed(1)}%`
+        }, { status: 400 });
+      }
+
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
       // Trust the device
       await supabaseAdmin
         .from('user_devices')
@@ -193,6 +225,7 @@ export async function POST(req: NextRequest) {
           is_trusted: true,
           last_used: new Date().toISOString(),
           liveness_verified: true,
+<<<<<<< HEAD
           liveness_score: livenessResult.probability * 100, // Store as 0-100 scale
           device_name: deviceInfo.device_name,
           device_type: deviceInfo.device_type,
@@ -200,13 +233,19 @@ export async function POST(req: NextRequest) {
           os: deviceInfo.os,
           ip_address: deviceInfo.ip_address,
           location: deviceInfo.location
+=======
+          liveness_score: livenessResult.confidence
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
         });
 
       logger.info('New device verified with liveness check', { 
         userId, 
         deviceFingerprint,
+<<<<<<< HEAD
         probability: livenessResult.probability,
         quality: livenessResult.quality,
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
         confidence: livenessResult.confidence 
       });
 
@@ -214,11 +253,15 @@ export async function POST(req: NextRequest) {
         ok: true,
         requiresLiveness: false,
         message: 'Device verified successfully',
+<<<<<<< HEAD
         data: { 
           probability: livenessResult.probability,
           quality: livenessResult.quality,
           confidence: livenessResult.confidence 
         }
+=======
+        data: { confidence: livenessResult.confidence }
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
       });
 
     } catch (error) {

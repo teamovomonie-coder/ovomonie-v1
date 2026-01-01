@@ -550,6 +550,7 @@ class VFDWalletService {
   /**
    * Liveness Check - Detect if user is physically present (anti-spoofing)
    * Based on: VFD Liveness Check API
+<<<<<<< HEAD
    * Endpoint: /checkliveness
    * Documentation: https://vbaas-docs.vfdtech.ng/docs/wallets-api/Products/wallets-api/#30-how-to-use-the-liveness-check-api
    * 
@@ -560,20 +561,29 @@ class VFDWalletService {
    * - Face: Single face, fully visible, no occlusions, 150x150px minimum
    * - Pupil distance: >= 50 pixels
    * - Rotation: ±30 degrees max
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
    */
   async verifyLiveness(request: LivenessCheckRequest): Promise<LivenessCheckResult> {
     const headers = await getVFDHeaders();
 
     logger.info('VFD Wallet: Liveness check initiated');
 
+<<<<<<< HEAD
     // Remove data URL prefix if present (data:image/jpeg;base64,)
     const base64Image = request.base64Image.replace(/^data:image\/\w+;base64,/, '');
 
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
     const response = await fetch(`${BASE_URL}/checkliveness`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
+<<<<<<< HEAD
         base64Image
+=======
+        base64Image: request.videoFrames[0] // Use first frame
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
       }),
     });
 
@@ -584,6 +594,7 @@ class VFDWalletService {
     });
 
     if (!response.ok || !responseText.trim()) {
+<<<<<<< HEAD
       logger.error('VFD Liveness check HTTP error', { 
         status: response.status, 
         responseText: responseText.substring(0, 200) 
@@ -598,6 +609,12 @@ class VFDWalletService {
       logger.error('VFD Liveness check parse error', { responseText: responseText.substring(0, 200) });
       throw new Error('Liveness check failed: Invalid response format');
     }
+=======
+      throw new Error('Liveness check failed');
+    }
+
+    const result = JSON.parse(responseText);
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
     
     if (result.status !== '00') {
       logger.warn('VFD Liveness check failed', { 
@@ -608,6 +625,7 @@ class VFDWalletService {
     }
 
     const data = result.data;
+<<<<<<< HEAD
     if (!data || typeof data.probability === 'undefined') {
       logger.error('VFD Liveness check missing data', { result });
       throw new Error('Liveness check failed: Invalid response data');
@@ -627,13 +645,26 @@ class VFDWalletService {
       score,
       quality,
       confidence
+=======
+    const isLive = parseFloat(data.probability) > 0.5;
+    const confidence = parseFloat(data.probability) * 100;
+    
+    logger.info('VFD Liveness check complete', { 
+      accountNumber: request.accountNumber,
+      isLive,
+      confidence,
+      probability: data.probability
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
     });
 
     return {
       isLive,
+<<<<<<< HEAD
       probability,
       score,
       quality,
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
       confidence,
       verificationDate: new Date().toISOString()
     };

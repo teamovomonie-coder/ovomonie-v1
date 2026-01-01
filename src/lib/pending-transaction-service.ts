@@ -58,6 +58,15 @@ class PendingTransactionService {
       receipt.reference = `ovo-${receipt.type}-${Date.now()}`;
     }
 
+    // For bill-payment, betting, and airtime receipts, clear any old receipts first
+    // This ensures we don't display previous transfers or other transactions
+    const billPaymentTypes = ['bill-payment', 'betting', 'airtime'];
+    if (receipt.type && billPaymentTypes.includes(receipt.type)) {
+      // Clear old receipts before saving new one to prevent showing stale data
+      this.clearLocalStorage();
+      console.debug('[PendingTransactionService] Cleared old receipts before saving:', receipt.type);
+    }
+
     // Save to localStorage for immediate access (backward compatibility)
     this.setLocalStorage(receipt);
 

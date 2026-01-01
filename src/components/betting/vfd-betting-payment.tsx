@@ -21,6 +21,7 @@ import { useBettingPayment } from '@/hooks/use-vfd-payment';
 import { Loader2, AlertCircle, CheckCircle, Dice5 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
+import { generateTransactionReference } from '@/lib/transaction-utils';
 
 const bettingSchema = z.object({
   bettingPlatform: z.string().min(1, 'Select a betting platform'),
@@ -96,20 +97,18 @@ export function VFDBettingPayment({ onSuccess, onError }: VFDBettingPaymentProps
   const handlePaymentSuccess = (amount: number, platform: string) => {
     const platformName = BETTING_PLATFORMS.find((p) => p.id === platform)?.name || platform;
 
-    // Save receipt data for success page
-    const receiptData = {
-      type: 'betting',
-      data: {
-        platform,
-        accountId: bettingData?.accountId || 'N/A',
-        amount,
-      },
-      recipientName: platformName,
-      transactionId: bettingPayment.reference || `betting_${Date.now()}`,
-      completedAt: new Date().toISOString(),
-    };
-    localStorage.setItem('ovo-pending-receipt', JSON.stringify(receiptData));
+    // Get transaction reference from payment hook
+    const txReference = bettingPayment.reference || generateTransactionReference('betting');
 
+    console.log('[VFDBettingPayment] Payment successful, redirecting to success with reference:', txReference);
+
+    // Redirect directly to success page with reference
+    if (typeof window !== 'undefined') {
+      window.location.href = `/success?ref=${encodeURIComponent(txReference)}`;
+      return;
+    }
+
+    // Fallback: if no window, show success message
     addNotification({
       title: 'Betting Account Funded',
       description: `₦${amount.toLocaleString()} deposited to your ${platformName} account`,

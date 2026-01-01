@@ -7,6 +7,11 @@ import { vfdWalletService } from '@/lib/vfd-wallet-service';
 import { getVFDAccessToken } from '@/lib/vfd-auth';
 import { validatePayment } from '@/lib/payment-validator';
 
+// Vercel serverless function configuration
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 /**
  * Check VFD API connectivity before processing transfers
  */

@@ -188,9 +188,12 @@ body {
   }
   .dark .animated-gradient-bg {
     background: linear-gradient(-45deg, hsl(220 25% 12%), hsl(220 30% 8%), hsl(220 25% 12%), hsl(220 30% 8%));
+<<<<<<< HEAD
     background-size: 400% 400%;
     animation: wave 15s ease infinite;
   }
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
     background-size: 400% 400%;
     animation: wave 15s ease infinite;
   }

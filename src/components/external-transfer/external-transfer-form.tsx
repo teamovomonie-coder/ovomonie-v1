@@ -33,6 +33,7 @@ import { useNotifications } from '@/context/notification-context';
 import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 import { MockAccounts } from './mock-accounts';
+import { generateTransactionReference } from '@/lib/transaction-utils';
 
 const formSchema = z.object({
   bankCode: z.string().min(1, 'Please select a bank.'),
@@ -91,7 +92,7 @@ function MemoReceipt({ data, recipientName, onReset }: { data: FormData; recipie
             </div>
             <div className="flex justify-between">
               <span>Ref ID</span>
-              <span>OVO-EXT-{Date.now()}</span>
+              <span>OVO-EXT-{generateTransactionReference('memo').slice(-8)}</span>
             </div>
           </div>
         </div>
@@ -265,7 +266,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         throw new Error('Authentication token not found. Please log in again.');
       }
       
-      const clientReference = `external-transfer-${crypto.randomUUID()}`;
+      const clientReference = generateTransactionReference('external-transfer');
 
       const response = await fetch('/api/transfers/external', {
         method: 'POST',
@@ -348,6 +349,7 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
         category: 'transaction',
       });
 
+<<<<<<< HEAD
       // Navigate to success page with receipt data and fallback to receipt page
       console.log('Navigating to success page with receipt data');
       
@@ -362,6 +364,42 @@ export function ExternalTransferForm({ defaultMemo = false }: { defaultMemo?: bo
       sessionStorage.setItem('ovo-receipt-fallback', receiptUrl);
       sessionStorage.setItem('ovo-api-receipt-url', apiReceiptUrl);
       router.push(successUrl);
+=======
+      updateBalance(result.data.newBalanceInKobo);
+      setIsPinModalOpen(false);
+
+      // Save receipt data for success page
+      try {
+        const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+        const receiptData = {
+          type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
+          data: submittedData,
+          recipientName,
+          bankName,
+          reference: clientReference,
+          amount: submittedData.amount,
+          transactionId: result.data.transactionId || clientReference,
+          completedAt: new Date().toLocaleString(),
+        };
+        await pendingTransactionService.savePendingReceipt(receiptData);
+        localStorage.setItem('ovo-pending-receipt', JSON.stringify(receiptData));
+      } catch (e) {
+        console.warn('[ExternalTransfer] could not save pending receipt', e);
+      }
+
+      // Navigate to success page with URL parameters
+      const bankName = nigerianBanks.find(b => b.code === submittedData.bankCode)?.name || 'Unknown Bank';
+      const params = new URLSearchParams({
+        ref: result.data.transactionId || clientReference,
+        amount: submittedData.amount.toString(),
+        type: isMemoTransfer ? 'memo-transfer' : 'external-transfer',
+        recipientName: recipientName,
+        bankName: bankName,
+        accountNumber: submittedData.accountNumber,
+        ...(submittedData.narration && { narration: submittedData.narration })
+      });
+      window.location.href = `/success?${params.toString()}`;
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
       
     } catch (error: any) {
       let description = 'An unknown error occurred.';

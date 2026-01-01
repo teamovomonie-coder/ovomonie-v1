@@ -329,39 +329,28 @@ export function BillerList() {
             throw error;
         }
 
-        updateBalance(result.newBalanceInKobo);
-        addNotification({
-            title: 'Bill Payment Successful',
-            description: paymentData.description,
-            category: 'transaction',
-        });
+        // Clear any old receipt state
+        try {
+          localStorage.removeItem('ovo-pending-receipt');
+        } catch (e) {
+          console.debug('[BillerList] Failed to clear localStorage:', e);
+        }
 
-                const bouquet = selectedBiller?.category === 'Cable TV' ? bouquets[selectedBiller.id].find(b => b.id === selectedBouquetId) : undefined;
-
-                // Save pending receipt and navigate to /success
-                const receiptData = result.data?.receipt || {
-                    biller: { id: selectedBiller!.id, name: selectedBiller!.name },
-                    amount: paymentData.amount,
-                    accountId,
-                    verifiedName: verifiedInfo?.name || verifiedName,
-                    bouquet: bouquet || null,
-                    transactionId: clientReference,
-                    completedAt: new Date().toISOString(),
-                    category: selectedBiller.category,
-                };
-                
-                const pendingReceipt = {
-                    type: 'bill-payment' as const,
-                    data: receiptData,
-                    reference: clientReference,
-                    amount: paymentData.amount,
-                };
-                // Debug: log pending receipt payload to help diagnose malformed data issues
-                try { console.debug('[BillerList] pendingReceipt', pendingReceipt); } catch (e) {}
-                await pendingTransactionService.savePendingReceipt(pendingReceipt);
-                setIsPinModalOpen(false);
-                resetDialogState();
-                router.push('/success');
+        // Get transaction reference from response
+        const txReference = result.data?.reference || clientReference;
+        const utilityProvider = selectedBiller.name;
+        const customerId = accountId;
+        
+        console.log('[BillerList] Payment successful, preparing redirect');
+        console.log('[BillerList] Transaction data:', { txReference, amount: paymentData.amount, provider: utilityProvider, customerId });
+        
+        setIsPinModalOpen(false);
+        resetDialogState();
+        
+        // Redirect directly to success page with transaction data
+        const successUrl = `/success?ref=${encodeURIComponent(txReference)}&type=utility&amount=${paymentData.amount}&provider=${encodeURIComponent(utilityProvider)}&customerId=${encodeURIComponent(customerId)}`;
+        console.log('[BillerList] Redirecting to:', successUrl);
+        window.location.href = successUrl;
 
     } catch (error: any) {
         let description = "An unknown error occurred.";

@@ -5,6 +5,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { validatePayment } from '@/lib/payment-validator';
 import { z } from 'zod';
 
+// Vercel serverless function configuration
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 const transferSchema = z.object({
   recipientAccountNumber: z.string().min(10),
   amount: z.number().positive(),

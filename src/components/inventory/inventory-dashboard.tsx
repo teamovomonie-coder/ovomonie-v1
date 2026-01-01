@@ -314,7 +314,7 @@ function StockAdjustmentDialog({ product, locations, onAdjust, open, onOpenChang
 
     const watchedLocationId = form.watch('locationId');
     const currentStockAtLocation = useMemo(() => {
-        return product.stockByLocation.find(s => s.locationId === watchedLocationId)?.quantity || 0;
+        return (product.stockByLocation || []).find(s => s.locationId === watchedLocationId)?.quantity || 0;
     }, [product, watchedLocationId]);
 
     useEffect(() => {
@@ -1076,6 +1076,9 @@ export function InventoryDashboard() {
                                                 <div className="text-xs text-muted-foreground">{supplier.email}</div>
                                             </TableCell>
                                             <TableCell>{products.filter(p => p.supplierId === supplier.id).length}</TableCell>
+                                            <TableCell className="font-semibold text-primary">
+                                                {products.filter(p => p.supplierId === supplier.id).reduce((sum, p) => sum + (p.stockByLocation?.reduce((s, loc) => s + loc.quantity, 0) || 0), 0)} units
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -1110,6 +1113,7 @@ export function InventoryDashboard() {
                                         <TableHead>Name</TableHead>
                                         <TableHead className="hidden sm:table-cell">Address</TableHead>
                                         <TableHead>Products In Stock</TableHead>
+                                        <TableHead>Total Stock</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1119,6 +1123,9 @@ export function InventoryDashboard() {
                                             <TableCell className="font-medium">{location.name}</TableCell>
                                             <TableCell className="hidden sm:table-cell">{location.address || 'N/A'}</TableCell>
                                             <TableCell>{products.filter(p => p.stockByLocation?.some(s => s.locationId === location.id && s.quantity > 0)).length}</TableCell>
+                                            <TableCell className="font-semibold text-primary">
+                                                {products.reduce((sum, p) => sum + (p.stockByLocation?.find(s => s.locationId === location.id)?.quantity || 0), 0)} units
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

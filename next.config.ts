@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  // Optimize for Vercel deployment
+  output: 'standalone',
+  compress: true,
+  poweredByHeader: false,
   transpilePackages: [],
   images: {
     remotePatterns: [

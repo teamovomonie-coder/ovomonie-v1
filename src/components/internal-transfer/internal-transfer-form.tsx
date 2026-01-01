@@ -31,6 +31,7 @@ import { generateReceiptImage } from '@/ai/flows/generate-receipt-image-flow';
 import { pendingTransactionService } from '@/lib/pending-transaction-service';
 
 import { displayToAccountNumber } from '@/lib/account-utils';
+import { generateTransactionReference } from '@/lib/transaction-utils';
 
 const formSchema = z.object({
   accountNumber: z.string().length(10, 'Account number must be 10 digits.'),
@@ -190,7 +191,7 @@ export function InternalTransferForm() {
     setStep('summary');
   }
 
-  const handleFinalSubmit = useCallback(async (pin?: string) => {
+      const handleFinalSubmit = useCallback(async (pin?: string) => {
     if (!submittedData || !recipientName) return;
     if (!pin || pin.length !== 4) {
       setApiError('Please enter your 4-digit transaction PIN.');
@@ -205,7 +206,7 @@ export function InternalTransferForm() {
         throw new Error('Authentication token not found. Please log in again.');
       }
       
-      const clientReference = `internal-transfer-${crypto.randomUUID()}`;
+      const clientReference = generateTransactionReference('internal-transfer');
 
       // Debug: log outgoing internal transfer request
       console.debug('[InternalTransfer] internal transfer request', { url: '/api/transfers/internal', tokenPresent: Boolean(token), payload: { clientReference, recipientAccountNumber: submittedData.accountNumber, amount: submittedData.amount } });
@@ -267,8 +268,17 @@ export function InternalTransferForm() {
         console.warn('[InternalTransfer] could not save pending receipt', e);
       }
 
-      // Navigate to success page
-      router.push('/success');
+      // Navigate to success page with URL parameters
+      const params = new URLSearchParams({
+        ref: result.data.transactionId || `OVO-INT-${Date.now()}`,
+        amount: amountToSend.toString(),
+        type: isMemoTransfer ? 'memo-transfer' : 'internal-transfer',
+        recipientName: recipientName,
+        bankName: 'Ovomonie',
+        accountNumber: submittedData.accountNumber,
+        ...(submittedData.narration && { narration: submittedData.narration })
+      });
+      window.location.href = `/success?${params.toString()}`;
       return { success: true, data: result.data };
       
     } catch (error: any) {

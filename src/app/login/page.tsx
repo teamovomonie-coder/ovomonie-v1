@@ -40,6 +40,7 @@ function LoginFormContent() {
   const [lastUsedPhone, setLastUsedPhone] = useState('');
   const [showRecovery, setShowRecovery] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
+<<<<<<< HEAD
   const [showLivenessCheck, setShowLivenessCheck] = useState(false);
   const [deviceFingerprint, setDeviceFingerprint] = useState('');
   
@@ -56,6 +57,8 @@ function LoginFormContent() {
       window.removeEventListener('show-liveness-check', handleLivenessCheck as EventListener);
     };
   }, []);
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
   
   useEffect(() => {
     const initBiometric = async () => {
@@ -152,6 +155,7 @@ function LoginFormContent() {
     setShowBiometric(false);
   };
 
+<<<<<<< HEAD
   const handleLivenessSuccess = () => {
     setShowLivenessCheck(false);
     // Continue with login flow - user is already logged in
@@ -159,6 +163,8 @@ function LoginFormContent() {
     router.push(callbackUrl);
   };
 
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
   const handleRecoverAccount = async () => {
     const phone = form.getValues('phone');
     const pin = form.getValues('pin');

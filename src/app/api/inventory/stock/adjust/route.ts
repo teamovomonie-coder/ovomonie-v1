@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const userId = getUserIdFromToken(request.headers) || 'dev-user-fallback';
 
     const body = await request.json();
-    const { product_id, location_id, adjustment, notes, productId, locationId, newStock } = body;
+    const { product_id, location_id, adjustment, notes, productId, locationId, newStock, reason } = body;
 
     // Handle both old and new parameter formats
     const finalProductId = product_id || productId;
@@ -18,16 +18,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product ID, location ID, and adjustment are required' }, { status: 400 });
     }
 
+    // Get current stock to calculate the difference
+    const currentStock = await inventoryService.getProductStock(finalProductId, finalLocationId);
+    const stockDifference = finalAdjustment - (currentStock || 0);
+
     const success = await inventoryService.adjustStock(
       finalProductId,
       finalLocationId,
-      parseInt(finalAdjustment),
+      finalAdjustment,
       userId,
-      notes
+      notes || reason
     );
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to adjust stock' }, { status: 500 });
+    }
+
+    // Update product total stock count
+    await inventoryService.updateProductTotalStock(finalProductId);
+
+    // If stock is being added, update supplier stock count
+    if (stockDifference > 0) {
+      await inventoryService.updateSupplierStockCount(finalProductId, stockDifference);
     }
 
     return NextResponse.json({ success: true, message: 'Stock adjusted successfully' });

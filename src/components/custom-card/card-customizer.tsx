@@ -250,6 +250,14 @@ export function CardCustomizer() {
       toast({ variant: 'destructive', title: 'Insufficient Funds', description: 'You need at least ₦1,000 to create a virtual card.' });
       return;
     }
+    
+    // Check if user already has an active virtual card
+    const hasActiveCard = virtualCards.some(card => card.isActive);
+    if (hasActiveCard) {
+      toast({ variant: 'destructive', title: 'Card Limit Reached', description: 'You already have an active virtual card. Please delete your existing card first.' });
+      return;
+    }
+    
     // Use VFD API directly
     await handleCreateVFDCard('VIRTUAL');
   };
@@ -495,53 +503,59 @@ export function CardCustomizer() {
       if (!token) throw new Error('Authentication token not found.');
 
       const card = virtualCards.find(c => c.id === cardId);
+      if (!card) {
+        // If card not found in local state, just remove from UI
+        setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+        setManageModalOpen(false);
+        setPendingManageAction(null);
+        toast({ title: 'Card Removed', description: 'Card has been removed from your list.' });
+        return;
+      }
       
-      // Use VFD API for VFD cards
-      if (card?.isVFDCard) {
-        const res = await fetch('/api/cards/debit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ 
-            action: action === 'deactivate' ? 'block' : action,
-            cardId,
-            reason: 'User requested'
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
-
-        if (action === 'deactivate') {
-          setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false, status: 'BLOCKED' } : c));
-          toast({ title: 'Card Blocked', description: json.message || 'Card has been blocked.' });
-        } else if (action === 'delete') {
-          setVirtualCards(prev => prev.filter(c => c.id !== cardId));
-          toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
+      // Always use VFD API for card management
+      const res = await fetch('/api/cards/debit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ 
+          action: action === 'deactivate' ? 'block' : action,
+          cardId,
+          reason: 'User requested'
+        }),
+      });
+      const json = await res.json();
+      
+      // Always update UI state regardless of API response for deletion
+      if (action === 'delete') {
+        const updatedCards = virtualCards.filter(c => c.id !== cardId);
+        setVirtualCards(updatedCards);
+        // Update localStorage immediately to prevent deleted cards from reappearing
+        try {
+          localStorage.setItem('ovo-virtual-cards', JSON.stringify(updatedCards.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), expiresAt: c.expiresAt.toISOString() }))));
+        } catch (e) {
+          localStorage.removeItem('ovo-virtual-cards');
         }
-      } else {
-        // Use existing API for non-VFD cards
-        const res = await fetch(`/api/cards/virtual/${encodeURIComponent(cardId)}/manage`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ action }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || 'Failed to perform action.');
-
-        if (action === 'deactivate') {
-          setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false } : c));
-          toast({ title: 'Card Deactivated', description: json.message || 'Card has been deactivated.' });
-        } else if (action === 'delete') {
-          setVirtualCards(prev => prev.filter(c => c.id !== cardId));
-          toast({ title: 'Card Deleted', description: json.message || 'Card has been removed.' });
-        }
+        toast({ title: 'Card Deleted', description: 'Card has been removed.' });
+      } else if (res.ok && action === 'deactivate') {
+        setVirtualCards(prev => prev.map(c => c.id === cardId ? { ...c, isActive: false, status: 'BLOCKED' } : c));
+        toast({ title: 'Card Blocked', description: json.message || 'Card has been blocked.' });
+      } else if (!res.ok && action === 'deactivate') {
+        throw new Error(json.message || 'Failed to deactivate card.');
       }
 
       setManageModalOpen(false);
       setPendingManageAction(null);
     } catch (e: any) {
       console.error('Manage action error', e);
-      setManageError(e?.message || 'An error occurred while performing the action.');
-      toast({ variant: 'destructive', title: 'Action Failed', description: e?.message || 'Could not complete the action.' });
+      // For deletion, still remove from UI even if API fails
+      if (pendingManageAction?.action === 'delete') {
+        setVirtualCards(prev => prev.filter(c => c.id !== cardId));
+        toast({ title: 'Card Deleted', description: 'Card has been removed from your list.' });
+        setManageModalOpen(false);
+        setPendingManageAction(null);
+      } else {
+        setManageError(e?.message || 'An error occurred while performing the action.');
+        toast({ variant: 'destructive', title: 'Action Failed', description: e?.message || 'Could not complete the action.' });
+      }
     } finally {
       setManageProcessing(false);
     }
@@ -856,15 +870,17 @@ export function CardCustomizer() {
                     ))}
                   </div>
 
-                  <Button 
-                    onClick={handleCreateVirtualCard} 
-                    disabled={isActivatingCard}
-                    size="lg"
-                    className="w-full h-12 font-semibold"
-                  >
-                    {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                    Create Virtual Card
-                  </Button>
+                  {!virtualCards.some(card => card.isActive) && (
+                    <Button 
+                      onClick={handleCreateVirtualCard} 
+                      disabled={isActivatingCard}
+                      size="lg"
+                      className="w-full h-12 font-semibold"
+                    >
+                      {isActivatingCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Create Virtual Card
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

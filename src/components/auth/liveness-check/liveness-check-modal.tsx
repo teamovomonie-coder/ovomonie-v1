@@ -22,6 +22,7 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
   const captureSelfie = async () => {
     setIsCapturing(true);
     try {
+<<<<<<< HEAD
       // VFD Requirements: 600x800 to 960x1280 (portrait orientation)
       // Use higher resolution for better quality
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -31,6 +32,13 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
           facingMode: 'user',
           // Prefer higher quality
           aspectRatio: { ideal: 3/4 } // Portrait ratio
+=======
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user'
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
         } 
       });
       
@@ -92,6 +100,7 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
       
       captureBtn.onclick = () => {
         const canvas = document.createElement('canvas');
+<<<<<<< HEAD
         // Ensure minimum resolution per VFD requirements (600x800 minimum)
         const minWidth = 600;
         const minHeight = 800;
@@ -122,6 +131,14 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
         
         // VFD requires JPEG quality >= 70 (use 0.85 for better quality)
         const imageData = canvas.toDataURL('image/jpeg', 0.85);
+=======
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
         setSelfieImage(imageData);
         cleanup();
       };
@@ -190,10 +207,13 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
           </DialogTitle>
           <DialogDescription>
             For your security, we need to verify that it's really you logging in from this new device.
+<<<<<<< HEAD
             <br />
             <span className="text-xs text-muted-foreground mt-2 block">
               Please ensure you're in a well-lit area and your face is clearly visible.
             </span>
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
           </DialogDescription>
         </DialogHeader>
         
@@ -206,12 +226,15 @@ export function LivenessCheckModal({ open, onSuccess, onSkip, deviceFingerprint 
               <p className="text-sm text-muted-foreground">
                 Take a quick selfie to verify your identity
               </p>
+<<<<<<< HEAD
               <div className="text-xs text-muted-foreground space-y-1 mt-2">
                 <p>• Ensure good lighting</p>
                 <p>• Face the camera directly</p>
                 <p>• Remove sunglasses or face coverings</p>
                 <p>• Keep your face centered in the frame</p>
               </div>
+=======
+>>>>>>> bdfa5df0c5205cc449861319ccf64befb7271c2c
               <Button 
                 onClick={captureSelfie} 
                 disabled={isCapturing}

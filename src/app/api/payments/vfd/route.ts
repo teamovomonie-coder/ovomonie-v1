@@ -74,6 +74,37 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           });
 
+          // Also save receipt to new receipt system
+          try {
+            const receiptResponse = await fetch('/api/receipts', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: request.headers.get('Authorization') || '',
+              },
+              body: JSON.stringify({
+                transactionId: reference,
+                transactionReference: reference,
+                templateType: 'betting',
+                receiptData: {
+                  platform: paymentDetails.bettingProvider || 'Betting Platform',
+                  accountId: paymentDetails.metadata?.accountId || 'N/A',
+                  amount: amount,
+                  transactionId: reference,
+                  completedAt: new Date().toISOString(),
+                },
+              }),
+            });
+            
+            if (receiptResponse.ok) {
+              logger.info(`[VFD Payment] Receipt saved for betting payment: ${reference}`);
+            } else {
+              logger.warn(`[VFD Payment] Failed to save receipt for betting payment: ${reference}`);
+            }
+          } catch (receiptError) {
+            logger.error('[VFD Payment] Receipt save error:', receiptError);
+          }
+
           return NextResponse.json({
             success: true,
             message: 'Betting payment completed (development mode)',
